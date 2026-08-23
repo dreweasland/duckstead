@@ -56,6 +56,7 @@ export function drawDuck(ctx: CanvasRenderingContext2D, duck: Duck, opts: DrawOp
   drawHeadGroup(ctx, duck, colors, opts.anim);
 
   if (duck.activity === 'shake') drawShakeDroplets(ctx);
+  if (duck.activity === 'forage' && !opts.inWater) drawForageBits(ctx, opts.anim);
   if (opts.inWater) drawWaterline(ctx);
   if (duck.activity === 'dabble') drawDabbleRipple(ctx);
   ctx.restore();
@@ -406,6 +407,24 @@ function drawDabbleRipple(ctx: CanvasRenderingContext2D): void {
     ctx.beginPath();
     ctx.ellipse(22, 8, r, r * 0.4, 0, 0, Math.PI * 2);
     ctx.stroke();
+  }
+}
+
+// Seeds and grass bits flicked up in front of the bill while foraging,
+// timed to the pecks.
+function drawForageBits(ctx: CanvasRenderingContext2D, anim: AnimState): void {
+  const peck = Math.max(0, anim.headDip - 0.7) / 0.35; // 0 → 1 at the bottom of a peck
+  if (peck <= 0) return;
+  ctx.fillStyle = `rgba(120, 150, 70, ${0.7 * peck})`;
+  const bits: Array<[number, number, number]> = [
+    [24, 10 - peck * 6, 1.4],
+    [29, 8 - peck * 9, 1.1],
+    [20, 7 - peck * 4, 1],
+  ];
+  for (const [x, y, r] of bits) {
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
   }
 }
 

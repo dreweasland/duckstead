@@ -185,9 +185,14 @@ function decideActivity(state: GameState, duck: Duck, rng: Rng, night: boolean):
     return;
   }
 
-  if (roll < 0.26) {
+  if (roll < 0.14) {
     duck.activity = 'idle';
     duck.activityTimer = dur(40);
+  } else if (roll < 0.3) {
+    // Forage: nose along the grass in a slow zigzag.
+    duck.activity = 'forage';
+    duck.activityTimer = dur(50);
+    duck.heading = rng.range(0, Math.PI * 2);
   } else if (roll < 0.4) {
     duck.activity = 'preen';
     duck.activityTimer = dur(30);
@@ -229,6 +234,18 @@ function steer(
     case 'flap':
     case 'shake':
       break;
+    case 'forage': {
+      // Creep forward between pecks, veering now and then; water ends it.
+      speed = WADDLE_SPEED * 0.25;
+      if (rng.chance(0.03)) duck.heading += rng.range(-0.9, 0.9);
+      if (isInPond(state, duck.pos)) {
+        duck.activity = 'swim';
+        duck.activityTimer = 40;
+      }
+      // Nibbling keeps the peckish going a little longer.
+      if (rng.chance(1 / 200)) duck.needs.hunger = clamp(duck.needs.hunger + 1, 0, 100);
+      break;
+    }
     case 'waddle': {
       speed = WADDLE_SPEED;
       if (isNight(state.clock)) target = roostSpot(state, duck);

@@ -64,6 +64,15 @@ export function computeAnim(duck: Duck, timeMs: number): AnimState {
       // Excited tail wiggle between pecks.
       anim.tailWag = Math.sin(t * 14) * 0.14;
       break;
+    case 'forage':
+      // Head down in the grass, bill working, a slow step, tail twitching.
+      anim.headDip = 0.55 + Math.max(0, Math.sin(t * 4.5)) * 0.5;
+      anim.billOpen = Math.max(0, Math.sin(t * 9 + 1)) * 0.45;
+      anim.legPhase = (t * 0.9) % 1;
+      anim.bodyTilt = 0.08 + Math.sin(t * 4.5) * 0.03;
+      anim.tailWag = Math.sin(t * 7) * 0.1;
+      anim.bob = Math.abs(Math.sin(t * 0.9 * Math.PI * 2)) * 0.6;
+      break;
     case 'sleep':
       anim.headTuck = 1;
       anim.bob = Math.sin(t * 0.9) * 0.8;

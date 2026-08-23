@@ -35,6 +35,7 @@ export type Activity =
   | 'preen'
   | 'sit'
   | 'dabble' // tail-up feeding in the water
+  | 'forage' // nosing through the grass for seeds and bugs
   | 'flap' // stand tall and stretch the wings
   | 'shake'; // shake off water
 
