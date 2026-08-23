@@ -1,0 +1,13 @@
+// Cloudflare Workers (static assets) config. `npx wrangler deploy` uploads
+// the Vite build in ./dist and serves it from Cloudflare's edge; no Worker
+// script is needed for a static site. `public/_headers` is honoured.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "duck-homestead",
+  "compatibility_date": "2025-08-01",
+  "assets": {
+    "directory": "./dist",
+    // Single-page app: unknown paths fall back to index.html.
+    "not_found_handling": "single-page-application"
+  }
+}

@@ -160,11 +160,12 @@ The game is a static Vite build (`dist/`), hosted on **Cloudflare Pages**.
 
 - **CI** (`.github/workflows/ci.yml`) type-checks, runs the test suite, and
   builds on every push and pull request.
-- **Deploy** — easiest is Cloudflare's Git integration: in the Cloudflare
-  dashboard, Workers & Pages → Create → Pages → connect this GitHub repo with
-  build command `npm run build` and output directory `dist`. Every push to
-  `main` goes live and every PR gets a preview URL. (Node version is pinned
-  by `.nvmrc`.)
+- **Deploy** — Cloudflare's Git integration. In the dashboard, Workers &
+  Pages → Create → connect this GitHub repo. Build command `npm run build`;
+  the deploy command `npx wrangler deploy` uses `wrangler.jsonc` to publish
+  `dist` as Worker static assets. Every push to `main` goes live and every
+  PR gets a preview URL. (Node version is pinned by `.nvmrc`.) Connecting it
+  as a *Pages* project instead also works — use output directory `dist`.
 - Alternatively `.github/workflows/deploy.yml` publishes from GitHub Actions
   with Wrangler; set repository variable `CLOUDFLARE_PAGES_PROJECT` and
   secrets `CLOUDFLARE_API_TOKEN` (Pages: Edit) + `CLOUDFLARE_ACCOUNT_ID`. If
