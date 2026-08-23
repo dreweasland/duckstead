@@ -371,18 +371,31 @@ function steer(
     duck.heading = Math.atan2(target.y - duck.pos.y, target.x - duck.pos.x);
   } else {
     duck.heading += rng.range(-0.15, 0.15);
+    // Inside the pen: turn away from the fence rather than grinding on it,
+    // and ignore the pull of the flock outside.
+    if (duck.penned && duck.pennedInside) {
+      const r = penRect(state);
+      const m = 16;
+      const nx = duck.pos.x + Math.cos(duck.heading) * 6;
+      const ny = duck.pos.y + Math.sin(duck.heading) * 6;
+      if (nx < r.x + m || nx > r.x + r.w - m || ny < r.y + m || ny > r.y + r.h - m) {
+        const cx = r.x + r.w / 2;
+        const cy = r.y + r.h / 2;
+        duck.heading = Math.atan2(cy - duck.pos.y, cx - duck.pos.x) + rng.range(-0.8, 0.8);
+      }
+    }
     // The bottom strip of the world sits under the card rail on screen, so
     // wanderers drifting down there are nudged back up toward the action.
-    if (duck.pos.y > LOW_STRIP_Y) {
+    if (duck.pos.y > LOW_STRIP_Y && !duck.penned) {
       duck.heading += angleDiff(-Math.PI / 2, duck.heading) * 0.08;
     }
     // Sociable ducks drift toward the flock while wandering; loners don't.
-    if (sociability > 0.15 && flockSize > 1) {
+    if (!duck.penned && sociability > 0.15 && flockSize > 1) {
       const toFlock = Math.atan2(centroid.y - duck.pos.y, centroid.x - duck.pos.x);
       duck.heading += angleDiff(toFlock, duck.heading) * 0.025 * sociability;
     }
     // Best friends drift back toward each other when they stray apart.
-    if (duck.friendId) {
+    if (duck.friendId && !duck.penned) {
       const friend = state.ducks.find((d) => d.id === duck.friendId);
       if (friend && dist(duck.pos, friend.pos) > 140) {
         const toFriend = Math.atan2(friend.pos.y - duck.pos.y, friend.pos.x - duck.pos.x);

@@ -3,7 +3,7 @@ import { WORLD_H, WORLD_W } from '../state';
 import type { Season, Vec2 } from '../types';
 import { upgradeLevel, type DecorKind } from '../sim/economy';
 import { activeStyle, type StyleDef } from '../sim/society';
-import { penRect } from '../sim/pen';
+import { penRect, type PenRect } from '../sim/pen';
 import { drawDuck } from './duckPainter';
 import { createDuck } from '../sim/duck';
 import { representativeGenome } from '../sim/breedBook';
@@ -1180,17 +1180,32 @@ function drawBachelorPen(ctx: CanvasRenderingContext2D, state: GameState): void 
   ctx.fill();
   // Fence: posts every ~30px with two rails; gate (lighter, slatted) on the
   // pond side, centred.
-  const post = '#6b4a2e';
-  const rail = '#8a6238';
-  ctx.lineCap = 'round';
+  // The bottom rail is drawn by drawBachelorPenFront, over the ducks, so a
+  // duck standing at the front of the paddock shows behind the fence.
   const edges: Array<[number, number, number, number]> = [
     [r.x, r.y, r.x + r.w, r.y], // top
     [r.x + r.w, r.y, r.x + r.w, r.y + r.h], // right
-    [r.x, r.y + r.h, r.x + r.w, r.y + r.h], // bottom
     [r.x, r.y, r.x, r.y + r.h], // left (gate side)
   ];
   const gateY0 = r.y + r.h / 2 - 16;
   const gateY1 = r.y + r.h / 2 + 16;
+  drawFenceEdges(ctx, r, edges, gateY0, gateY1);
+  ctx.restore();
+}
+
+const FENCE_POST = '#6b4a2e';
+const FENCE_RAIL = '#8a6238';
+
+function drawFenceEdges(
+  ctx: CanvasRenderingContext2D,
+  r: PenRect,
+  edges: Array<[number, number, number, number]>,
+  gateY0: number,
+  gateY1: number,
+): void {
+  const post = FENCE_POST;
+  const rail = FENCE_RAIL;
+  ctx.lineCap = 'round';
   for (const [x0, y0, x1, y1] of edges) {
     const len = Math.hypot(x1 - x0, y1 - y0);
     const n = Math.max(2, Math.round(len / 30));
@@ -1226,18 +1241,28 @@ function drawBachelorPen(ctx: CanvasRenderingContext2D, state: GameState): void 
     }
   }
   // Gate: three pale slats and a diagonal brace, hinged at the top post.
-  ctx.strokeStyle = '#c9b58a';
-  ctx.lineWidth = 2;
-  for (const lift of [-12, -7, -2]) {
+  if (edges.some(([x0, , x1]) => x0 === x1 && x0 === r.x)) {
+    ctx.strokeStyle = '#c9b58a';
+    ctx.lineWidth = 2;
+    for (const lift of [-12, -7, -2]) {
+      ctx.beginPath();
+      ctx.moveTo(r.x - 2, gateY0 + lift + 2);
+      ctx.lineTo(r.x - 2, gateY1 + lift + 2);
+      ctx.stroke();
+    }
     ctx.beginPath();
-    ctx.moveTo(r.x - 2, gateY0 + lift + 2);
-    ctx.lineTo(r.x - 2, gateY1 + lift + 2);
+    ctx.moveTo(r.x - 2, gateY0 - 10);
+    ctx.lineTo(r.x - 2, gateY1);
     ctx.stroke();
   }
-  ctx.beginPath();
-  ctx.moveTo(r.x - 2, gateY0 - 10);
-  ctx.lineTo(r.x - 2, gateY1);
-  ctx.stroke();
+}
+
+// The paddock's front (bottom) rail, drawn after the ducks.
+export function drawBachelorPenFront(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (upgradeLevel(state, 'bachelorPen') === 0) return;
+  const r = penRect(state);
+  ctx.save();
+  drawFenceEdges(ctx, r, [[r.x, r.y + r.h, r.x + r.w, r.y + r.h]], 0, 0);
   ctx.restore();
 }
 

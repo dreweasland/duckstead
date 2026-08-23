@@ -9,7 +9,7 @@ import { VISITOR_FLY_TICKS, visitorFlightPos, visitorInFlight } from '../sim/vis
 import { isInPond } from '../sim/pond';
 import { computeAnim } from './animation';
 import { drawDuck } from './duckPainter';
-import { drawDecorations, drawDecorGhost, drawNightOverlay, drawScene, drawWeather, type DecorGhost } from './scene';
+import { drawBachelorPenFront, drawDecorations, drawDecorGhost, drawNightOverlay, drawScene, drawWeather, type DecorGhost } from './scene';
 
 interface Particle {
   x: number;
@@ -126,6 +126,8 @@ export class Renderer {
     }
 
     this.drawVisitor(ctx, timeMs, alpha);
+    // The pen's front rail goes over the ducks inside it.
+    drawBachelorPenFront(ctx, state);
     // Decorations sit in front of everything on the ground.
     drawDecorations(ctx, state, timeMs / 1000, this.decorGhost);
     drawDecorGhost(ctx, state, timeMs / 1000, this.decorGhost);
