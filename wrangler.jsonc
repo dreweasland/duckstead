@@ -3,7 +3,7 @@
 // script is needed for a static site. `public/_headers` is honoured.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "duck-homestead",
+  "name": "duckstead",
   "compatibility_date": "2025-08-01",
   "assets": {
     "directory": "./dist",
