@@ -234,7 +234,7 @@ function duckCard(ctx: PanelCtx, duck: Duck): HTMLElement {
   // A div, not a button — the quick-action buttons nest inside it.
   return el(
     'div',
-    { class: 'duck-card', onclick: () => ctx.ui.selectDuck(duck.id) },
+    { class: 'duck-card', title: 'Click to open · Ctrl/Cmd-click to pin for comparison', onclick: (e) => ctx.ui.selectDuck(duck.id, (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey) },
     el(
       'div',
       { class: 'card-top' },
@@ -267,7 +267,7 @@ function eggCard(ctx: PanelCtx, egg: Duck): HTMLElement {
   const pct = Math.min(100, (egg.incubationTicks / target) * 100);
   return el(
     'button',
-    { class: 'duck-card egg-card', onclick: () => ctx.ui.selectDuck(egg.id) },
+    { class: 'duck-card egg-card', onclick: (e) => ctx.ui.selectDuck(egg.id, (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey) },
     el(
       'div',
       { class: 'card-top' },

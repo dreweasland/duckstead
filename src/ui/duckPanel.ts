@@ -67,7 +67,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
               'button',
               {
                 class: 'close-btn pin-btn',
-                title: ctx.ui.isPinned(duck.id) ? 'Already pinned' : 'Pin this card open to compare with another duck',
+                title: ctx.ui.isPinned(duck.id) ? 'Already pinned' : 'Pin this card open to compare with another duck (Ctrl/Cmd-click a duck or card does the same)',
                 disabled: ctx.ui.isPinned(duck.id),
                 onclick: () => {
                   ctx.ui.pinDuck(duck.id);

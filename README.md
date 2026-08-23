@@ -15,7 +15,8 @@ npm run dev        # open http://localhost:5173
 - **Click a duck** to inspect it: needs, genetics, care actions, sell price.
   The pin button on the card keeps it open as its own window while you
   open other ducks — pin several to compare side by side; each is draggable
-  and stays live.
+  and stays live. Ctrl/Cmd-click a duck on the pond, a card in the Flock
+  panel, or a rail card to open it pinned straight away.
 - **Feed** — click the Feed (or Premium) button, then click anywhere on
   the map to toss food. Hungry ducks will swim/waddle over and eat it.
 - **Treats** — peas, worms, and berries from the shop. Every duck secretly

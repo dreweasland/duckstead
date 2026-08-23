@@ -499,6 +499,10 @@ export class UI {
         this.refreshPanel();
         return;
       }
+      if (id && (me.ctrlKey || me.metaKey)) {
+        this.selectDuck(id, true);
+        return;
+      }
       this.game.selectedDuckId = id;
       if (id) this.openPanel('duck');
       else if (this.openPanelKind === 'duck') this.closePanel();
@@ -712,7 +716,20 @@ export class UI {
     }
   }
 
-  selectDuck(id: string): void {
+  // Open a duck's card; with `pin` (ctrl/cmd-click) it opens as a pinned
+  // comparison window instead of replacing the main card.
+  selectDuck(id: string, pin = false): void {
+    if (pin) {
+      if (this.isPinned(id)) return;
+      if (!this.openPanelKind || this.openPanelKind !== 'duck') {
+        // Nothing to compare against yet: just open it normally.
+        this.game.selectedDuckId = id;
+        this.openPanel('duck');
+        return;
+      }
+      this.pinDuck(id);
+      return;
+    }
     this.game.selectedDuckId = id;
     this.openPanel('duck');
   }
@@ -973,7 +990,7 @@ export class UI {
     // Preserve horizontal scroll across rebuilds.
     const prevScroll = (this.railHost.firstElementChild as HTMLElement | null)?.scrollLeft ?? 0;
     const rail = renderCardRail(this.game, {
-      select: (id) => this.selectDuck(id),
+      select: (id, pin) => this.selectDuck(id, pin),
       refresh: () => this.refreshCardRail(),
       toast: (msg) => this.toast(msg),
     });

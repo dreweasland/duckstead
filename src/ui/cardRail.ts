@@ -11,7 +11,7 @@ import { quickActions, type QuickHandlers } from './quickActions';
 import { pedigreeScore } from '../sim/pedigree';
 
 export interface RailHandlers extends QuickHandlers {
-  select(id: string): void;
+  select(id: string, pin?: boolean): void;
 }
 
 const NEED_ROWS: Array<[keyof Needs, IconName]> = [
@@ -117,7 +117,7 @@ function miniCard(game: Game, duck: Duck, handlers: RailHandlers): HTMLElement {
     'div',
     {
       class: `mini-card${duck.id === game.selectedDuckId ? ' selected' : ''}`,
-      onclick: () => handlers.select(duck.id),
+      onclick: (e) => handlers.select(duck.id, (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey),
     },
     el(
       'div',
@@ -142,7 +142,7 @@ function miniEggCard(game: Game, egg: Duck, handlers: RailHandlers): HTMLElement
     'div',
     {
       class: `mini-card${egg.id === game.selectedDuckId ? ' selected' : ''}`,
-      onclick: () => handlers.select(egg.id),
+      onclick: (e) => handlers.select(egg.id, (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey),
     },
     el(
       'div',
