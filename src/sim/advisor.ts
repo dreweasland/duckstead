@@ -127,7 +127,6 @@ function computeFlockValues(state: GameState): Map<string, BreedingValue> {
   for (const d of flock) {
     const key = breedKey(d.genome);
     myKeyOf.set(d.id, key);
-    if (d.stage === 'duckling') continue;
     const pct = standardPctOf(d, key);
     if (pct > (bestPct.get(key) ?? -1)) bestPct.set(key, pct);
   }
@@ -153,8 +152,10 @@ function computeFlockValues(state: GameState): Map<string, BreedingValue> {
     const myKey = myKeyOf.get(duck.id)!;
     const standardPct = standardPctOf(duck, myKey);
     // Best of breed: strictly the top (ties don't count, so twins aren't both "best").
-    const tiedOrBetter = flock.filter((d) => d.id !== duck.id && d.stage !== 'duckling' && myKeyOf.get(d.id) === myKey && standardPctOf(d, myKey) >= standardPct).length;
-    const bestOfBreed = duck.stage !== 'duckling' && tiedOrBetter === 0;
+    // Genes are genes: a duckling with the best match is best of breed even
+    // before its colours show.
+    const tiedOrBetter = flock.filter((d) => d.id !== duck.id && myKeyOf.get(d.id) === myKey && standardPctOf(d, myKey) >= standardPct).length;
+    const bestOfBreed = tiedOrBetter === 0;
 
     const uniqueAlleles: string[] = [];
     for (const watch of WATCHED_ALLELES) {
