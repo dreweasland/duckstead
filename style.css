@@ -979,6 +979,27 @@ body.feeding #pond-canvas {
   z-index: 20;
 }
 
+.float-host.pinned {
+  left: auto;
+  transform: none;
+}
+
+.card-window-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.pin-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pin-chip {
+  font-size: 9px;
+}
+
 .float-host:empty {
   display: none;
 }

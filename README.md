@@ -13,6 +13,9 @@ npm run dev        # open http://localhost:5173
 ```
 
 - **Click a duck** to inspect it: needs, genetics, care actions, sell price.
+  The pin button on the card keeps it open as its own window while you
+  open other ducks — pin several to compare side by side; each is draggable
+  and stays live.
 - **Feed** — click the Feed (or Premium) button, then click anywhere on
   the map to toss food. Hungry ducks will swim/waddle over and eat it.
 - **Treats** — peas, worms, and berries from the shop. Every duck secretly

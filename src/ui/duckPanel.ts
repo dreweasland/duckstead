@@ -35,7 +35,7 @@ const NEED_LABELS: Array<[keyof import('../sim/duck').Needs, IconName, string]> 
 
 export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   const { game } = ctx;
-  const duck = game.state.ducks.find((d) => d.id === game.selectedDuckId);
+  const duck = game.state.ducks.find((d) => d.id === (ctx.duckId ?? game.selectedDuckId));
   if (!duck) return null;
 
   const panel = el('aside', { class: 'panel' });
@@ -58,7 +58,26 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
             ),
         starRow(duck.phenotype.rarityScore),
       ),
-      el('button', { class: 'close-btn', onclick: ctx.close }, icon('close', 13)),
+      el(
+        'div',
+        { class: 'card-window-btns' },
+        ctx.pinned
+          ? el('span', { class: 'chip chip-trait pin-chip', title: 'Pinned for comparison' }, 'pinned')
+          : el(
+              'button',
+              {
+                class: 'close-btn pin-btn',
+                title: ctx.ui.isPinned(duck.id) ? 'Already pinned' : 'Pin this card open to compare with another duck',
+                disabled: ctx.ui.isPinned(duck.id),
+                onclick: () => {
+                  ctx.ui.pinDuck(duck.id);
+                  ctx.ui.refreshPanel();
+                },
+              },
+              icon('cards', 13),
+            ),
+        el('button', { class: 'close-btn', onclick: ctx.close }, icon('close', 13)),
+      ),
     ),
   );
 

@@ -87,7 +87,8 @@ export class UI {
   private festivalChip!: HTMLElement;
   // Where the floating duck card sits; remembered across opens this session.
   private floatPos: { x: number; y: number } | null = null;
-  private dragging: { dx: number; dy: number } | null = null;
+  // Pinned duck cards: extra floating copies kept open for comparison.
+  private pinned: Array<{ id: string; host: HTMLElement; pos: { x: number; y: number } }> = [];
   private showCards = localStorage.getItem(CARDS_PREF_KEY) === '1';
 
   constructor(
@@ -507,34 +508,61 @@ export class UI {
   // Drag the floating duck card by its header. Delegated so it survives the
   // panel's periodic rebuilds.
   private bindFloatDrag(): void {
-    this.floatHost.addEventListener('pointerdown', (e) => {
-      const header = (e.target as HTMLElement).closest('.panel-header');
-      if (!header || (e.target as HTMLElement).closest('button, input')) return;
-      const rect = this.floatHost.getBoundingClientRect();
-      this.dragging = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
-      this.floatHost.classList.add('dragging');
-      e.preventDefault();
-    });
-    window.addEventListener('pointermove', (e) => {
-      if (!this.dragging) return;
-      this.floatPos = this.clampFloatPos(e.clientX - this.dragging.dx, e.clientY - this.dragging.dy);
-      this.applyFloatPos();
-    });
-    window.addEventListener('pointerup', () => {
-      this.dragging = null;
-      this.floatHost.classList.remove('dragging');
-    });
+    this.bindDrag(
+      this.floatHost,
+      () => this.floatPos,
+      (p) => {
+        this.floatPos = p;
+        this.applyFloatPos();
+      },
+    );
     window.addEventListener('resize', () => {
       if (this.floatPos) {
         this.floatPos = this.clampFloatPos(this.floatPos.x, this.floatPos.y);
         this.applyFloatPos();
       }
+      for (const entry of this.pinned) {
+        entry.pos = this.clampFloatPos(entry.pos.x, entry.pos.y, entry.host);
+        entry.host.style.left = `${entry.pos.x}px`;
+        entry.host.style.top = `${entry.pos.y}px`;
+      }
     });
   }
 
-  private clampFloatPos(x: number, y: number): { x: number; y: number } {
-    const w = this.floatHost.offsetWidth || 340;
-    const h = this.floatHost.offsetHeight || 200;
+  // Drag a floating host by its header. Delegated so it survives rebuilds.
+  private bindDrag(host: HTMLElement, get: () => { x: number; y: number } | null, set: (p: { x: number; y: number }) => void): void {
+    let drag: { dx: number; dy: number } | null = null;
+    host.addEventListener('pointerdown', (e) => {
+      const header = (e.target as HTMLElement).closest('.panel-header');
+      if (!header || (e.target as HTMLElement).closest('button, input')) return;
+      const rect = host.getBoundingClientRect();
+      drag = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+      host.classList.add('dragging');
+      // Bring the dragged card to the front.
+      host.style.zIndex = String(30 + (this.zTop += 1));
+      e.preventDefault();
+    });
+    window.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const p = this.clampFloatPos(e.clientX - drag.dx, e.clientY - drag.dy, host);
+      set(p);
+      if (host !== this.floatHost) {
+        host.style.left = `${p.x}px`;
+        host.style.top = `${p.y}px`;
+      }
+    });
+    window.addEventListener('pointerup', () => {
+      drag = null;
+      host.classList.remove('dragging');
+    });
+    void get;
+  }
+
+  private zTop = 0;
+
+  private clampFloatPos(x: number, y: number, host: HTMLElement = this.floatHost): { x: number; y: number } {
+    const w = host.offsetWidth || 340;
+    const h = host.offsetHeight || 200;
     return {
       x: Math.max(4, Math.min(window.innerWidth - w - 4, x)),
       y: Math.max(48, Math.min(window.innerHeight - Math.min(h, 120), y)),
@@ -622,14 +650,79 @@ export class UI {
     this.floatHost.replaceChildren();
   }
 
+  // Pin the current duck card: it becomes its own floating window that stays
+  // open (and live) while you open other ducks to compare.
+  pinDuck(id: string): void {
+    if (this.pinned.some((p) => p.id === id)) return;
+    // Slot the pinned copy beside the main card (left if there's room, else
+    // right), stepping further out for each additional pin.
+    const rect = this.floatHost.getBoundingClientRect();
+    const base = this.floatPos ?? { x: rect.left, y: rect.top || 90 };
+    const w = (this.floatHost.offsetWidth || 340) + 12;
+    const n = this.pinned.length + 1;
+    const leftX = base.x - w * n;
+    const rightX = base.x + w * n;
+    const x = leftX >= 4 ? leftX : rightX + (this.floatHost.offsetWidth || 340) <= window.innerWidth - 4 ? rightX : base.x + 28 * n;
+    const pos = this.clampFloatPos(x, base.y + (x === base.x + 28 * n ? 28 * n : 0));
+    const host = el('div', { class: 'float-host pinned' });
+    host.style.left = `${pos.x}px`;
+    host.style.top = `${pos.y}px`;
+    host.style.transform = 'none';
+    this.root.append(host);
+    const entry = { id, host, pos };
+    this.pinned.push(entry);
+    this.bindDrag(host, () => entry.pos, (p) => { entry.pos = p; });
+    host.addEventListener('pointerdown', () => { this.pointerDownInPanel = true; });
+    this.refreshPinned();
+  }
+
+  unpinDuck(id: string): void {
+    const i = this.pinned.findIndex((p) => p.id === id);
+    if (i < 0) return;
+    this.pinned[i].host.remove();
+    this.pinned.splice(i, 1);
+  }
+
+  isPinned(id: string): boolean {
+    return this.pinned.some((p) => p.id === id);
+  }
+
+  private refreshPinned(): void {
+    for (const entry of [...this.pinned]) {
+      if (!this.game.state.ducks.some((d) => d.id === entry.id)) {
+        this.unpinDuck(entry.id);
+        continue;
+      }
+      const panel = renderDuckPanel({
+        game: this.game,
+        ui: this,
+        duckId: entry.id,
+        pinned: true,
+        close: () => this.unpinDuck(entry.id),
+      });
+      if (!panel) {
+        this.unpinDuck(entry.id);
+        continue;
+      }
+      panel.classList.add('floating', 'no-anim');
+      const old = entry.host.firstElementChild as HTMLElement | null;
+      const scroll = old?.scrollTop ?? 0;
+      entry.host.replaceChildren(panel);
+      panel.scrollTop = scroll;
+    }
+  }
+
   selectDuck(id: string): void {
     this.game.selectedDuckId = id;
     this.openPanel('duck');
   }
 
   refreshPanel(): void {
-    if (!this.openPanelKind) return;
     if (this.pointerDownInPanel) return;
+    const active0 = document.activeElement;
+    const typingInPin = active0 && this.pinned.some((p) => p.host.contains(active0)) && (active0 instanceof HTMLInputElement || active0 instanceof HTMLSelectElement);
+    if (!typingInPin) this.refreshPinned();
+    if (!this.openPanelKind) return;
     // Don't rebuild while the user is typing in a panel field — a rebuild
     // would replace the input and steal focus mid-keystroke.
     // The duck card lives in floatHost, the others in panelHost — check both.
@@ -1464,4 +1557,6 @@ export interface PanelCtx {
   game: Game;
   ui: UI;
   close: () => void;
+  duckId?: string; // for duck cards: which duck (defaults to the selected one)
+  pinned?: boolean; // this card is a pinned comparison copy
 }
