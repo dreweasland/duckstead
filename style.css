@@ -1009,6 +1009,7 @@ body.feeding #pond-canvas {
   width: 340px;
   max-height: calc(100vh - 140px);
   overflow-y: auto;
+  scrollbar-width: thin;
   border: 1px solid #3d4c5e;
   border-radius: 12px;
   box-shadow: 0 14px 42px rgba(0, 0, 0, 0.5);
@@ -1029,8 +1030,9 @@ body.feeding #pond-canvas {
 .panel.floating .panel-header {
   cursor: grab;
   user-select: none;
-  margin: -14px -14px 10px;
-  padding: 12px 14px 8px;
+  /* Stop short of the right edge so a scrollbar never sits over the ✕. */
+  margin: -14px -2px 10px -14px;
+  padding: 12px 10px 8px 14px;
   border-bottom: 1px solid #2c3947;
   position: sticky;
   top: -14px;
