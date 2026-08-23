@@ -70,6 +70,11 @@ npm run dev        # open http://localhost:5173
   drakes are always fine). Surplus drakes harry the hens: happiness drains,
   hens skip laying, clutch viability drops 6% per extra drake. The Flock
   panel shows the ratio; pond sizes 8/12/16/20 fit 2/3/4/5 drakes exactly.
+- **Bachelor Pen** (shop, 220 coins) — a fenced paddock for surplus drakes
+  (or any adult): penned ducks sit out of breeding and drake pressure
+  without being sold, stay inside the fence, don't lay, and still need
+  feeding and brushing. Send/release from the duck card; three places per
+  level.
 - **Pond capacity** counts hatched ducks; eggs and courting pairs live in
   the nest, so the nest keeps running at a full pond. Hatch over the limit
   and the pond is **overcrowded**: the flock gets stressed, the water fouls

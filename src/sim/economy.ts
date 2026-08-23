@@ -50,7 +50,8 @@ export type UpgradeId =
   | 'eggCooler'
   | 'brooderLamp'
   | 'feedSilo'
-  | 'vetClinic';
+  | 'vetClinic'
+  | 'bachelorPen';
 
 export interface UpgradeDef {
   id: UpgradeId;
@@ -116,6 +117,13 @@ export const UPGRADES: UpgradeDef[] = [
     description: 'Reveals exact genotypes on duck panels.',
     maxLevel: 1,
     costs: [150],
+  },
+  {
+    id: 'bachelorPen',
+    name: 'Bachelor Pen',
+    description: 'A fenced paddock for surplus drakes: 3 ducks per level sit out of breeding without being sold.',
+    maxLevel: 2,
+    costs: [220, 550],
   },
   // --- Late-game sinks: scaling, functional, and priced for a full pond ---
   {

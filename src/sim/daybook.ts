@@ -10,6 +10,7 @@ import { festivalToday, FESTIVAL_NAMES, upcomingFestival } from './festivals';
 import { dayOf, dayOfSeason, seasonOf, yearOf } from './time';
 import { bestPairFor, describeCommission, duckFits } from './commissions';
 import { describeBalance, flockBalance, HENS_PER_DRAKE } from './flockBalance';
+import { penCapacity, penDucks } from './pen';
 import type { Season } from '../types';
 
 export type DawnIcon =
@@ -141,10 +142,16 @@ export function dawnReport(state: GameState): DawnReport {
 
   const bal = flockBalance(state);
   if (bal.excess > 0) {
+    const room = penCapacity(state) - penDucks(state).length;
+    const penHint = penCapacity(state) === 0
+      ? 'or buy the Bachelor Pen to sit a drake out without selling'
+      : room > 0
+        ? `or send a drake to the pen (${penDucks(state).length}/${penCapacity(state)})`
+        : 'the pen is full — a second level adds three places';
     chores.push({
       icon: 'warning',
       text: `${describeBalance(bal)}.`,
-      detail: `Sell or commission a drake — one per ${HENS_PER_DRAKE} hens keeps the flock laying and breeding well.`,
+      detail: `Sell or commission a drake, ${penHint} — one drake per ${HENS_PER_DRAKE} hens keeps the flock laying well.`,
       urgent: bal.status === 'rowdy',
     });
   }

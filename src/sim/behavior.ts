@@ -9,6 +9,7 @@ import { BALANCE } from './economy';
 import { events } from '../events';
 import { FEEDER_POS, FEEDER_RADIUS, isAshore, isInPond, nestPos, pondGeometry } from './pond';
 import { eatFood, favouriteTreat, FOODS } from './food';
+import { clampToPen, inPen, penRect, penSpot } from './pen';
 import { chronicle } from './chronicle';
 import { isNight } from './time';
 
@@ -124,7 +125,8 @@ function decideActivity(state: GameState, duck: Duck, rng: Rng, night: boolean):
     if (duck.activity !== 'sleep') {
       // Asleep once clear of the water — or on reaching the roost spot, so a
       // duck can never jog in place against an unreachable margin.
-      if (isAshore(state, duck.pos) || dist(duck.pos, roostSpot(state, duck)) < 6) {
+      const settled = duck.penned ? inPen(state, duck.pos) : isAshore(state, duck.pos);
+      if (settled || dist(duck.pos, roostSpot(state, duck)) < 6) {
         duck.activity = 'sleep';
         duck.activityTimer = 0;
       } else if (duck.activity !== 'waddle') {
@@ -141,7 +143,10 @@ function decideActivity(state: GameState, duck: Duck, rng: Rng, night: boolean):
   }
 
   // Hungry ducks with food available go eat, whatever they were doing.
-  const foodAvailable = state.foodPellets.length > 0 || state.feeder.food > 0;
+  // Penned ducks only reach pellets dropped inside the fence.
+  const foodAvailable = duck.penned
+    ? state.foodPellets.some((p) => inPen(state, p.pos))
+    : state.foodPellets.length > 0 || state.feeder.food > 0;
   if (duck.needs.hunger < 60 && foodAvailable && duck.activity !== 'eat') {
     duck.activity = 'eat';
     duck.activityTimer = 9999;
@@ -157,6 +162,10 @@ function decideActivity(state: GameState, duck: Duck, rng: Rng, night: boolean):
 
   // Pick a new casual activity. Energetic ducks pick brisker activities and
   // hold each one for less time; mellow ducks laze about longer.
+  if (duck.penned) {
+    pickPennedActivity(state, duck, rng);
+    return;
+  }
   const inPond = isInPond(state, duck.pos);
   const { energy } = personality(duck);
   const dur = (base: number) => Math.round((rng.int(base) + base * 0.6) / energy);
@@ -277,8 +286,8 @@ function steer(
       break;
     }
     case 'eat': {
-      const pellet = nearestPellet(state, duck.pos);
-      const feederOpen = state.feeder.food > 0;
+      const pellet = duck.penned ? nearestPelletIn(state, duck.pos) : nearestPellet(state, duck.pos);
+      const feederOpen = !duck.penned && state.feeder.food > 0;
       const pelletDist = pellet ? dist(duck.pos, pellet.pos) : Infinity;
       const feederDist = feederOpen ? dist(duck.pos, FEEDER_POS) : Infinity;
       if (!pellet && !feederOpen) break;
@@ -325,6 +334,7 @@ function steer(
     duck.activity !== 'eat' &&
     duck.activity !== 'sleep' &&
     duck.parents &&
+    !duck.penned &&
     !isNight(state.clock)
   ) {
     const mom = state.ducks.find((d) => d.id === duck.parents![0]);
@@ -349,6 +359,9 @@ function steer(
     if (dx !== 0 || dy !== 0) {
       duck.pos.x = clamp(duck.pos.x + dx, duckRadius(duck), WORLD_W - duckRadius(duck));
       duck.pos.y = clamp(duck.pos.y + dy, GROUND_TOP, WORLD_H - 50);
+      if (duck.penned && inPen(state, duck.pos) === false && dist(duck.pos, clampToPen(state, duck.pos)) < 40) {
+        duck.pos = clampToPen(state, duck.pos);
+      }
     }
     return;
   }
@@ -387,6 +400,10 @@ function steer(
 
   duck.pos.x = clamp(duck.pos.x + dx, duckRadius(duck), WORLD_W - duckRadius(duck));
   duck.pos.y = clamp(duck.pos.y + dy, GROUND_TOP, WORLD_H - 50);
+  // Penned ducks: once inside the fence, stay inside it. (A freshly penned
+  // duck is still walking in through the gate.)
+  if (duck.penned && duck.pennedInside) duck.pos = clampToPen(state, duck.pos);
+  if (duck.penned && !duck.pennedInside && inPen(state, duck.pos)) duck.pennedInside = true;
 
   // Waddlers bounce off the pond edge; swimmers stay in open water.
   if (duck.activity === 'waddle' && isInPond(state, duck.pos) && !isNight(state.clock)) {
@@ -422,6 +439,7 @@ export function randomGrassPoint(state: GameState, rng: Rng): Vec2 {
 // the flock spreads out, placed well outside the shore margin and kept on
 // the grass (not in the sky, not under the card rail, not off-screen).
 export function roostSpot(state: GameState, duck: Duck): Vec2 {
+  if (duck.penned) return penSpot(state, duck);
   // Ducklings tuck in beside their mother, fanned out by id so a brood
   // doesn't stack.
   if (duck.stage === 'duckling' && duck.parents) {
@@ -487,12 +505,54 @@ function separation(state: GameState, duck: Duck, sociability: number, scale: nu
   return { dx, dy };
 }
 
+// Inside the pen there's no water: idle, preen, forage, a short waddle to
+// a fresh spot, the odd flap.
+function pickPennedActivity(state: GameState, duck: Duck, rng: Rng): void {
+  const { energy } = personality(duck);
+  const dur = (base: number) => Math.round((rng.int(base) + base * 0.6) / energy);
+  const roll = rng.next();
+  if (roll < 0.3) {
+    duck.activity = 'idle';
+    duck.activityTimer = dur(40);
+  } else if (roll < 0.5) {
+    duck.activity = 'forage';
+    duck.activityTimer = dur(50);
+    duck.heading = rng.range(0, Math.PI * 2);
+  } else if (roll < 0.65) {
+    duck.activity = 'preen';
+    duck.activityTimer = dur(30);
+  } else if (roll < 0.72) {
+    duck.activity = 'flap';
+    duck.activityTimer = 18;
+  } else {
+    duck.activity = 'waddle';
+    const r = penRect(state);
+    duck.wanderTarget = { x: r.x + rng.range(16, r.w - 16), y: r.y + rng.range(16, r.h - 16) };
+    duck.activityTimer = travelTime(duck, duck.wanderTarget, WADDLE_SPEED, dur(40));
+    duck.heading = Math.atan2(duck.wanderTarget.y - duck.pos.y, duck.wanderTarget.x - duck.pos.x);
+  }
+}
+
 // Shortest signed angle from `from` to `to`, in (-PI, PI].
 function angleDiff(to: number, from: number): number {
   let d = (to - from) % (Math.PI * 2);
   if (d > Math.PI) d -= Math.PI * 2;
   if (d < -Math.PI) d += Math.PI * 2;
   return d;
+}
+
+function nearestPelletIn(state: GameState, pos: Vec2) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const pellet of state.foodPellets) {
+    if (!inPen(state, pellet.pos)) continue;
+    const d = dist(pos, pellet.pos);
+    if (d < bestDist) {
+      bestDist = d;
+      best = pellet;
+    }
+  }
+  return best;
 }
 
 function nearestPellet(state: GameState, pos: Vec2) {

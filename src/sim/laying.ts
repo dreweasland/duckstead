@@ -22,6 +22,7 @@ export function canLayToday(duck: Duck, day: number): boolean {
     duck.sex === 'F' &&
     (duck.stage === 'adult' || duck.stage === 'elder') &&
     duck.lastLayDay !== day &&
+    !duck.penned &&
     !duck.sick &&
     duck.needs.hunger > 40 &&
     duck.needs.happiness > 55

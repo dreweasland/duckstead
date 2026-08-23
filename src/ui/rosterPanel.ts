@@ -14,7 +14,7 @@ import { pedigreeScore } from '../sim/pedigree';
 import { generationOf } from '../sim/lineage';
 import { describeBalance, flockBalance, HENS_PER_DRAKE } from '../sim/flockBalance';
 
-type Filter = 'all' | 'drakes' | 'hens' | 'adults' | 'young' | 'eggs' | 'ready' | 'care' | 'key';
+type Filter = 'all' | 'drakes' | 'hens' | 'adults' | 'young' | 'eggs' | 'ready' | 'care' | 'key' | 'penned';
 type Sort = 'age' | 'name' | 'hunger' | 'happiness' | 'rarity' | 'pedigree' | 'value';
 
 const FILTERS: Array<{ id: Filter; label: string; icon?: IconName }> = [
@@ -27,6 +27,7 @@ const FILTERS: Array<{ id: Filter; label: string; icon?: IconName }> = [
   { id: 'ready', label: 'Ready to breed', icon: 'heart' },
   { id: 'care', label: 'Needs care', icon: 'warning' },
   { id: 'key', label: 'Key breeders', icon: 'star' },
+  { id: 'penned', label: 'Penned', icon: 'cross' },
 ];
 
 const SORTS: Array<{ id: Sort; label: string }> = [
@@ -69,6 +70,8 @@ function matchesFilter(state: GameState, duck: Duck, filter: Filter): boolean {
       return duck.stage !== 'egg' && needsCare(duck);
     case 'key':
       return duck.stage !== 'egg' && keepVerdict(breedingValue(state, duck)) === 'key';
+    case 'penned':
+      return Boolean(duck.penned);
   }
 }
 
@@ -211,6 +214,7 @@ function duckCard(ctx: PanelCtx, duck: Duck): HTMLElement {
   } else if (value.marginalBreeds.length === 0 && value.bestOfBreed) {
     badges.append(el('span', { class: 'chip chip-ready', title: verdictReason(value) }, 'best of breed'));
   }
+  if (duck.penned) badges.append(el('span', { class: 'chip chip-trait' }, 'penned'));
   if (duck.sick) {
     badges.append(el('span', { class: 'chip chip-sick' }, icon('cross', 10), 'sick'));
   } else if (duck.needs.hunger < 25) {

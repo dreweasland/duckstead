@@ -282,6 +282,7 @@ export function restTimeLeft(duck: Duck): string {
 // "ready to breed" indicators; canBreedPair stays the pair-level authority.
 export function breedReadiness(duck: Duck): BreedingCheck {
   if (duck.stage !== 'adult') return { ok: false, reason: 'not an adult yet' };
+  if (duck.penned) return { ok: false, reason: 'in the bachelor pen' };
   if (duck.sick) return { ok: false, reason: 'sick' };
   if (duck.needs.happiness <= 50) return { ok: false, reason: 'too unhappy' };
   if (duck.needs.health <= 60) return { ok: false, reason: 'not healthy enough' };
@@ -296,6 +297,7 @@ export function canBreedPair(a: Duck, b: Duck): BreedingCheck {
     return { ok: false, reason: 'Both ducks must be adults' };
   if (a.sex === b.sex) return { ok: false, reason: 'Pair must be male and female' };
   for (const d of [a, b]) {
+    if (d.penned) return { ok: false, reason: `${d.name} is in the bachelor pen` };
     if (d.sick) return { ok: false, reason: `${d.name} is sick` };
     if (d.needs.happiness <= 50) return { ok: false, reason: `${d.name} is too unhappy` };
     if (d.needs.health <= 60) return { ok: false, reason: `${d.name} is not healthy enough` };

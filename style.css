@@ -2316,6 +2316,37 @@ body.feeding #pond-canvas {
   scrollbar-width: thin;
 }
 
+.rail-sort {
+  pointer-events: auto;
+  flex: none;
+  align-self: stretch;
+  width: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 2px;
+  border-radius: 10px;
+  background: rgba(18, 24, 32, 0.82);
+  border: 1px solid rgba(60, 76, 94, 0.7);
+  color: #a9bccd;
+  cursor: pointer;
+}
+
+.rail-sort:hover {
+  background: rgba(38, 53, 74, 0.9);
+  color: #ecebe6;
+}
+
+.rail-sort-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 .card-rail .mini-card {
   width: 158px;
 }

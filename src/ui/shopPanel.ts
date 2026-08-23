@@ -74,6 +74,7 @@ const UPGRADE_META: Record<UpgradeId, { icon: IconName; blurb: string; chips: st
   brooderLamp: { icon: 'sparkle', blurb: 'Warm light for the young.', chips: ['+20% growth', 'happier hatch'] },
   trainingPerch: { icon: 'flag', blurb: 'Daily drills for the stable.', chips: ['+4% race speed'] },
   vetClinic: { icon: 'pill', blurb: 'A resident vet keeps the flock on its feet.', chips: ['½ sickness', '2× medicine'] },
+  bachelorPen: { icon: 'duck', blurb: 'Surplus drakes sit out of breeding — no pressure on the hens, no selling.', chips: ['+3 places', 'no drake pressure'] },
 };
 
 export function renderShopPanel(ctx: PanelCtx): HTMLElement {

@@ -52,7 +52,7 @@ export function commissionsUnlocked(state: GameState): boolean {
 // panel shows the same odds for any pairing — this just saves the hunt.)
 export function bestPairFor(state: GameState, key: string): { sire: Duck; dam: Duck; chance: number } | null {
   // Only adults can nest (elders are past breeding).
-  const adults = state.ducks.filter((d) => d.stage === 'adult');
+  const adults = state.ducks.filter((d) => d.stage === 'adult' && !d.penned);
   let best: { sire: Duck; dam: Duck; chance: number } | null = null;
   for (const sire of adults.filter((d) => d.sex === 'M')) {
     for (const dam of adults.filter((d) => d.sex === 'F')) {

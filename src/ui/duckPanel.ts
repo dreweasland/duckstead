@@ -6,6 +6,7 @@ import { buildGeneticsCard } from './geneticsCard';
 import { buildPedigreeCard, buildStandardCard } from './pedigreeCard';
 import { commissionGap, describeCommission, duckFits, fulfilCommission } from '../sim/commissions';
 import { championTitle } from '../sim/society';
+import { canPen, penCapacity, penDuck, penDucks, releaseDuck } from '../sim/pen';
 import { sellDuck, sellPrice } from '../sim/economy';
 import { matchesRequest, requestPrice, sellToBuyer } from '../sim/visitors';
 import { personalityLabels } from '../sim/behavior';
@@ -75,6 +76,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
           : el('span', { class: 'chip chip-trait' }, readiness.reason ?? ''),
       );
     }
+    if (duck.penned) traits.append(el('span', { class: 'chip chip-trait with-icon', title: 'In the bachelor pen — out of the breeding population' }, icon('cross', 9), 'penned'));
     const title = championTitle(game.state, duck);
     if (title) traits.append(el('span', { class: 'chip chip-rare with-icon', title: 'A Society title held by the pond\'s top-pedigree duck' }, icon('star', 9), title));
     const friend = duck.friendId
@@ -236,6 +238,26 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   panel.append(geneCard);
   panel.append(buildPedigreeCard(game.state, duck));
   if (duck.stage !== 'egg') panel.append(buildStandardCard(game.state, duck));
+
+  // Bachelor pen: park a duck out of breeding without selling it.
+  if (duck.stage !== 'egg' && duck.stage !== 'duckling') {
+    const gate = canPen(game.state, duck);
+    const used = penDucks(game.state).length;
+    panel.append(
+      el(
+        'div',
+        { class: 'section actions' },
+        duck.penned
+          ? el('button', { class: 'action-btn', onclick: () => { releaseDuck(game.state, duck.id); ctx.ui.refreshPanel(); } }, 'Release from the pen')
+          : el(
+              'button',
+              { class: 'action-btn', disabled: !gate.ok, title: gate.reason ?? `${used}/${penCapacity(game.state)} in the pen`, onclick: () => { penDuck(game.state, duck.id); ctx.ui.refreshPanel(); } },
+              gate.ok ? `Send to the pen (${used}/${penCapacity(game.state)})` : gate.reason ?? 'Send to the pen',
+            ),
+        el('div', { class: 'muted small' }, duck.penned ? 'Sitting out: no breeding, no drake pressure, no laying. Still needs feeding and brushing.' : 'Sits out of breeding without being sold — handy for a surplus drake.'),
+      ),
+    );
+  }
 
   // Commissions this duck could fill — and ones it's the right breed for but
   // falls short on, with the gap spelled out.

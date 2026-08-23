@@ -8,6 +8,7 @@ import { el, needColor, statBar } from './dom';
 import { icon, sexBadge, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { quickActions, type QuickHandlers } from './quickActions';
+import { pedigreeScore } from '../sim/pedigree';
 
 export interface RailHandlers extends QuickHandlers {
   select(id: string): void;
@@ -20,11 +21,74 @@ const NEED_ROWS: Array<[keyof Needs, IconName]> = [
   ['health', 'heart'],
 ];
 
+// Rail sort order, cycled by the little control at the head of the rail
+// and remembered between sessions.
+type RailSort = 'age' | 'drakes' | 'hens' | 'hungry' | 'pedigree' | 'name';
+const RAIL_SORTS: Array<{ id: RailSort; label: string; icon: IconName }> = [
+  { id: 'age', label: 'Oldest first', icon: 'list' },
+  { id: 'drakes', label: 'Drakes first', icon: 'duck' },
+  { id: 'hens', label: 'Hens first', icon: 'egg' },
+  { id: 'hungry', label: 'Hungriest first', icon: 'wheat' },
+  { id: 'pedigree', label: 'Best pedigree first', icon: 'star' },
+  { id: 'name', label: 'By name', icon: 'book' },
+];
+const RAIL_SORT_KEY = 'ducksim:ui:railSort';
+let railSort: RailSort = (() => {
+  try {
+    const v = localStorage.getItem(RAIL_SORT_KEY) as RailSort | null;
+    return v && RAIL_SORTS.some((s) => s.id === v) ? v : 'age';
+  } catch {
+    return 'age';
+  }
+})();
+
+function railCompare(sort: RailSort): (a: Duck, b: Duck) => number {
+  const egg = (d: Duck) => (d.stage === 'egg' ? 1 : 0);
+  const bySex = (first: 'M' | 'F') => (a: Duck, b: Duck) =>
+    egg(a) - egg(b) || (a.sex === first ? 0 : 1) - (b.sex === first ? 0 : 1) || b.ageTicks - a.ageTicks;
+  switch (sort) {
+    case 'drakes':
+      return bySex('M');
+    case 'hens':
+      return bySex('F');
+    case 'hungry':
+      return (a, b) => egg(a) - egg(b) || a.needs.hunger - b.needs.hunger;
+    case 'pedigree':
+      return (a, b) => egg(a) - egg(b) || pedigreeScore(b) - pedigreeScore(a);
+    case 'name':
+      return (a, b) => egg(a) - egg(b) || a.name.localeCompare(b.name);
+    case 'age':
+    default:
+      return (a, b) => egg(a) - egg(b);
+  }
+}
+
 export function renderCardRail(game: Game, handlers: RailHandlers): HTMLElement {
   const rail = el('div', { class: 'card-rail' });
-  const sorted = [...game.state.ducks].sort(
-    (a, b) => (a.stage === 'egg' ? 1 : 0) - (b.stage === 'egg' ? 1 : 0),
+  const current = RAIL_SORTS.find((s) => s.id === railSort)!;
+  rail.append(
+    el(
+      'button',
+      {
+        class: 'rail-sort',
+        title: `Sorted: ${current.label}. Click to change.`,
+        onclick: (e) => {
+          e.stopPropagation();
+          const i = RAIL_SORTS.findIndex((s) => s.id === railSort);
+          railSort = RAIL_SORTS[(i + 1) % RAIL_SORTS.length].id;
+          try {
+            localStorage.setItem(RAIL_SORT_KEY, railSort);
+          } catch {
+            /* private mode */
+          }
+          handlers.refresh();
+        },
+      },
+      icon(current.icon, 12),
+      el('span', { class: 'rail-sort-label' }, current.label),
+    ),
   );
+  const sorted = [...game.state.ducks].sort(railCompare(railSort));
   for (const duck of sorted) {
     rail.append(
       duck.stage === 'egg' ? miniEggCard(game, duck, handlers) : miniCard(game, duck, handlers),
@@ -44,6 +108,7 @@ function miniCard(game: Game, duck: Duck, handlers: RailHandlers): HTMLElement {
 
   let status: HTMLElement | null = null;
   if (duck.sick) status = el('span', { class: 'chip chip-sick' }, icon('cross', 9), 'sick');
+  else if (duck.penned) status = el('span', { class: 'chip chip-trait' }, 'pen');
   else if (Math.min(...NEED_ROWS.map(([k]) => duck.needs[k])) < 25)
     status = el('span', { class: 'chip chip-warn' }, icon('warning', 9), 'care');
 

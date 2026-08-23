@@ -3,6 +3,7 @@ import { WORLD_H, WORLD_W } from '../state';
 import type { Season, Vec2 } from '../types';
 import { upgradeLevel, type DecorKind } from '../sim/economy';
 import { activeStyle, type StyleDef } from '../sim/society';
+import { penRect } from '../sim/pen';
 import { drawDuck } from './duckPainter';
 import { createDuck } from '../sim/duck';
 import { representativeGenome } from '../sim/breedBook';
@@ -166,6 +167,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, state: GameState, timeM
   drawVetClinic(ctx, state);
   drawFeeder(ctx, state);
   drawNest(ctx, state);
+  drawBachelorPen(ctx, state);
   drawPond(ctx, state, hour, timeMs);
   drawVignette(ctx);
 }
@@ -1149,6 +1151,93 @@ function drawVetClinic(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.fillStyle = '#d4544a';
   ctx.fillRect(x - 16, y - 7, 4, 8);
   ctx.fillRect(x - 18, y - 5, 8, 4);
+  ctx.restore();
+}
+
+// Bachelor Pen: a post-and-rail paddock on the right bank with a gate on the
+// pond side, a water dish, and a straw corner. Level 2 is a longer run.
+function drawBachelorPen(ctx: CanvasRenderingContext2D, state: GameState): void {
+  if (upgradeLevel(state, 'bachelorPen') === 0) return;
+  const r = penRect(state);
+  ctx.save();
+  // Trodden earth inside.
+  ctx.fillStyle = 'rgba(150, 120, 70, 0.22)';
+  ctx.beginPath();
+  ctx.ellipse(r.x + r.w / 2, r.y + r.h / 2, r.w / 2 - 6, r.h / 2 - 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Straw corner + water dish.
+  ctx.fillStyle = '#c8a55c';
+  ctx.beginPath();
+  ctx.ellipse(r.x + r.w - 22, r.y + 20, 16, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#8d8f93';
+  ctx.beginPath();
+  ctx.ellipse(r.x + 22, r.y + r.h - 18, 10, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#6fb0d8';
+  ctx.beginPath();
+  ctx.ellipse(r.x + 22, r.y + r.h - 19, 7, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Fence: posts every ~30px with two rails; gate (lighter, slatted) on the
+  // pond side, centred.
+  const post = '#6b4a2e';
+  const rail = '#8a6238';
+  ctx.lineCap = 'round';
+  const edges: Array<[number, number, number, number]> = [
+    [r.x, r.y, r.x + r.w, r.y], // top
+    [r.x + r.w, r.y, r.x + r.w, r.y + r.h], // right
+    [r.x, r.y + r.h, r.x + r.w, r.y + r.h], // bottom
+    [r.x, r.y, r.x, r.y + r.h], // left (gate side)
+  ];
+  const gateY0 = r.y + r.h / 2 - 16;
+  const gateY1 = r.y + r.h / 2 + 16;
+  for (const [x0, y0, x1, y1] of edges) {
+    const len = Math.hypot(x1 - x0, y1 - y0);
+    const n = Math.max(2, Math.round(len / 30));
+    for (let i = 0; i <= n; i += 1) {
+      const t = i / n;
+      const px = x0 + (x1 - x0) * t;
+      const py = y0 + (y1 - y0) * t;
+      if (x0 === x1 && x0 === r.x && py > gateY0 && py < gateY1) continue; // gate gap
+      ctx.strokeStyle = post;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(px, py + 2);
+      ctx.lineTo(px, py - 14);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = rail;
+    ctx.lineWidth = 2;
+    for (const lift of [-11, -5]) {
+      if (x0 === x1 && x0 === r.x) {
+        // Left side rails stop at the gate.
+        ctx.beginPath();
+        ctx.moveTo(x0, y0 + lift);
+        ctx.lineTo(x0, gateY0 + lift);
+        ctx.moveTo(x0, gateY1 + lift);
+        ctx.lineTo(x1, y1 + lift);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(x0, y0 + lift);
+        ctx.lineTo(x1, y1 + lift);
+        ctx.stroke();
+      }
+    }
+  }
+  // Gate: three pale slats and a diagonal brace, hinged at the top post.
+  ctx.strokeStyle = '#c9b58a';
+  ctx.lineWidth = 2;
+  for (const lift of [-12, -7, -2]) {
+    ctx.beginPath();
+    ctx.moveTo(r.x - 2, gateY0 + lift + 2);
+    ctx.lineTo(r.x - 2, gateY1 + lift + 2);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.moveTo(r.x - 2, gateY0 - 10);
+  ctx.lineTo(r.x - 2, gateY1);
+  ctx.stroke();
   ctx.restore();
 }
 
