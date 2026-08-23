@@ -1687,12 +1687,16 @@ function drawLilyPads(ctx: CanvasRenderingContext2D, state: GameState, t: number
   }
 }
 
-function drawReeds(ctx: CanvasRenderingContext2D, state: GameState, t: number): void {
+// Reeds on the far (upper) rim are drawn with the pond, behind the ducks;
+// reeds on the near (lower) rim are drawn by drawReedsFront after the ducks
+// so a duck swimming past them is partly hidden by the stems.
+function drawReeds(ctx: CanvasRenderingContext2D, state: GameState, t: number, front = false): void {
   const g = pondGeometry(state);
   const season = seasonOf(state.clock);
   const stemColor = season === 'winter' ? '#8a9260' : '#5f7d3a';
   const beds = upgradeLevel(state, 'reedBeds');
-  const reeds = [...decorations().reeds, ...decorations().extraReeds.slice(0, beds * 6)];
+  const all = [...decorations().reeds, ...decorations().extraReeds.slice(0, beds * 6)];
+  const reeds = all.filter((reed) => (Math.sin(reed.x) > 0.15) === front);
   for (const reed of reeds) {
     const rx = g.cx + Math.cos(reed.x) * (g.rx + 10);
     const ry = g.cy + Math.sin(reed.x) * (g.ry + 8);
@@ -1720,6 +1724,10 @@ function drawReeds(ctx: CanvasRenderingContext2D, state: GameState, t: number): 
       ctx.fill();
     }
   }
+}
+
+export function drawReedsFront(ctx: CanvasRenderingContext2D, state: GameState, timeMs: number): void {
+  drawReeds(ctx, state, timeMs / 1000, true);
 }
 
 // Winter Lights festival: strings of glowing bulbs sagging over the pond.
