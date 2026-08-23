@@ -2467,6 +2467,11 @@ body.feeding #pond-canvas {
   pointer-events: none;
 }
 
+.goals-more {
+  font-size: 10px;
+  margin-top: 2px;
+}
+
 .goals-widget:empty {
   display: none;
 }

@@ -705,7 +705,8 @@ export class UI {
       this.goalsHost.replaceChildren();
       return;
     }
-    const rows = pending.slice(0, 3).map((goal) => {
+    const SHOWN = 6;
+    const rows = pending.slice(0, SHOWN).map((goal) => {
       const progress = goalProgress(this.game.state, goal);
       const row = el(
         'div',
@@ -732,7 +733,12 @@ export class UI {
       return row;
     });
     const children: Array<HTMLElement> = [];
-    if (rows.length > 0) children.push(el('div', { class: 'goals-title' }, 'Goals'), ...rows);
+    if (rows.length > 0) {
+      children.push(el('div', { class: 'goals-title' }, 'Goals'), ...rows);
+      if (pending.length > SHOWN) {
+        children.push(el('div', { class: 'muted goals-more' }, `+${pending.length - SHOWN} more to come`));
+      }
+    }
     if (commissions.length > 0) {
       const today = dayOf(this.game.state.clock);
       children.push(el('div', { class: 'goals-title request-title' }, 'Commissions'));
