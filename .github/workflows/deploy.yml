@@ -1,0 +1,41 @@
+# Deploys the production build to Cloudflare Pages.
+#
+# Two ways to run this project on Pages:
+#   1. Git integration (recommended, zero secrets): connect the GitHub repo in
+#      the Cloudflare dashboard; Pages builds `npm run build` and serves `dist`
+#      on every push, with a preview URL per pull request. If you do that,
+#      delete this file — Cloudflare handles deploys itself.
+#   2. This workflow: GitHub Actions builds and pushes `dist` with Wrangler.
+#      Needs two repository secrets: CLOUDFLARE_API_TOKEN (Pages: Edit) and
+#      CLOUDFLARE_ACCOUNT_ID, and a Pages project named below.
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Skips quietly on forks / until the secrets exist.
+    if: ${{ vars.CLOUDFLARE_PAGES_PROJECT != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }} --branch=main
