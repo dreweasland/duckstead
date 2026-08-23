@@ -166,10 +166,6 @@ The game is a static Vite build (`dist/`), hosted on **Cloudflare Pages**.
   `dist` as Worker static assets. Every push to `main` goes live and every
   PR gets a preview URL. (Node version is pinned by `.nvmrc`.) Connecting it
   as a *Pages* project instead also works — use output directory `dist`.
-- Alternatively `.github/workflows/deploy.yml` publishes from GitHub Actions
-  with Wrangler; set repository variable `CLOUDFLARE_PAGES_PROJECT` and
-  secrets `CLOUDFLARE_API_TOKEN` (Pages: Edit) + `CLOUDFLARE_ACCOUNT_ID`. If
-  you use the Git integration instead, delete that workflow.
 - `public/_headers` makes Pages cache hashed assets for a year and never
   cache `index.html`, so new builds show up immediately.
 
