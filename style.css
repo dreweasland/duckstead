@@ -649,9 +649,9 @@ body.feeding #pond-canvas {
 }
 
 .heritage-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
   margin: 4px 0 8px;
 }
 
@@ -2241,6 +2241,11 @@ body.feeding #pond-canvas {
   width: min(780px, calc(100vw - 32px));
 }
 
+/* Save & Load: room for the heritage founder pickers. */
+.panel.save {
+  width: min(640px, calc(100vw - 32px));
+}
+
 .roster-controls {
   display: flex;
   align-items: flex-start;
@@ -3544,11 +3549,15 @@ body.feeding #pond-canvas {
   }
 }
 
-/* If the HUD does wrap (very narrow), the goals card steps out of its way. */
-@media (max-width: 980px) {
+/* The long festival chip can still wrap the bar around this width, so the
+   goals card steps out of the second line's way. */
+@media (max-width: 1250px) {
   .goals-widget {
     top: 96px;
   }
+}
+
+@media (max-width: 980px) {
   .chip-eggs,
   .chip-society {
     display: none;

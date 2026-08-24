@@ -13,7 +13,7 @@ let confirmingNewGame = false;
 
 export function renderSavePanel(ctx: PanelCtx): HTMLElement {
   const { game } = ctx;
-  const panel = el('aside', { class: 'panel' });
+  const panel = el('aside', { class: 'panel save' });
   panel.append(
     el(
       'div',
