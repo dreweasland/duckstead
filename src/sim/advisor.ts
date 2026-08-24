@@ -104,11 +104,15 @@ function flockSignature(state: GameState): string {
 
 function computeFlockValues(state: GameState): Map<string, BreedingValue> {
   const flock = state.ducks.filter((d) => d.stage !== 'egg');
+  // Elders are past breeding: they reach no new breeds, their genes can't be
+  // passed on (so they neither hold nor lose "key" status), and they don't
+  // cover anyone. They still compete for best-of-breed — genes are genes.
+  const breeders = flock.filter((d) => d.stage !== 'elder');
   const discovered = new Set(Object.keys(state.breedBook));
-  const males = flock.filter((d) => d.sex === 'M');
-  const females = flock.filter((d) => d.sex === 'F');
+  const males = breeders.filter((d) => d.sex === 'M');
+  const females = breeders.filter((d) => d.sex === 'F');
 
-  // Undiscovered reach per duck.
+  // Undiscovered reach per duck (elders keep an empty set).
   const reach = new Map<string, Set<string>>();
   for (const d of flock) reach.set(d.id, new Set());
   for (const m of males) {
@@ -138,7 +142,7 @@ function computeFlockValues(state: GameState): Map<string, BreedingValue> {
   const out = new Map<string, BreedingValue>();
   for (const duck of flock) {
     const mine = reach.get(duck.id)!;
-    const sameSex = flock.filter((d) => d.sex === duck.sex && d.id !== duck.id);
+    const sameSex = breeders.filter((d) => d.sex === duck.sex && d.id !== duck.id);
     const others = new Set<string>();
     let coveredBy = 0;
     for (const a of sameSex) {
@@ -158,10 +162,14 @@ function computeFlockValues(state: GameState): Map<string, BreedingValue> {
     const bestOfBreed = tiedOrBetter === 0;
 
     const uniqueAlleles: string[] = [];
-    for (const watch of WATCHED_ALLELES) {
-      if (!duck.genome[watch.locus].includes(watch.allele)) continue;
-      const anyoneElse = flock.some((d) => d.id !== duck.id && d.genome[watch.locus].includes(watch.allele));
-      if (!anyoneElse) uniqueAlleles.push(watch.name);
+    if (duck.stage !== 'elder') {
+      for (const watch of WATCHED_ALLELES) {
+        if (!duck.genome[watch.locus].includes(watch.allele)) continue;
+        // Only breedable carriers preserve a gene — an elder holding the
+        // last copy has already lost it to the flock's future.
+        const anyoneElse = breeders.some((d) => d.id !== duck.id && d.genome[watch.locus].includes(watch.allele));
+        if (!anyoneElse) uniqueAlleles.push(watch.name);
+      }
     }
     const duplicated = (sigCount.get(signature(duck)) ?? 0) > 1;
     out.set(duck.id, { newBreeds: [...mine], marginalBreeds, uniqueAlleles, duplicated, bestOfBreed, standardPct, coveredBy });

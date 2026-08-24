@@ -14,7 +14,7 @@ import { pedigreeScore } from '../sim/pedigree';
 import { generationOf } from '../sim/lineage';
 import { describeBalance, flockBalance, HENS_PER_DRAKE } from '../sim/flockBalance';
 
-type Filter = 'all' | 'drakes' | 'hens' | 'adults' | 'young' | 'eggs' | 'ready' | 'care' | 'key' | 'penned';
+type Filter = 'all' | 'drakes' | 'hens' | 'adults' | 'elders' | 'young' | 'eggs' | 'ready' | 'care' | 'key' | 'penned';
 type Sort = 'age' | 'name' | 'hunger' | 'happiness' | 'rarity' | 'pedigree' | 'value';
 
 const FILTERS: Array<{ id: Filter; label: string; icon?: IconName }> = [
@@ -22,6 +22,7 @@ const FILTERS: Array<{ id: Filter; label: string; icon?: IconName }> = [
   { id: 'drakes', label: 'Drakes' },
   { id: 'hens', label: 'Hens' },
   { id: 'adults', label: 'Adults' },
+  { id: 'elders', label: 'Elders' },
   { id: 'young', label: 'Young' },
   { id: 'eggs', label: 'Eggs', icon: 'egg' },
   { id: 'ready', label: 'Ready to breed', icon: 'heart' },
@@ -59,7 +60,9 @@ function matchesFilter(state: GameState, duck: Duck, filter: Filter): boolean {
     case 'hens':
       return duck.stage !== 'egg' && duck.sex === 'F';
     case 'adults':
-      return duck.stage === 'adult' || duck.stage === 'elder';
+      return duck.stage === 'adult';
+    case 'elders':
+      return duck.stage === 'elder';
     case 'young':
       return duck.stage === 'duckling' || duck.stage === 'juvenile';
     case 'eggs':
@@ -90,9 +93,11 @@ function compare(state: GameState, sort: Sort): (a: Duck, b: Duck) => number {
       return (a, b) => pedigreeScore(b) - pedigreeScore(a);
     case 'value':
       return (a, b) => {
-        const va = a.stage === 'egg' ? 3 : VERDICT_RANK[keepVerdict(breedingValue(state, a))];
-        const vb = b.stage === 'egg' ? 3 : VERDICT_RANK[keepVerdict(breedingValue(state, b))];
-        return va - vb;
+        // Eggs are unknown quantities; elders have no breeding value at all
+        // and sort to the bottom.
+        const rank = (d: Duck): number =>
+          d.stage === 'elder' ? 4 : d.stage === 'egg' ? 3 : VERDICT_RANK[keepVerdict(breedingValue(state, d))];
+        return rank(a) - rank(b);
       };
     case 'age':
     default:
@@ -195,7 +200,15 @@ function duckCard(ctx: PanelCtx, duck: Duck): HTMLElement {
   const badges = el('div', { class: 'card-badges' });
   const value = breedingValue(ctx.game.state, duck);
   const verdict = keepVerdict(value);
-  if (verdict === 'key') {
+  if (duck.stage === 'elder') {
+    badges.append(
+      el(
+        'span',
+        { class: 'chip chip-trait', title: 'Past breeding — keeps eggs warm, steadies the young, and earns an honoured passing' },
+        'wise elder',
+      ),
+    );
+  } else if (verdict === 'key') {
     badges.append(
       el(
         'span',

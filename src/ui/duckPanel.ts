@@ -217,7 +217,20 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   }
 
   // Breeding advisor: is this duck worth keeping?
-  if (duck.stage !== 'egg') {
+  if (duck.stage === 'elder') {
+    const advisor = el('div', { class: 'section advisor' }, el('strong', {}, 'Breeding value'));
+    const line = el('div', { class: 'gene-badges' });
+    line.append(el('span', { class: 'chip chip-trait' }, 'wise elder'));
+    advisor.append(
+      line,
+      el(
+        'div',
+        { class: 'muted small' },
+        'Past breeding age. Elder hens keep nest eggs warm, elders steady the young, and a life lived out here ends in an honoured passing.',
+      ),
+    );
+    panel.append(advisor);
+  } else if (duck.stage !== 'egg') {
     const value = breedingValue(game.state, duck);
     const verdict = keepVerdict(value);
     const advisor = el('div', { class: 'section advisor' }, el('strong', {}, 'Breeding value'));

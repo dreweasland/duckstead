@@ -4,6 +4,7 @@ import { createDuck, createStarterDuck } from './duck';
 import { randomCommonGenome } from './genetics';
 import { broodyWarmthScale, elderDaysLeft, mentorNearby, passingPoints } from './elders';
 import { pondOccupancy } from './economy';
+import { breedingValue, keepVerdict } from './advisor';
 import { flockBalance } from './flockBalance';
 import { tickLifecycle } from './lifecycle';
 import { tickNeeds } from './needs';
@@ -87,6 +88,24 @@ describe('the mentor', () => {
     const adult = state.ducks.find((d) => d.stage === 'adult')!;
     adult.pos = { x: 10, y: 0 };
     expect(mentorNearby(state, adult)).toBe(false);
+  });
+});
+
+describe('elders leave the breeding math', () => {
+  it('an elder is never a key breeder, and cannot preserve a gene for an adult', () => {
+    const { state } = setup(67);
+    const adults = state.ducks.filter((d) => d.stage === 'adult');
+    // Give one adult and one (soon-to-be) elder the only blue alleles.
+    adults[0].genome.baseColor = ['B', 'M'];
+    adults[1].genome.baseColor = ['B', 'M'];
+    // Both adults carry it: neither is the sole carrier... until one retires.
+    expect(breedingValue(state, adults[0]).uniqueAlleles).not.toContain('blue');
+    adults[1].stage = 'elder';
+    // The elder can't pass its copy on, so the adult is now the key carrier —
+    // and the elder itself never counts as one.
+    expect(breedingValue(state, adults[0]).uniqueAlleles).toContain('blue');
+    expect(keepVerdict(breedingValue(state, adults[1]))).not.toBe('key');
+    expect(breedingValue(state, adults[1]).newBreeds).toEqual([]);
   });
 });
 
