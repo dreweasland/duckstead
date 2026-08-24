@@ -85,7 +85,7 @@ export class UI {
   private suppressNextClick = false;
   private placingDecor: import('../sim/economy').DecorDef | null = null;
   private movingDecor: number | null = null; // index into state.decorations
-  private treatCounts: Partial<Record<TreatKind, HTMLElement>> = {};
+  private careCounts: Partial<Record<FoodKind, HTMLElement>> = {};
   private unlockedSeen = new Set<string>();
   private hudReady = false; // first HUD refresh seeds unlockedSeen silently
   private railHost!: HTMLElement;
@@ -251,52 +251,34 @@ export class UI {
       syncChip,
       el('span', { class: 'hud-spacer' }),
       el(
-        'button',
-        { class: 'hud-btn feed-btn', onclick: () => this.toggleFeedMode('feed') },
-        icon('wheat'),
-        'Feed',
-      ),
-      el(
-        'button',
-        { class: 'hud-btn premium-btn', onclick: () => this.toggleFeedMode('premiumFeed') },
-        icon('sparkle'),
-        'Premium',
-      ),
-      el(
         'span',
-        { class: 'treats-wrap' },
+        { class: 'treats-wrap care-wrap' },
         el(
           'button',
-          { class: 'hud-btn treats-btn', title: 'Treats: peas, worms, berries — every duck has a favourite', onclick: () => this.toggleTreatsMenu() },
-          icon('heart'),
-          'Treats',
+          {
+            class: 'hud-btn care-btn',
+            title: 'Care tools: feed, treats, and the brush',
+            onclick: () => this.toggleCareMenu(),
+          },
+          icon('wheat'),
+          el('span', { class: 'hud-btn-label care-label' }, 'Care'),
         ),
-        this.buildTreatsMenu(),
-      ),
-      el(
-        'button',
-        {
-          class: 'hud-btn brush-btn',
-          title: 'Brush tool: rub over a duck to scrub it clean',
-          onclick: () => this.toggleFeedMode('brush'),
-        },
-        icon('bubbles'),
-        'Brush',
+        this.buildCareMenu(),
       ),
       el(
         'button',
         { class: 'hud-btn unlock-breeding', onclick: () => this.togglePanel('breeding') },
         icon('heart'),
-        'Breed',
+        el('span', { class: 'hud-btn-label' }, 'Breed'),
       ),
-      el('button', { class: 'hud-btn unlock-shop', onclick: () => this.togglePanel('shop') }, icon('cart'), 'Shop'),
-      el('button', { class: 'hud-btn', onclick: () => this.togglePanel('roster') }, icon('list'), 'Flock'),
-      el('button', { class: 'hud-btn unlock-book', onclick: () => this.togglePanel('book') }, icon('book'), 'Book'),
+      el('button', { class: 'hud-btn unlock-shop', onclick: () => this.togglePanel('shop') }, icon('cart'), el('span', { class: 'hud-btn-label' }, 'Shop')),
+      el('button', { class: 'hud-btn', onclick: () => this.togglePanel('roster') }, icon('list'), el('span', { class: 'hud-btn-label' }, 'Flock')),
+      el('button', { class: 'hud-btn unlock-book', onclick: () => this.togglePanel('book') }, icon('book'), el('span', { class: 'hud-btn-label' }, 'Book')),
       el(
         'button',
         { class: 'hud-btn unlock-race', onclick: () => openRacePanel(this.game, { toast: (m) => this.toast(m) }, { league: true }) },
         icon('flag'),
-        'Race',
+        el('span', { class: 'hud-btn-label' }, 'Race'),
       ),
       el(
         'button',
@@ -306,9 +288,9 @@ export class UI {
           onclick: () => this.toggleCardRail(),
         },
         icon('cards'),
-        'Cards',
+        el('span', { class: 'hud-btn-label' }, 'Cards'),
       ),
-      el('button', { class: 'hud-btn', onclick: () => this.togglePanel('save') }, icon('disk'), 'Save'),
+      el('button', { class: 'hud-btn', onclick: () => this.togglePanel('save') }, icon('disk'), el('span', { class: 'hud-btn-label' }, 'Save')),
       ...speedBtns,
     );
   }
@@ -316,21 +298,42 @@ export class UI {
   private toggleFeedMode(mode: FoodKind | 'brush'): void {
     this.feedMode = this.feedMode === mode ? 'none' : mode;
     document.body.classList.toggle('feeding', this.feedMode !== 'none');
-    this.root.querySelector('.feed-btn')!.classList.toggle('active', this.feedMode === 'feed');
-    this.root.querySelector('.premium-btn')!.classList.toggle('active', this.feedMode === 'premiumFeed');
-    this.root.querySelector('.treats-btn')!.classList.toggle('active', TREATS.includes(this.feedMode as TreatKind));
-    this.root.querySelector('.brush-btn')!.classList.toggle('active', this.feedMode === 'brush');
+    const careBtn = this.root.querySelector('.care-btn')!;
+    careBtn.classList.toggle('active', this.feedMode !== 'none');
+    const label = this.root.querySelector('.care-label')!;
+    label.textContent =
+      this.feedMode === 'none'
+        ? 'Care'
+        : this.feedMode === 'brush'
+          ? 'Brush'
+          : FOODS[this.feedMode].name;
     this.root.querySelectorAll<HTMLElement>('.treat-pick').forEach((b) => b.classList.toggle('active', b.dataset.kind === this.feedMode));
-    this.root.querySelector('.treats-menu')?.classList.remove('open');
+    this.root.querySelector('.care-menu')?.classList.remove('open');
     if (this.feedMode === 'brush') this.toast('Rub a grubby duck to brush it clean!');
     else if (TREATS.includes(this.feedMode as TreatKind)) this.toast(`Click the pond to toss ${FOODS[this.feedMode as FoodKind].name.toLowerCase()}`);
   }
 
-  private buildTreatsMenu(): HTMLElement {
-    const menu = el('div', { class: 'treats-menu' });
+  // One menu for every hands-on tool: scatter feed, toss treats, brush.
+  private buildCareMenu(): HTMLElement {
+    const menu = el('div', { class: 'treats-menu care-menu' });
+    const foodPick = (kind: FoodKind, iconName: Parameters<typeof icon>[0], label: string): void => {
+      const count = el('span', { class: 'treat-count' }, '0');
+      this.careCounts[kind] = count;
+      menu.append(
+        el(
+          'button',
+          { class: 'treat-pick', 'data-kind': kind, onclick: () => this.toggleFeedMode(kind) },
+          icon(iconName, 13),
+          label,
+          count,
+        ),
+      );
+    };
+    foodPick('feed', 'wheat', 'Feed');
+    foodPick('premiumFeed', 'sparkle', 'Premium');
     for (const kind of TREATS) {
       const count = el('span', { class: 'treat-count' }, '0');
-      this.treatCounts[kind] = count;
+      this.careCounts[kind] = count;
       menu.append(
         el(
           'button',
@@ -342,12 +345,20 @@ export class UI {
       );
       (menu.lastElementChild!.querySelector('.treat-dot') as HTMLElement).style.background = FOODS[kind].color;
     }
-    menu.append(el('div', { class: 'muted small treat-hint' }, 'Every duck secretly loves one of these.'));
+    menu.append(
+      el(
+        'button',
+        { class: 'treat-pick', 'data-kind': 'brush', title: 'Rub over a duck to scrub it clean', onclick: () => this.toggleFeedMode('brush') },
+        icon('bubbles', 13),
+        'Brush',
+      ),
+      el('div', { class: 'muted small treat-hint' }, 'Every duck secretly loves one treat.'),
+    );
     return menu;
   }
 
-  private toggleTreatsMenu(): void {
-    this.root.querySelector('.treats-menu')?.classList.toggle('open');
+  private toggleCareMenu(): void {
+    this.root.querySelector('.care-menu')?.classList.toggle('open');
   }
 
   private bindCanvas(): void {
@@ -968,7 +979,9 @@ export class UI {
     this.hudCounts.medicine.textContent = String(s.inventory.medicine);
     this.hudCounts.eggs.textContent = String(s.inventory.eggs);
     this.hudCounts.society.textContent = String(s.society.points);
-    for (const kind of TREATS) if (this.treatCounts[kind]) this.treatCounts[kind]!.textContent = String(s.inventory[kind]);
+    for (const [kind, node] of Object.entries(this.careCounts)) {
+      node.textContent = String(s.inventory[kind as keyof typeof s.inventory]);
+    }
     // Night: offer to sleep through to dawn.
     const sleepBtn = this.root.querySelector<HTMLElement>('.sleep-btn');
     if (isNight(s.clock) && !this.game.stale) {

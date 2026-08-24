@@ -3505,3 +3505,52 @@ body.feeding #pond-canvas {
   gap: 10px;
   text-align: center;
 }
+
+/* ---------- HUD condensation ---------- */
+/* The Care menu inherits the treats-menu dropdown look. */
+.care-menu {
+  min-width: 170px;
+}
+
+.care-menu .treat-pick .icon {
+  flex: none;
+}
+
+/* Mid-size screens: panel buttons drop their text (icons + tooltips stay). */
+@media (max-width: 1500px) {
+  .hud-btn-label {
+    display: none;
+  }
+  .hud-btn .icon {
+    opacity: 1;
+  }
+  /* Keep the Care button's mode label visible — it's the only signal that a
+     tool is armed. */
+  .care-btn.active .care-label {
+    display: inline;
+  }
+}
+
+/* Smaller still: drop the supply chips whose counts live in the Care menu. */
+@media (max-width: 1250px) {
+  .chip-feed,
+  .chip-premium,
+  .chip-medicine {
+    display: none;
+  }
+  .hud {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+}
+
+/* If the HUD does wrap (very narrow), the goals card steps out of its way. */
+@media (max-width: 980px) {
+  .goals-widget {
+    top: 96px;
+  }
+  .chip-eggs,
+  .chip-society {
+    display: none;
+  }
+}
