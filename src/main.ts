@@ -17,6 +17,11 @@ async function boot(): Promise<void> {
   const renderer = new Renderer(canvas, game);
   new UI(game, renderer);
   attachCloudSync(game);
+  // Dev-only seam for browser-automation checks (vite strips this in prod).
+  if ((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV) {
+    (window as unknown as Record<string, unknown>).__game = game;
+    (window as unknown as Record<string, unknown>).__renderer = renderer;
+  }
   startLoop(game.tick, renderer.render, () => game.speed);
 }
 

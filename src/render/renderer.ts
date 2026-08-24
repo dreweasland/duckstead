@@ -393,14 +393,25 @@ export class Renderer {
   // Hit-test ducks (topmost = greatest y first).
   pickDuck(worldX: number, worldY: number): string | null {
     const state = this.game.state;
-    const sorted = [...state.ducks].sort((a, b) => b.pos.y - a.pos.y);
-    for (const duck of sorted) {
+    // Among overlapping hits, the one whose centre is nearest (relative to
+    // its own hit radius) wins — so a small egg tucked behind a big one is
+    // still clickable near its own middle. Front-of-scene (larger y) only
+    // breaks near-ties.
+    let bestId: string | null = null;
+    let bestScore = Infinity;
+    for (const duck of state.ducks) {
       const dx = worldX - duck.pos.x;
       const dy = worldY - duck.pos.y;
       // Generous hit radius: ducklings are tiny and everyone is in motion.
       const r = Math.max(24, duckRadius(duck) + 6);
-      if (dx * dx + dy * dy <= r * r) return duck.id;
+      const d = Math.hypot(dx, dy);
+      if (d > r) continue;
+      const score = d / r - duck.pos.y * 0.0001;
+      if (score < bestScore) {
+        bestScore = score;
+        bestId = duck.id;
+      }
     }
-    return null;
+    return bestId;
   }
 }
