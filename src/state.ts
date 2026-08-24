@@ -110,7 +110,15 @@ export interface GameState {
   // Festivals sponsored this year (kind → true); consumed when the festival runs.
   sponsored: Record<string, boolean>;
   // Market Day's buyer queue, kept so the stall can be closed and reopened.
-  market: { day: number; buyers: import('./sim/festivals').MarketBuyer[] } | null;
+  market: { day: number; buyers: import('./sim/festivals').MarketBuyer[]; sold: number; earned: number } | null;
+  // The most recent festival's outcome, so the chip can reopen the standings.
+  lastFestival: {
+    day: number;
+    kind: string;
+    eggShow?: import('./sim/festivals').EggShowResult;
+    race?: { heatPlace: number; finalPlace?: number; prize: number };
+    winter?: import('./sim/festivals').CeremonyReward;
+  } | null;
   nextCommissionId: number;
   commissionsDone: number;
   foodPellets: FoodPellet[];
@@ -156,6 +164,7 @@ export function createNewGame(seed: number): { state: GameState; rng: Rng } {
     heritage: 0,
     sponsored: {},
     market: null,
+    lastFestival: null,
     nextCommissionId: 1,
     commissionsDone: 0,
     foodPellets: [],

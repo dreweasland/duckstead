@@ -70,6 +70,11 @@ export function deserialize(json: string): GameState {
   state.heritage ??= 0;
   state.sponsored ??= {};
   state.market ??= null;
+  if (state.market) {
+    state.market.sold ??= 0;
+    state.market.earned ??= 0;
+  }
+  state.lastFestival ??= null;
   state.nextCommissionId ??= 1;
   state.commissionsDone ??= 0;
   state.inventory.eggs ??= 0;

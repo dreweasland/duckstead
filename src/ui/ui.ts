@@ -1031,7 +1031,12 @@ export class UI {
         break;
       case 'grandPrix':
         if (festivalEnteredToday(state, 'grandPrix')) {
-          this.toast('You already raced the Grand Prix today!');
+          const last = state.lastFestival;
+          if (last?.kind === 'grandPrix' && last.day === dayOf(state.clock) && last.race) {
+            this.showRaceRecap(last.race);
+          } else {
+            this.toast('You already raced the Grand Prix today!');
+          }
         } else {
           // Two-round tournament: top two in the heat advance to the final.
           // The field scales to the player's best racer; reputation tiers
@@ -1047,7 +1052,10 @@ export class UI {
             prizes: [0, 0, 0, 0],
             aiBoost: fieldBoost * 0.92,
             ignoreDailyLimit: true,
-            onFinish: () => markFestivalEntered(state, 'grandPrix'),
+            onFinish: (heatPlace) => {
+              markFestivalEntered(state, 'grandPrix');
+              state.lastFestival = { day: dayOf(state.clock), kind: 'grandPrix', race: { heatPlace, prize: 0 } };
+            },
             nextRace: (place) =>
               place <= 1
                 ? {
@@ -1058,6 +1066,10 @@ export class UI {
                     ignoreDailyLimit: true,
                     onFinish: (finalPlace) => {
                       if (finalPlace === 0) noteFestivalWinPublic(state, 'grandPrix');
+                      if (state.lastFestival?.race) {
+                        state.lastFestival.race.finalPlace = finalPlace;
+                        state.lastFestival.race.prize = finalPlace === 0 ? Math.round(75 * scale) : finalPlace === 1 ? Math.round(25 * scale) : 0;
+                      }
                     },
                   }
                 : null,
@@ -1071,6 +1083,28 @@ export class UI {
         this.openWinterLights();
         break;
     }
+  }
+
+  // A finished Grand Prix, recapped from the festival chip.
+  private showRaceRecap(race: { heatPlace: number; finalPlace?: number; prize: number }): void {
+    if (document.querySelector('.race-overlay')) return;
+    const overlay = el('div', { class: 'race-overlay' });
+    const card = el('div', { class: 'race-card' });
+    const place = (n: number) => `${n + 1}${['st', 'nd', 'rd'][n] ?? 'th'}`;
+    const lines: string[] = [`Qualifying heat: ${place(race.heatPlace)}${race.heatPlace <= 1 ? ' — advanced' : ' — eliminated'}.`];
+    if (race.finalPlace !== undefined) lines.push(`Final: ${place(race.finalPlace)}${race.prize > 0 ? ` — ${race.prize} coins` : ''}.`);
+    card.append(
+      el(
+        'div',
+        { class: 'race-header' },
+        el('strong', { class: 'with-icon' }, icon('flag', 16), festivalTitle(this.game.state, 'grandPrix')),
+        el('button', { class: 'close-btn', onclick: () => overlay.remove() }, icon('close', 13)),
+      ),
+      ...lines.map((t) => el('div', { class: 'egg-comment' }, t)),
+      el('div', { class: 'actions race-actions' }, el('button', { class: 'action-btn primary', onclick: () => overlay.remove() }, 'Back to the pond')),
+    );
+    overlay.append(card);
+    this.root.append(overlay);
   }
 
   // Market Day: a queue of smitten buyers; accept, haggle, or send them off.
@@ -1089,11 +1123,32 @@ export class UI {
         this.toast('No ducks to show at market — the stalls stay quiet.');
         return;
       }
-      state.market = { day: today, buyers: fresh };
+      state.market = { day: today, buyers: fresh, sold: 0, earned: 0 };
     }
-    const buyers = state.market.buyers;
+    const market = state.market!;
+    const buyers = market.buyers;
     if (buyers.length === 0) {
-      this.toast('The market stalls have packed up for this year.');
+      // Packed up: show the day's tally instead of a shrug.
+      const overlay0 = el('div', { class: 'race-overlay' });
+      const card0 = el('div', { class: 'race-card' });
+      card0.append(
+        el(
+          'div',
+          { class: 'race-header' },
+          el('strong', { class: 'with-icon' }, icon('cart', 16), 'Market Day — closed'),
+          el('button', { class: 'close-btn', onclick: () => overlay0.remove() }, icon('close', 13)),
+        ),
+        el(
+          'div',
+          { class: 'egg-comment' },
+          market.sold > 0
+            ? `The stalls have packed up. You sold ${market.sold} duck${market.sold === 1 ? '' : 's'} for ${market.earned} coins today.`
+            : 'The stalls have packed up — nothing sold this year.',
+        ),
+        el('div', { class: 'actions race-actions' }, el('button', { class: 'action-btn primary', onclick: () => overlay0.remove() }, 'Back to the pond')),
+      );
+      overlay0.append(card0);
+      this.root.append(overlay0);
       return;
     }
 
@@ -1212,6 +1267,26 @@ export class UI {
     if (document.querySelector('.race-overlay')) return;
     const state = this.game.state;
     if (festivalEnteredToday(state, 'winterLights')) {
+      const last = state.lastFestival;
+      if (last?.kind === 'winterLights' && last.day === dayOf(state.clock) && last.winter) {
+        const overlay0 = el('div', { class: 'race-overlay' });
+        const card0 = el('div', { class: 'race-card' });
+        card0.append(
+          el(
+            'div',
+            { class: 'race-header' },
+            el('strong', { class: 'with-icon' }, icon('sparkle', 16), 'The pond glows'),
+            el('button', { class: 'close-btn', onclick: () => overlay0.remove() }, icon('close', 13)),
+          ),
+          el('div', { class: 'egg-comment' }, 'The lanterns burn on into the night.'),
+          el('div', { class: 'egg-score' }, `+${last.winter.coins} coins · +${last.winter.premiumFeed} premium feed`),
+          el('div', { class: 'egg-comment' }, last.winter.wishText),
+          el('div', { class: 'actions race-actions' }, el('button', { class: 'action-btn primary', onclick: () => overlay0.remove() }, 'Back to the pond')),
+        );
+        overlay0.append(card0);
+        this.root.append(overlay0);
+        return;
+      }
       this.toast('The lanterns already burn bright — enjoy the glow.');
       return;
     }
@@ -1286,6 +1361,7 @@ export class UI {
                     el('button', { class: 'action-btn primary', onclick: close }, 'Stay a while, then head back'),
                   ),
                 );
+                if (reward) state.lastFestival = { day: dayOf(state.clock), kind: 'winterLights', winter: reward };
                 card.replaceChildren(finale);
               };
             }
@@ -1330,7 +1406,7 @@ export class UI {
         el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
       );
 
-    const showStandings = (result: import('../sim/festivals').EggShowResult) => {
+    const showStandings = (result: import('../sim/festivals').EggShowResult, replay = false) => {
       timers.forEach((t) => clearTimeout(t));
       const list = el('div', { class: 'race-results' });
       result.entries.forEach((entry, i) => {
@@ -1384,7 +1460,7 @@ export class UI {
           el('button', { class: 'action-btn primary', onclick: close }, 'Back to the pond'),
         ),
       );
-      if (result.prize > 0) this.toast(`Placed ${result.playerPlace + 1}${['st', 'nd', 'rd'][result.playerPlace] ?? 'th'} — +${result.prize} coins!`);
+      if (result.prize > 0 && !replay) this.toast(`Placed ${result.playerPlace + 1}${['st', 'nd', 'rd'][result.playerPlace] ?? 'th'} — +${result.prize} coins!`);
     };
 
     const runCeremony = (result: import('../sim/festivals').EggShowResult) => {
@@ -1428,6 +1504,13 @@ export class UI {
     };
 
     card.append(header());
+    const last = state.lastFestival;
+    if (festivalEnteredToday(state, 'eggShow') && last?.kind === 'eggShow' && last.day === dayOf(state.clock) && last.eggShow) {
+      showStandings(last.eggShow, true);
+      overlay.append(card);
+      this.root.append(overlay);
+      return;
+    }
     if (festivalEnteredToday(state, 'eggShow')) {
       card.append(el('div', { class: 'muted' }, 'You already entered an egg this year — see you next spring!'));
     } else if (eggs.length === 0) {
@@ -1449,8 +1532,10 @@ export class UI {
               class: 'race-pick',
               onclick: () => {
                 const result = runEggShow(state, egg.id, this.game.rng);
-                if (result) runCeremony(result);
-                else close();
+                if (result) {
+                  state.lastFestival = { day: dayOf(state.clock), kind: 'eggShow', eggShow: result };
+                  runCeremony(result);
+                } else close();
               },
             },
             duckPortrait(egg, 48),

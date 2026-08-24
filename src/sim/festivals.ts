@@ -249,6 +249,10 @@ export function marketHaggle(buyer: MarketBuyer, rng: Rng): boolean {
 export function marketSell(state: GameState, buyer: MarketBuyer): boolean {
   const idx = state.ducks.findIndex((d) => d.id === buyer.duckId);
   if (idx < 0) return false;
+  if (state.market) {
+    state.market.sold += 1;
+    state.market.earned += buyer.offer;
+  }
   state.money += buyer.offer;
   state.ducks.splice(idx, 1);
   state.stats.ducksSold += 1;
