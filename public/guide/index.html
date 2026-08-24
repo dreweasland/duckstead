@@ -27,14 +27,14 @@
   --tile-bg: #3d5372; --tile-fg: #d9ecf7; --tile-dim: #6e8090; --card: #1c252e;
 }
 body { background: var(--paper); color: var(--ink); font: 400 16px/1.65 "Nunito Sans", system-ui, sans-serif; margin: 0; }
-main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 5rem; }
+main { max-width: 62rem; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
 h1, h2, h3 { font-family: "Baloo 2", "Nunito Sans", sans-serif; line-height: 1.15; text-wrap: balance; }
 h1 { font-size: 2.6rem; font-weight: 700; margin: 0.4rem 0 0.6rem; }
 h2 { font-size: 1.5rem; font-weight: 700; margin: 2.8rem 0 0.6rem; color: var(--water); }
 h3 { font-size: 1.1rem; font-weight: 700; margin: 1.6rem 0 0.4rem; }
-p, li { max-width: 68ch; }
+p, li { max-width: 74ch; }
 .eyebrow { font: 800 0.72rem/1 "Nunito Sans", sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--straw); }
-.lede { font-size: 1.12rem; color: var(--muted); max-width: 62ch; }
+.lede { font-size: 1.12rem; color: var(--muted); max-width: 70ch; }
 a { color: var(--water); }
 hr { border: 0; border-top: 1px solid var(--line); margin: 2.5rem 0; }
 .tablewrap { overflow-x: auto; margin: 1rem 0; }
@@ -55,6 +55,12 @@ li { margin: 0.35rem 0; }
 .punnett .hd { color: var(--muted); }
 .punnett .cell { background: var(--card); border: 1px solid var(--line); }
 .punnett .hit { border-color: var(--gold); color: var(--gold); font-weight: 700; }
+.eli5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.9rem; margin: 1rem 0; }
+.eli5 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.9rem 1.1rem; }
+.eli5 .card strong { display: block; color: var(--grass); margin-bottom: 0.25rem; }
+.eli5 .card p { margin: 0.3rem 0 0; font-size: 0.95rem; }
+.hand { display: inline-flex; gap: 0.2em; padding: 0.15em 0.3em; border: 1.5px dashed var(--line); border-radius: 0.5em; vertical-align: -0.3em; }
+.combo-row { display: flex; flex-wrap: wrap; gap: 0.5rem 1.1rem; align-items: center; margin: 0.6rem 0 0.2rem; font-size: 0.95rem; }
 </style>
 </head>
 <body>
@@ -62,6 +68,31 @@ li { margin: 0.35rem 0; }
 <p class="eyebrow"><a href="/" style="color:inherit;text-decoration:none">← Back to the pond</a> · Field Reference</p>
 <h1>The Duck Genetics Guide</h1>
 <p class="lede">Every duck carries a diploid genome: thirteen loci, two alleles each, one from each parent. Nothing is hand-painted — plumage, build, bill, crest, and constitution are computed from these genes, so what you see on the pond is exactly what you can breed for.</p>
+
+<h2>0 · The five-minute version</h2>
+<p>Ignore the science words for a second. Every trait is just a <strong>pair of letter cards</strong>, and breeding is a tiny card game:</p>
+<div class="eli5">
+<div class="card"><strong>1 · Every duck holds two cards per trait</strong>
+<p>For crest, a duck might hold <span class="hand"><span class="tile">n</span><span class="tile">R</span></span> — one card came from its mother, one from its father. It holds a pair like this for all thirteen traits.</p></div>
+<div class="card"><strong>2 · The stronger card is the one you see</strong>
+<p>When the two cards differ, only the stronger one shows (the tables below rank them). The weaker card doesn't vanish — it <em>hides</em>, and the duck carries it invisibly its whole life.</p></div>
+<div class="card"><strong>3 · Breeding: each parent hands over ONE card, at random</strong>
+<p>Mum flips a coin and gives one of her two cards; dad does the same. The duckling's new pair is those two cards. That's the entire system — four equally likely combinations per trait.</p></div>
+<div class="card"><strong>4 · Surprises are hidden cards meeting</strong>
+<p>Two plain-looking parents each hiding an <span class="tile dim">R</span> have a 1-in-4 clutch chance both hand it over — and a crested duckling hatches from two crestless parents.</p></div>
+<div class="card"><strong>5 · Typos make the rare letters</strong>
+<p>Each handed-over card has a 2% chance of being miscopied into a different letter. That's the only way <span class="tile rare">B</span> blue and <span class="tile rare">P</span> pink bills appear out of nowhere.</p></div>
+<div class="card"><strong>6 · Some traits just count cards</strong>
+<p>Size, bill, and vigor have no strong or weak — you simply count the <span class="tile">+</span> cards across the pair(s). More <span class="tile">+</span> from the parents means more to hand down.</p></div>
+</div>
+<p>Worked through once: mum holds <span class="hand"><span class="tile">D</span><span class="tile">d</span></span>, dad holds <span class="hand"><span class="tile">D</span><span class="tile">d</span></span>. Each hands over one card at random, so the duckling is equally likely to be:</p>
+<div class="combo-row">
+<span><span class="tile">D</span><span class="tile">D</span> full colour</span>
+<span><span class="tile">D</span><span class="tile">d</span> full colour, carries dilute</span>
+<span><span class="tile">d</span><span class="tile">D</span> full colour, carries dilute</span>
+<span><span class="tile">d</span><span class="tile">d</span> <strong>pastel!</strong></span>
+</div>
+<p>So two full-colour carriers throw a pastel duckling once per four eggs, on average. Every recipe in this guide is this one trick applied to a different pair of letters.</p>
 
 <h2>1 · The thirteen loci</h2>
 <h3>Mendelian loci — dominance decides what shows</h3>
