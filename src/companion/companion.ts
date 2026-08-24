@@ -15,6 +15,9 @@ import { dayScreen, duckScreen, flockScreen, pondScreen } from './screens';
 type Tab = 'flock' | 'pond' | 'day';
 
 export function runCompanion(): void {
+  // Installable PWA: the service worker is registered only in companion mode,
+  // so the desktop game is untouched.
+  if ('serviceWorker' in navigator) void navigator.serviceWorker.register('/sw.js');
   document.getElementById('pond-canvas')?.remove();
   const root = document.getElementById('ui-root') ?? document.body;
   root.classList.add('companion-root');

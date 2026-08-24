@@ -180,6 +180,34 @@ The game is a static Vite build (`dist/`), hosted on **Cloudflare Pages**.
   as a *Pages* project instead also works — use output directory `dist`.
 - `public/_headers` makes Pages cache hashed assets for a year and never
   cache `index.html`, so new builds show up immediately.
+- The deploy now includes a small Worker (`worker/index.ts`) and a SQLite
+  Durable Object (`DuckSyncDO`) for cloud save sync — `wrangler.jsonc` carries
+  the binding and migration; no extra dashboard setup is needed. Note that
+  a *Pages* project cannot host the Durable Object — use the Workers deploy.
+
+## Companion & cloud sync
+
+The pond can follow you between devices. In game, open **Save → Companion &
+cloud sync → Link a device**: the desktop mints a one-time pairing code
+(8 characters, 10-minute expiry) and starts pushing its save to the cloud.
+On a phone (or any other browser), open **`/companion`** and enter the code.
+
+- `/companion` is the **pocket pond**: the full simulation running behind a
+  touch UI — feed, pet, clean, treats, medicine, tuck and hatch eggs, fill
+  the trough, skim the pond, gather pickups, sell the egg basket, restock
+  supplies, and read the dawn report, goals, and commissions. Time passes
+  while it's open, exactly as on the desktop. It installs to the home screen
+  as a PWA.
+- Only one device plays at a time (the same rule as two desktop tabs): the
+  last device to open the pond owns the save, and the other shows a takeover
+  screen with a "Play here instead" button. Writes are guarded server-side
+  by a compare-and-swap counter, so a stale device can never overwrite fresh
+  play. If both sides somehow end up with unsynced progress, the game asks
+  which copy to keep — and the cloud retains the replaced copy in an undo
+  slot.
+- Anyone holding a pairing code (or the linked device) can play your pond —
+  share codes like house keys. Unlinking a device never deletes the cloud
+  copy.
 
 ## Development
 
