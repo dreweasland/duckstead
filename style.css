@@ -1433,7 +1433,14 @@ body.feeding #pond-canvas {
   border-radius: 14px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
   max-height: calc(100vh - 190px);
+  max-width: calc(100vw - 32px);
   animation: float-in 0.16s ease-out;
+}
+
+/* Periodic refreshes must not replay the entry animation (it reads as a
+   blink); this must outrank .panel.modal's animation above. */
+.panel.modal.no-anim {
+  animation: none;
 }
 
 .panel.breeding {

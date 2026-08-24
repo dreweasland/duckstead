@@ -786,8 +786,8 @@ export class UI {
     if (panel) {
       // The duck card floats (draggable); breeding takes the centred modal;
       // the other management panels stay docked on the right.
-      const host =
-        this.openPanelKind === 'duck' ? this.floatHost : this.openPanelKind === 'breeding' ? this.modalHost : this.panelHost;
+      // Every management panel opens as a centred modal; only the duck card floats.
+      const host = this.openPanelKind === 'duck' ? this.floatHost : this.modalHost;
       for (const other of [this.panelHost, this.floatHost, this.modalHost]) {
         if (other !== host) other.replaceChildren();
       }
