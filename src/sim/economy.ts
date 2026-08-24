@@ -264,7 +264,9 @@ export function duckCapacity(state: GameState): number {
 // own capacity), so an egg pipeline keeps running at a full pond — but a
 // clutch that hatches over the limit overcrowds it (see `overcrowding`).
 export function pondOccupancy(state: GameState): number {
-  return state.ducks.filter((d) => d.stage !== 'egg').length;
+  // Elders have earned their spot on the bank: they no longer count against
+  // capacity, so there is never a reason to sell one just to free a slot.
+  return state.ducks.filter((d) => d.stage !== 'egg' && d.stage !== 'elder').length;
 }
 
 export function pondHasRoom(state: GameState): boolean {

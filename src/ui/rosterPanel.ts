@@ -119,7 +119,7 @@ export function renderRosterPanel(ctx: PanelCtx): HTMLElement {
       el('strong', { class: 'with-icon' }, icon('list'), 'Flock'),
       el(
         'span',
-        { class: `br-nest-pill${isOvercrowded(state) ? ' full' : ''}`, title: 'Hatched ducks on the pond; eggs live in the nest' },
+        { class: `br-nest-pill${isOvercrowded(state) ? ' full' : ''}`, title: 'Hatched ducks on the pond; eggs live in the nest and elders don\'t count against capacity' },
         icon('duck', 11),
         ` ${pondOccupancy(state)}/${duckCapacity(state)}${isOvercrowded(state) ? ' overcrowded' : ''}`,
       ),

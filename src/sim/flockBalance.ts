@@ -17,7 +17,9 @@ export interface FlockBalance {
 }
 
 export function flockBalance(state: GameState): FlockBalance {
-  const adults = state.ducks.filter((d) => (d.stage === 'adult' || d.stage === 'elder') && !d.penned);
+  // Only breeding-age ducks count: elders can't breed and are past the
+  // squabbling, so an elder drake stresses nobody.
+  const adults = state.ducks.filter((d) => d.stage === 'adult' && !d.penned);
   const penned = state.ducks.filter((d) => d.penned && d.stage !== 'egg').length;
   const drakes = adults.filter((d) => d.sex === 'M').length;
   const hens = adults.length - drakes;

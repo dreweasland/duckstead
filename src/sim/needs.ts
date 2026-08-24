@@ -1,4 +1,5 @@
 import type { GameState } from '../state';
+import { broodyWarmthScale, MENTOR_HAPPY_SCALE, mentorNearby } from './elders';
 import { GROUND_TOP, WORLD_H, WORLD_W } from '../state';
 import type { Rng } from '../rng';
 import { clamp } from '../types';
@@ -39,7 +40,7 @@ export function tickNeeds(state: GameState, rng: Rng): void {
 
   const incubator = upgradeLevel(state, 'incubator') > 0;
   const vet = upgradeLevel(state, 'vetClinic') > 0;
-  const warmthScale = eggWarmthDecayScale(state);
+  const warmthScale = eggWarmthDecayScale(state) * broodyWarmthScale(state);
   const crowd = overcrowding(state);
   const pressure = drakePressure(state);
   for (const duck of state.ducks) {
@@ -71,6 +72,8 @@ export function tickNeeds(state: GameState, rng: Rng): void {
         n.happiness = clamp(n.happiness + 1 * perTick, 0, 100);
       }
     }
+    // A young duck in an elder's company holds its cheer better.
+    if (mentorNearby(state, duck)) happyRate *= MENTOR_HAPPY_SCALE;
     n.happiness = clamp(n.happiness - happyRate * perTick * nightScale, 0, 100);
     // Best friends nearby are good company.
     if (duck.friendId) {

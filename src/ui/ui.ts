@@ -217,7 +217,7 @@ export class UI {
       chip('medicine', 'pill', 'Medicine'),
       chip('eggs', 'egg', 'Egg basket — hens lay daily; sell at the shop'),
       chip('pond', 'bubbles', 'Pond cleanliness — wild ducks only visit above 70%'),
-      chip('flock', 'duck', 'Ducks on the pond / capacity — over it, the flock is stressed'),
+      chip('flock', 'duck', 'Ducks on the pond / capacity — over it, the flock is stressed. Elders have earned a free spot and don\'t count.'),
       chip('society', 'star', 'Society points — earned from breed awards, commissions, and festival placings'),
     );
 

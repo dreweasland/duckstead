@@ -25,13 +25,14 @@ describe('dawn report', () => {
     expect(report.sections.map((s) => s.title)).toEqual(['Opportunities', 'The nest', 'Chores']);
   });
 
-  it('warns when the pond is overcrowded, naming elders that could retire', () => {
+  it('warns when the pond is overcrowded; elders do not count against the cap', () => {
     const { state, rng } = createNewGame(6);
     for (let i = 0; i < 5; i += 1) state.ducks.push(createStarterDuck(rng, { x: 0, y: 0 }));
-    state.ducks[0].stage = 'elder';
     const text = dawnLines(dawnReport(state)).join('\n');
     expect(text).toContain('overcrowded by 1 duck');
-    expect(text).toContain('1 elder could retire');
+    // Promoting a duck to elder frees its slot — the warning disappears.
+    state.ducks[0].stage = 'elder';
+    expect(dawnLines(dawnReport(state)).join('\n')).not.toContain('overcrowded');
   });
 });
 

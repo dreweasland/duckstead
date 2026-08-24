@@ -17,13 +17,19 @@ npm run dev        # open http://localhost:5173
   open other ducks — pin several to compare side by side; each is draggable
   and stays live. Ctrl/Cmd-click a duck on the pond, a card in the Flock
   panel, or a rail card to open it pinned straight away.
-- **Feed** — click the Feed (or Premium) button, then click anywhere on
-  the map to toss food. Hungry ducks will swim/waddle over and eat it.
-- **Treats** — peas, worms, and berries from the shop. Every duck secretly
-  loves one of them: the first time it eats its favourite you get a heart
-  burst and it's written on the duck's card. Favourites restore 1.5× hunger
-  and add happiness. The Treats button picks which to toss; the duck card
-  hand-feeds whatever you have in stock.
+- **Care menu** — one HUD button holds every hands-on tool: pick Feed,
+  Premium, a treat, or the Brush, then click the map to use it (the button
+  shows which tool is armed). Treats — peas, worms, berries — are special:
+  every duck secretly loves one of them; the first time it eats its
+  favourite you get a heart burst and it's written on the duck's card, and
+  favourites restore 1.5× hunger plus happiness.
+- **Elders** — a duck that ages out of breeding isn't done. Elders keep
+  their spot for free (they don't count against pond capacity or flock
+  balance), elder hens sit broody by the nest and slow egg-warmth decay,
+  and ducklings in an elder's company hold their happiness better. A duck
+  that lives out its days passes peacefully: its feather joins the album
+  and the Society honours the life with points scaled by pedigree. Selling
+  an elder is allowed — but the card will tell you what you'd be giving up.
 - **Goals** unlock the game step by step — Breeding after you've petted the
   flock, the Shop after your first egg, the Breed Book and Pond Derby after
   your first hatch. Saves that have already done those things see everything.

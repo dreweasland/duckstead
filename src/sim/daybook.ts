@@ -124,19 +124,20 @@ export function dawnReport(state: GameState): DawnReport {
   const pairs = Math.min(breedable.filter((d) => d.sex === 'M').length, breedable.filter((d) => d.sex === 'F').length);
   if (pairs > 0) nest.push({ icon: 'heart', text: `${plural(pairs, 'pair')} ready to nest.` });
   const crowd = overcrowding(state);
-  const elders = active.filter((d) => d.stage === 'elder').length;
+  // Elders no longer count against capacity, so the report never suggests
+  // retiring them for space — they've earned their spot on the bank.
   if (crowd > 0) {
     chores.unshift({
       icon: 'warning',
       text: `The pond is overcrowded by ${plural(crowd, 'duck')} — the flock is stressed and the water fouls faster.`,
-      detail: `Sell${elders > 0 ? ` (${plural(elders, 'elder')} could retire)` : ''} or buy a Pond Expansion. Wild ducks won't visit until it's sorted.`,
+      detail: 'Sell or buy a Pond Expansion. Wild ducks won\'t visit until it\'s sorted.',
       urgent: true,
     });
   } else if (!pondHasRoom(state) && eggs.length + state.pendingClutches.length > 0) {
     nest.push({
       icon: 'warning',
       text: 'The pond is at capacity — hatching eggs will overcrowd it.',
-      detail: `Sell${elders > 0 ? ` (${plural(elders, 'elder')} could retire)` : ''} before they hatch, or expand the pond.`,
+      detail: 'Sell before they hatch, or expand the pond.',
     });
   }
 

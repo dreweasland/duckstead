@@ -1,5 +1,7 @@
 import type { PanelCtx } from './ui';
 import { el } from './dom';
+import { elderDaysLeft, passingPoints } from '../sim/elders';
+import { MASTER_COUNT } from '../sim/awards';
 import { icon, sexBadge, starRow, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { buildGeneticsCard } from './geneticsCard';
@@ -11,7 +13,7 @@ import { sellDuck, sellPrice } from '../sim/economy';
 import { matchesRequest, requestPrice, sellToBuyer } from '../sim/visitors';
 import { personalityLabels } from '../sim/behavior';
 import { breedingValue, keepVerdict, verdictReason } from '../sim/advisor';
-import { breedLabel } from '../sim/breedBook';
+import { breedKey, breedLabel } from '../sim/breedBook';
 import {
   breedReadiness,
   cleanDuck,
@@ -375,6 +377,21 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   // Inline two-step confirm — native confirm() would block the game loop.
   const price = sellPrice(game.state, duck);
   const sellSection = el('div', { class: 'section actions' });
+  // The sell-button conscience: an elder is close to an honoured passing —
+  // say plainly what selling would forfeit before the coins change hands.
+  if (duck.stage === 'elder') {
+    const days = elderDaysLeft(duck);
+    const points = passingPoints(duck);
+    const lines: string[] = [
+      `${duck.name} is ${days <= 1 ? 'less than a day' : `about ${days} days`} from a peaceful passing — worth +${points} Society point${points === 1 ? '' : 's'} and a feather for the album.`,
+    ];
+    const key = breedKey(duck.genome);
+    const aliveOfBreed = game.state.ducks.filter((d) => d.stage !== 'egg' && breedKey(d.genome) === key).length;
+    if (aliveOfBreed === MASTER_COUNT && !game.state.awards[key]?.master) {
+      lines.push(`Selling drops your living ${breedLabel(key)} count below ${MASTER_COUNT} — the Master award needs them alive at once.`);
+    }
+    sellSection.append(el('div', { class: 'muted small elder-note' }, lines.join(' ')));
+  }
   if (pendingSellFor === duck.id) {
     sellSection.append(
       el(

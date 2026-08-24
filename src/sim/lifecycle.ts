@@ -9,6 +9,7 @@ import { chronicle } from './chronicle';
 import { checkHatchAwards } from './awards';
 import { generationOf, livingDescendants } from './lineage';
 import { pedigreeScore } from './pedigree';
+import { passingPoints } from './elders';
 import { events } from '../events';
 import { dayOf, DAYS_PER_SEASON, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 
@@ -140,6 +141,20 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
         ? `${duck.name} passed peacefully${age !== undefined ? ` at ${age} days` : ''}.${line}`
         : `${duck.name} died young${age !== undefined ? ` at ${age} days` : ''}.${line}`,
     );
+    // An honoured passing: an elder that lived out its days on the pond
+    // leaves a feather for the album, and the Society notes a life well
+    // lived. Selling an elder forfeits all of this.
+    if (duck.stage === 'elder') {
+      const points = passingPoints(duck);
+      state.society.points += points;
+      state.society.lifetimePoints += points;
+      state.featherAlbum[duck.phenotype.bodyColor] =
+        (state.featherAlbum[duck.phenotype.bodyColor] ?? 0) + 1;
+      events.emit(
+        'toast',
+        `${duck.name}'s feather rests in the album — the Society honours a life well lived (+${points})`,
+      );
+    }
     // A best friend grieves.
     const friend = state.ducks.find((d) => d.friendId === duck.id);
     if (friend) {
