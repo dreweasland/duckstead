@@ -124,6 +124,7 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
       name: duck.name,
       sex: duck.sex,
       bodyColor: duck.phenotype.bodyColor,
+      genome: duck.genome,
       diedOnDay: dayOf(state.clock),
       rarityScore: duck.phenotype.rarityScore,
       diedStage: duck.stage,

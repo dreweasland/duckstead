@@ -14,6 +14,7 @@ import type { GameState, DuckSummary } from '../state';
 import type { Duck } from '../sim/duck';
 import { chronicleDate, type ChronicleKind } from '../sim/chronicle';
 import { pedigreeScore } from '../sim/pedigree';
+import { computePhenotype } from '../sim/genetics';
 import { generationOf } from '../sim/lineage';
 import { dayOf } from '../sim/time';
 import { AWARD_LABELS, AWARD_TIERS, awardCount } from '../sim/awards';
@@ -207,25 +208,87 @@ function recordsTab(state: GameState): HTMLElement {
   );
 
   if (state.memorial.length > 0) {
-    const memorial = el('div', { class: 'section' }, el('strong', { class: 'with-icon' }, icon('grave'), 'Remembered fondly'));
-    for (const gone of state.memorial.slice(-20).reverse()) {
-      const dot = el('span', { class: 'memorial-dot' });
-      dot.style.background = gone.bodyColor;
-      memorial.append(
-        el(
-          'div',
-          { class: 'muted small memorial-row' },
-          dot,
-          ` ${gone.name}`,
-          gone.gen ? ` · gen ${gone.gen}` : '',
-          gone.pedigree ? ` · ★${gone.pedigree}` : '',
-          ` · day ${gone.diedOnDay}`,
-          gone.ageDays !== undefined ? ` · lived ${gone.ageDays}d` : '',
-          gone.descendants ? ` · ${gone.descendants} descendants` : '',
-        ),
-      );
-    }
+    const memorial = el(
+      'div',
+      { class: 'section' },
+      el('strong', { class: 'with-icon' }, icon('grave'), 'Remembered fondly'),
+      el('div', { class: 'muted small' }, 'The ducks who made this pond what it is.'),
+    );
+    const grid = el('div', { class: 'memorial-grid' });
+    for (const gone of state.memorial.slice(-24).reverse()) grid.append(memorialCard(gone));
+    memorial.append(grid);
     box.append(memorial);
   }
   return box;
+}
+
+// A little headstone in the garden of remembrance. Newer saves stored the
+// genome at death, so the stone bears a true portrait; older entries get a
+// feather in the duck's colour.
+const EPITAPHS = [
+  'A good duck.',
+  'Fond of the reeds.',
+  'Never missed a feeding.',
+  'Loved the rain.',
+  'Kept the pond honest.',
+  'First to the trough, last to bed.',
+  'Preened to perfection.',
+  'A soft spot for duckweed.',
+  'Quacked at the moon.',
+  'The bench was theirs.',
+];
+
+function memorialCard(gone: DuckSummary): HTMLElement {
+  const elder = gone.diedStage === 'elder';
+  const card = el('div', { class: `memorial-card${elder ? ' honoured' : ''}` });
+  if (gone.genome) {
+    const stub = {
+      id: `memorial-${gone.name}`,
+      genome: gone.genome,
+      phenotype: computePhenotype(gone.genome),
+      sex: gone.sex,
+      stage: 'adult',
+      sick: false,
+      activity: 'idle',
+      needs: { hunger: 100, cleanliness: 100, happiness: 100, health: 100 },
+    } as unknown as Duck;
+    card.append(el('div', { class: 'memorial-portrait' }, duckPortrait(stub, 54)));
+  } else {
+    const feather = el('div', { class: 'memorial-portrait memorial-feather' }, icon('feather', 30));
+    feather.style.color = gone.bodyColor;
+    card.append(feather);
+  }
+  card.append(
+    el(
+      'div',
+      { class: 'memorial-name' },
+      el('span', { class: `sex-badge sex-${gone.sex.toLowerCase()}` }, gone.sex === 'M' ? '♂' : '♀'),
+      ` ${gone.name}`,
+    ),
+    el(
+      'div',
+      { class: 'memorial-line muted small' },
+      elder
+        ? `passed peacefully${gone.ageDays !== undefined ? ` at ${gone.ageDays} days` : ''}`
+        : `died young${gone.ageDays !== undefined ? ` at ${gone.ageDays} days` : ''}`,
+    ),
+  );
+  const meta: string[] = [];
+  if (gone.gen) meta.push(`gen ${gone.gen}`);
+  if (gone.pedigree) meta.push(`★ ${gone.pedigree}`);
+  if (meta.length) card.append(el('div', { class: 'memorial-line muted small' }, meta.join(' · ')));
+  if (gone.descendants) {
+    card.append(
+      el(
+        'div',
+        { class: 'memorial-line memorial-legacy' },
+        `${gone.sex === 'F' ? 'Her' : 'His'} line lives on in ${gone.descendants} duck${gone.descendants === 1 ? '' : 's'}.`,
+      ),
+    );
+  }
+  // A small deterministic epitaph, so each stone reads the same every visit.
+  let hash = 0;
+  for (const ch of gone.name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  card.append(el('div', { class: 'memorial-epitaph' }, `“${EPITAPHS[hash % EPITAPHS.length]}”`));
+  return card;
 }

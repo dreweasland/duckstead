@@ -71,6 +71,9 @@ export interface DuckSummary {
   name: string;
   sex: 'M' | 'F';
   bodyColor: string;
+  // Stored at death so the memorial can draw a real portrait; older saves
+  // fall back to a coloured feather.
+  genome?: import('./sim/genetics').Genome;
   diedOnDay: number;
   rarityScore: number;
   diedStage?: string;
