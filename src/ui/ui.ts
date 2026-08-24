@@ -67,8 +67,13 @@ export class UI {
     {} as Record<'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society', HTMLElement>;
   private panelHost: HTMLElement;
   private toastHost: HTMLElement;
-  private openPanelKind: PanelKind | null = null;
-  private justOpened = false;
+  // Two independent slots: the floating duck card and the centred modal
+  // (shop/flock/book/breeding/save) can be open at the same time, so a card
+  // pinned for comparison survives opening the Breeding or Shop panel.
+  private openModalKind: Exclude<PanelKind, 'duck'> | null = null;
+  private duckCardOpen = false;
+  private justOpenedModal = false;
+  private justOpenedDuck = false;
   private pointerDownInPanel = false;
   private pointerDownInRail = false;
   private feedMode: 'none' | FoodKind | 'brush' = 'none';
@@ -128,10 +133,10 @@ export class UI {
     events.on('favourite-found', (d) => {
       const duck = d as { pos: { x: number; y: number } };
       for (let i = 0; i < 6; i += 1) this.renderer.spawnParticle(duck.pos.x, duck.pos.y - 18, 'heart');
-      if (this.openPanelKind === 'duck') this.refreshPanel();
+      if (this.duckCardOpen) this.refreshPanel();
     });
     events.on('duck-died', () => {
-      if (this.openPanelKind === 'duck') this.refreshPanel();
+      if (this.duckCardOpen) this.refreshPanel();
     });
     events.on('takeover', () => this.showTakeoverOverlay());
 
@@ -498,7 +503,7 @@ export class UI {
       }
       // With the Breeding panel open, clicking an adult on the pond drops it
       // straight into a mate slot — no detour through the duck cards.
-      if (id && this.openPanelKind === 'breeding' && pickMateFromPond(this.game.state, id)) {
+      if (id && this.openModalKind === 'breeding' && pickMateFromPond(this.game.state, id)) {
         const picked = this.game.state.ducks.find((d) => d.id === id);
         if (picked) this.renderer.spawnParticle(picked.pos.x, picked.pos.y - 20, 'heart');
         this.refreshPanel();
@@ -510,7 +515,7 @@ export class UI {
       }
       this.game.selectedDuckId = id;
       if (id) this.openPanel('duck');
-      else if (this.openPanelKind === 'duck') this.closePanel();
+      else if (this.duckCardOpen) this.closeDuckCard();
     });
   }
 
@@ -580,7 +585,19 @@ export class UI {
 
   private applyFloatPos(): void {
     if (!this.floatPos) {
-      // Default: centered horizontally, upper third of the screen.
+      // Default: centered horizontally, upper third of the screen — unless a
+      // modal is open, in which case the card steps aside so both stay
+      // readable (a drag still puts it anywhere).
+      if (this.openModalKind) {
+        const modal = this.modalHost.firstElementChild as HTMLElement | null;
+        const modalLeft = modal ? modal.getBoundingClientRect().left : window.innerWidth / 2 - 390;
+        const w = this.floatHost.offsetWidth || 340;
+        const x = Math.max(4, Math.min(modalLeft - w - 12, window.innerWidth - w - 4));
+        this.floatHost.style.left = `${x}px`;
+        this.floatHost.style.top = '90px';
+        this.floatHost.style.transform = 'none';
+        return;
+      }
       this.floatHost.style.left = '50%';
       this.floatHost.style.top = '90px';
       this.floatHost.style.transform = 'translateX(-50%)';
@@ -641,23 +658,41 @@ export class UI {
   }
 
   togglePanel(kind: PanelKind): void {
-    if (this.openPanelKind === kind) this.closePanel();
-    else this.openPanel(kind);
+    const open = kind === 'duck' ? this.duckCardOpen : this.openModalKind === kind;
+    if (open) {
+      if (kind === 'duck') this.closeDuckCard();
+      else this.closeModal();
+    } else this.openPanel(kind);
   }
 
   openPanel(kind: PanelKind): void {
     // Animate only when the panel actually appears or changes kind — swapping
     // ducks inside an open panel should feel instant, not replay the slide.
-    this.justOpened = this.openPanelKind !== kind;
-    this.openPanelKind = kind;
+    if (kind === 'duck') {
+      this.justOpenedDuck = !this.duckCardOpen;
+      this.duckCardOpen = true;
+    } else {
+      this.justOpenedModal = this.openModalKind !== kind;
+      this.openModalKind = kind;
+    }
     this.refreshPanel();
   }
 
-  closePanel(): void {
-    this.openPanelKind = null;
-    this.panelHost.replaceChildren();
+  closeDuckCard(): void {
+    this.duckCardOpen = false;
     this.floatHost.replaceChildren();
+  }
+
+  closeModal(): void {
+    this.openModalKind = null;
+    this.panelHost.replaceChildren();
     this.modalHost.replaceChildren();
+  }
+
+  // Close everything (used by the takeover overlay).
+  closePanel(): void {
+    this.closeDuckCard();
+    this.closeModal();
   }
 
   // Pin the current duck card: it becomes its own floating window that stays
@@ -727,7 +762,7 @@ export class UI {
   selectDuck(id: string, pin = false): void {
     if (pin) {
       if (this.isPinned(id)) return;
-      if (!this.openPanelKind || this.openPanelKind !== 'duck') {
+      if (!this.duckCardOpen) {
         // Nothing to compare against yet: just open it normally.
         this.game.selectedDuckId = id;
         this.openPanel('duck');
@@ -745,10 +780,9 @@ export class UI {
     const active0 = document.activeElement;
     const typingInPin = active0 && this.pinned.some((p) => p.host.contains(active0)) && (active0 instanceof HTMLInputElement || active0 instanceof HTMLSelectElement);
     if (!typingInPin) this.refreshPinned();
-    if (!this.openPanelKind) return;
+    if (!this.duckCardOpen && !this.openModalKind) return;
     // Don't rebuild while the user is typing in a panel field — a rebuild
     // would replace the input and steal focus mid-keystroke.
-    // The duck card lives in floatHost, the others in panelHost — check both.
     const active = document.activeElement;
     if (
       active &&
@@ -757,64 +791,67 @@ export class UI {
     ) {
       return;
     }
-    const ctx = {
-      game: this.game,
-      ui: this,
-      close: () => this.closePanel(),
-    };
-    let panel: HTMLElement | null = null;
-    switch (this.openPanelKind) {
-      case 'duck':
-        panel = renderDuckPanel(ctx);
-        break;
-      case 'breeding':
-        panel = renderBreedingPanel(ctx);
-        break;
-      case 'shop':
-        panel = renderShopPanel(ctx);
-        break;
-      case 'roster':
-        panel = renderRosterPanel(ctx);
-        break;
-      case 'save':
-        panel = renderSavePanel(ctx);
-        break;
-      case 'book':
-        panel = renderBookPanel(ctx);
-        break;
-    }
-    if (panel) {
-      // The duck card floats (draggable); breeding takes the centred modal;
-      // the other management panels stay docked on the right.
-      // Every management panel opens as a centred modal; only the duck card floats.
-      const host = this.openPanelKind === 'duck' ? this.floatHost : this.modalHost;
-      for (const other of [this.panelHost, this.floatHost, this.modalHost]) {
-        if (other !== host) other.replaceChildren();
-      }
-      if (host === this.floatHost) {
+
+    // The floating duck card and the centred modal render independently, so
+    // both can be on screen at once.
+    if (this.duckCardOpen) {
+      const panel = renderDuckPanel({ game: this.game, ui: this, close: () => this.closeDuckCard() });
+      if (panel) {
         panel.classList.add('floating');
         this.applyFloatPos();
+        if (!this.justOpenedDuck) panel.classList.add('no-anim');
+        this.justOpenedDuck = false;
+        this.swapPanel(this.floatHost, panel);
+      } else {
+        this.closeDuckCard();
       }
-      if (host === this.modalHost) panel.classList.add('modal');
-      // Only the first render after opening plays the slide-in animation;
-      // periodic refreshes swap content silently to avoid flicker.
-      if (!this.justOpened) panel.classList.add('no-anim');
-      this.justOpened = false;
-      // Preserve scroll positions (panel body + any scrollable lists) across
-      // the rebuild, or periodic refreshes yank the user back to the top.
-      const oldPanel = host.firstElementChild as HTMLElement | null;
-      const panelScroll = oldPanel?.scrollTop ?? 0;
-      const listScrolls = [...(oldPanel?.querySelectorAll(SCROLL_REGIONS) ?? [])].map(
-        (n) => n.scrollTop,
-      );
-      host.replaceChildren(panel);
-      panel.scrollTop = panelScroll;
-      [...panel.querySelectorAll(SCROLL_REGIONS)].forEach((n, i) => {
-        if (listScrolls[i] !== undefined) n.scrollTop = listScrolls[i];
-      });
-    } else {
-      this.closePanel();
     }
+
+    if (this.openModalKind) {
+      const ctx = { game: this.game, ui: this, close: () => this.closeModal() };
+      let panel: HTMLElement | null = null;
+      switch (this.openModalKind) {
+        case 'breeding':
+          panel = renderBreedingPanel(ctx);
+          break;
+        case 'shop':
+          panel = renderShopPanel(ctx);
+          break;
+        case 'roster':
+          panel = renderRosterPanel(ctx);
+          break;
+        case 'save':
+          panel = renderSavePanel(ctx);
+          break;
+        case 'book':
+          panel = renderBookPanel(ctx);
+          break;
+      }
+      if (panel) {
+        panel.classList.add('modal');
+        if (!this.justOpenedModal) panel.classList.add('no-anim');
+        this.justOpenedModal = false;
+        this.swapPanel(this.modalHost, panel);
+      } else {
+        this.closeModal();
+      }
+    }
+  }
+
+  // Swap a host's panel for a freshly built one, preserving scroll positions
+  // (panel body + any scrollable lists) across the rebuild, or periodic
+  // refreshes would yank the user back to the top.
+  private swapPanel(host: HTMLElement, panel: HTMLElement): void {
+    const oldPanel = host.firstElementChild as HTMLElement | null;
+    const panelScroll = oldPanel?.scrollTop ?? 0;
+    const listScrolls = [...(oldPanel?.querySelectorAll(SCROLL_REGIONS) ?? [])].map(
+      (n) => n.scrollTop,
+    );
+    host.replaceChildren(panel);
+    panel.scrollTop = panelScroll;
+    [...panel.querySelectorAll(SCROLL_REGIONS)].forEach((n, i) => {
+      if (listScrolls[i] !== undefined) n.scrollTop = listScrolls[i];
+    });
   }
 
   private refreshGoals(): void {
