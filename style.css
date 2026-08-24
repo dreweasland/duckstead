@@ -3124,3 +3124,75 @@ body.feeding #pond-canvas {
   font-size: 10px;
   word-break: break-all;
 }
+
+/* ---------- Cloud sync ---------- */
+.sync-chip {
+  color: #93a1b0;
+  font-size: 12px;
+}
+
+.sync-chip.sync-synced {
+  color: #8fce7e;
+}
+
+.sync-chip.sync-syncing {
+  color: #e8b83a;
+}
+
+.sync-chip.sync-offline,
+.sync-chip.sync-stale {
+  color: #e0a93a;
+  border-color: #b08a3f;
+}
+
+.pair-code-box {
+  margin-top: 8px;
+  padding: 10px;
+  background: #1f2833;
+  border: 1px solid #3d4c5e;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.pair-code {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  font-variant-numeric: tabular-nums;
+  color: #e8b83a;
+  user-select: all;
+}
+
+.sync-conflict-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 12, 18, 0.85);
+  font-family: 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  color: #ecebe6;
+}
+
+.sync-conflict-card {
+  max-width: 420px;
+  margin: 16px;
+  padding: 22px;
+  background: rgba(18, 24, 32, 0.98);
+  border: 1px solid #3d4c5e;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sync-conflict-card h2 {
+  font-size: 18px;
+}
+
+.sync-conflict-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

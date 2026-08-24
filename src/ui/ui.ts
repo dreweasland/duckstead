@@ -48,6 +48,8 @@ import { pickMateFromPond, renderBreedingPanel } from './breedingPanel';
 import { renderShopPanel } from './shopPanel';
 import { renderRosterPanel } from './rosterPanel';
 import { renderSavePanel } from './savePanel';
+import { claimAndReload } from '../sync/sync';
+import { isSyncConfigured } from '../sync/syncMeta';
 import { renderBookPanel } from './bookPanel';
 import { openRacePanel, raceEligible, raceSpeed } from './racePanel';
 import { clamp } from '../types';
@@ -138,7 +140,7 @@ export class UI {
     events.on('duck-died', () => {
       if (this.duckCardOpen) this.refreshPanel();
     });
-    events.on('takeover', () => this.showTakeoverOverlay());
+    events.on('takeover', (payload) => this.showTakeoverOverlay(Boolean((payload as { remote?: boolean } | undefined)?.remote)));
 
     // Never rebuild the panel mid-press: a rebuild between pointerdown and
     // pointerup destroys the button under the cursor and swallows the click.
@@ -175,6 +177,26 @@ export class UI {
   private buildHud(): HTMLElement {
     this.hudClock = el('span', { class: 'hud-clock' });
     this.festivalChip = el('button', { class: 'hud-chip festival-chip', onclick: () => this.onFestivalChip() });
+
+    // Cloud-sync status chip: only exists once a device has been linked.
+    const syncChip = el('span', { class: 'hud-chip sync-chip', style: 'display:none' });
+    events.on('sync-status', (status) => {
+      const st = status as string;
+      syncChip.style.display = '';
+      syncChip.className = `hud-chip sync-chip sync-${st}`;
+      syncChip.textContent =
+        st === 'synced' ? '☁ synced' : st === 'syncing' ? '☁ syncing…' : st === 'offline' ? '☁ offline' : '☁ paused';
+      syncChip.title =
+        st === 'offline'
+          ? 'Cloud unreachable — playing locally, will sync when it returns'
+          : st === 'stale'
+            ? 'Another device owns the pond right now'
+            : 'Cloud save is up to date';
+    });
+    if (isSyncConfigured()) {
+      syncChip.style.display = '';
+      syncChip.textContent = '☁';
+    }
 
     // Resource chips: the icon is built once; only the count span updates.
     const chip = (
@@ -226,6 +248,7 @@ export class UI {
       this.hudClock,
       chips,
       this.festivalChip,
+      syncChip,
       el('span', { class: 'hud-spacer' }),
       el(
         'button',
@@ -1596,7 +1619,7 @@ export class UI {
     this.root.append(overlay);
   }
 
-  private showTakeoverOverlay(): void {
+  private showTakeoverOverlay(remote = false): void {
     this.closePanel();
     this.root.append(
       el(
@@ -1606,16 +1629,24 @@ export class UI {
           'div',
           { class: 'takeover-card' },
           icon('duck', 34),
-          el('strong', {}, 'Pond opened in another tab'),
+          el('strong', {}, remote ? 'Pond opened on another device' : 'Pond opened in another tab'),
           el(
             'div',
             { class: 'muted' },
-            'This tab has stopped playing and saving so the two tabs cannot overwrite each other.',
+            remote
+              ? 'This device has stopped playing and saving so the two copies cannot overwrite each other.'
+              : 'This tab has stopped playing and saving so the two tabs cannot overwrite each other.',
           ),
           el(
             'button',
-            { class: 'action-btn primary', onclick: () => location.reload() },
-            'Play in this tab instead',
+            {
+              class: 'action-btn primary',
+              onclick: () => {
+                if (remote) void claimAndReload();
+                else location.reload();
+              },
+            },
+            remote ? 'Play here instead' : 'Play in this tab instead',
           ),
         ),
       ),

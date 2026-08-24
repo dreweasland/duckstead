@@ -5,6 +5,9 @@ import { deserialize, serialize } from '../save/save';
 import { canRetire } from '../sim/heritage';
 import { pedigreeScore } from '../sim/pedigree';
 import { duckPortrait } from './portrait';
+import { attachCloudSync } from '../sync/sync';
+import { claimSave, pairStart } from '../sync/syncClient';
+import { isSyncConfigured, loadSyncMeta, newDeviceId, saveSyncMeta, unlinkSync } from '../sync/syncMeta';
 
 let confirmingNewGame = false;
 
@@ -117,8 +120,129 @@ export function renderSavePanel(ctx: PanelCtx): HTMLElement {
       ),
     ),
   );
+  panel.append(linkDeviceSection(ctx));
   panel.append(heritageSection(ctx));
   return panel;
+}
+
+// ---- Cloud sync / companion pairing ----------------------------------------
+let pairInfo: { code: string; expiresAt: number } | null = null;
+let pairBusy = false;
+let confirmingUnlink = false;
+
+function linkDeviceSection(ctx: PanelCtx): HTMLElement {
+  const { game } = ctx;
+  const box = el(
+    'div',
+    { class: 'section' },
+    el('strong', { class: 'with-icon' }, icon('sparkle'), 'Companion & cloud sync'),
+  );
+
+  const showCode = async (existing: { syncId: string; secret: string } | null): Promise<void> => {
+    if (pairBusy) return;
+    pairBusy = true;
+    try {
+      const res = await pairStart(existing);
+      if (!existing) {
+        // First link: this browser becomes the sync's founding device.
+        const meta = {
+          syncId: res.syncId,
+          secret: res.secret,
+          deviceId: newDeviceId(),
+          lastSyncedSeq: 0,
+          dirty: true,
+        };
+        saveSyncMeta(meta);
+        await claimSave(meta);
+        game.save(); // triggers the first push via attachCloudSync
+        attachCloudSync(game);
+      }
+      pairInfo = { code: res.code, expiresAt: res.expiresAt };
+    } catch {
+      ctx.ui.toast('Could not reach the cloud — try again in a moment.');
+    }
+    pairBusy = false;
+    ctx.ui.refreshPanel();
+  };
+
+  if (!isSyncConfigured()) {
+    box.append(
+      el(
+        'div',
+        { class: 'muted small' },
+        'Link a phone (or another computer) to carry the pond with you. The companion at /companion handles feeding, petting, egg care and the basket — anyone with the code can play your pond, so share it like a house key.',
+      ),
+      el(
+        'button',
+        { class: 'action-btn', disabled: pairBusy, onclick: () => void showCode(null) },
+        pairBusy ? 'Linking…' : 'Link a device',
+      ),
+    );
+  } else {
+    const meta = loadSyncMeta()!;
+    box.append(
+      el(
+        'div',
+        { class: 'muted small' },
+        `Cloud sync is on (save #${meta.lastSyncedSeq}${meta.dirty ? ', pending push' : ', up to date'}). Companion: ${location.origin}/companion`,
+      ),
+      el(
+        'div',
+        { class: 'actions' },
+        el(
+          'button',
+          { class: 'action-btn', disabled: pairBusy, onclick: () => void showCode({ syncId: meta.syncId, secret: meta.secret }) },
+          'Show a pairing code',
+        ),
+        confirmingUnlink
+          ? el(
+              'button',
+              {
+                class: 'danger-btn',
+                onclick: () => {
+                  unlinkSync();
+                  confirmingUnlink = false;
+                  pairInfo = null;
+                  ctx.ui.toast('Unlinked. The cloud copy still exists; relink anytime.');
+                  ctx.ui.refreshPanel();
+                },
+              },
+              'Really unlink this device?',
+            )
+          : el(
+              'button',
+              {
+                class: 'danger-btn',
+                onclick: () => {
+                  confirmingUnlink = true;
+                  ctx.ui.refreshPanel();
+                },
+              },
+              'Unlink',
+            ),
+      ),
+    );
+  }
+
+  if (pairInfo) {
+    const minsLeft = Math.max(0, Math.ceil((pairInfo.expiresAt - Date.now()) / 60_000));
+    if (minsLeft === 0) pairInfo = null;
+    else {
+      box.append(
+        el(
+          'div',
+          { class: 'pair-code-box' },
+          el('div', { class: 'pair-code' }, pairInfo.code),
+          el(
+            'div',
+            { class: 'muted small' },
+            `On the other device, open ${location.origin}/companion and enter this code. Expires in ${minsLeft} min, works once.`,
+          ),
+        ),
+      );
+    }
+  }
+  return box;
 }
 
 // Retire the pond: pick a founding pair and carry the legacy into a new pond.

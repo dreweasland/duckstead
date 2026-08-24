@@ -10,7 +10,9 @@ export type GameEvent =
   | 'duck-died'
   | 'purchase'
   | 'duck-selected'
-  | 'takeover'; // another tab opened the game and owns the save now
+  | 'saved' // a local save just landed in localStorage (cloud sync pushes on it)
+  | 'sync-status' // cloud sync state changed: 'synced' | 'syncing' | 'offline' | 'stale'
+  | 'takeover'; // another tab or device opened the game and owns the save now
 
 class EventBus {
   private handlers = new Map<GameEvent, Set<Handler>>();

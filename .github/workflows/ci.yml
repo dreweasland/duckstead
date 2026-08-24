@@ -17,6 +17,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx tsc --noEmit
+      - run: npx tsc -p worker --noEmit
       - run: npm test
       - run: npm run build
       - uses: actions/upload-artifact@v4

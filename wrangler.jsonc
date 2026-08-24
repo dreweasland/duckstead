@@ -1,13 +1,19 @@
-// Cloudflare Workers (static assets) config. `npx wrangler deploy` uploads
-// the Vite build in ./dist and serves it from Cloudflare's edge; no Worker
-// script is needed for a static site. `public/_headers` is honoured.
+// Cloudflare Workers config. `npx wrangler deploy` bundles the sync Worker
+// (worker/index.ts + the DuckSyncDO Durable Object) and uploads the Vite
+// build in ./dist as static assets; `public/_headers` is honoured.
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "duckstead",
   "compatibility_date": "2025-08-01",
+  "main": "worker/index.ts",
   "assets": {
     "directory": "./dist",
-    // Single-page app: unknown paths fall back to index.html.
+    "binding": "ASSETS",
+    // Single-page app: unknown paths (e.g. /companion) fall back to index.html.
     "not_found_handling": "single-page-application"
-  }
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "SYNC", "class_name": "DuckSyncDO" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DuckSyncDO"] }]
 }

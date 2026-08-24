@@ -62,6 +62,7 @@ export class Game {
   save(): void {
     if (this.stale) return;
     saveToStorage(this.snapshotState());
+    events.emit('saved');
   }
 
   tick = (): void => {
