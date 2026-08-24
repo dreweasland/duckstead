@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Duck Genetics Guide — Duck Homestead</title>
+<meta name="description" content="Every locus, dominance rule, show standard, and breeding recipe in Duck Homestead's genetics system.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%234a90c2'/%3E%3Ccircle cx='15.5' cy='7.5' r='3.6' fill='%23f2ede2'/%3E%3Cpath d='M18.6 6.4l3.4-.8v2.4l-3.4.3z' fill='%23e8912d'/%3E%3Cpath d='M3.5 13.5c0 4 3.2 6.5 7.5 6.5h3.5c3.4 0 5.9-2 5.9-4.9 0-.5-.1-1-.2-1.4l-3.4.8c-2.1.5-4.1-1.1-4.1-3.2v-1c-.9-.5-2.1-.8-3.4-.8-3.4 0-5.8 1.6-5.8 4z' fill='%23f2ede2'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&family=Nunito+Sans:ital,wght@0,400;0,600;0,800;1,400&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+:root {
+  --paper: #eef2ee; --ink: #26333b; --muted: #5c6d76; --line: #d3dcd4;
+  --water: #3d7fb5; --straw: #c9a55c; --grass: #4f8a3f; --gold: #b07f22;
+  --tile-bg: #35506e; --tile-fg: #e8f1f8; --tile-dim: #9fb0bf; --card: #ffffff;
+}
+:root:not([data-theme="light"]) { }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #151c23; --ink: #dfe7ea; --muted: #93a4ae; --line: #2b3945;
+    --water: #6aa6d8; --straw: #d9b571; --grass: #83bd6d; --gold: #e0b45a;
+    --tile-bg: #3d5372; --tile-fg: #d9ecf7; --tile-dim: #6e8090; --card: #1c252e;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #151c23; --ink: #dfe7ea; --muted: #93a4ae; --line: #2b3945;
+  --water: #6aa6d8; --straw: #d9b571; --grass: #83bd6d; --gold: #e0b45a;
+  --tile-bg: #3d5372; --tile-fg: #d9ecf7; --tile-dim: #6e8090; --card: #1c252e;
+}
+body { background: var(--paper); color: var(--ink); font: 400 16px/1.65 "Nunito Sans", system-ui, sans-serif; margin: 0; }
+main { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 5rem; }
+h1, h2, h3 { font-family: "Baloo 2", "Nunito Sans", sans-serif; line-height: 1.15; text-wrap: balance; }
+h1 { font-size: 2.6rem; font-weight: 700; margin: 0.4rem 0 0.6rem; }
+h2 { font-size: 1.5rem; font-weight: 700; margin: 2.8rem 0 0.6rem; color: var(--water); }
+h3 { font-size: 1.1rem; font-weight: 700; margin: 1.6rem 0 0.4rem; }
+p, li { max-width: 68ch; }
+.eyebrow { font: 800 0.72rem/1 "Nunito Sans", sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--straw); }
+.lede { font-size: 1.12rem; color: var(--muted); max-width: 62ch; }
+a { color: var(--water); }
+hr { border: 0; border-top: 1px solid var(--line); margin: 2.5rem 0; }
+.tablewrap { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+th { text-align: left; font: 800 0.72rem/1.3 "Nunito Sans", sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 0.75rem 0.4rem 0; border-bottom: 2px solid var(--line); }
+td { padding: 0.55rem 0.75rem 0.55rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tile { display: inline-flex; align-items: center; justify-content: center; min-width: 1.35em; height: 1.35em; padding: 0 0.2em; border-radius: 0.3em; background: var(--tile-bg); color: var(--tile-fg); font: 700 0.82em/1 "JetBrains Mono", monospace; vertical-align: -0.15em; }
+.tile.dim { background: transparent; color: var(--tile-dim); box-shadow: inset 0 0 0 1.5px var(--tile-dim); }
+.tile.rare { background: var(--gold); color: #fff; }
+code, .mono { font: 500 0.9em "JetBrains Mono", monospace; }
+.recipe { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.2rem; margin: 0.9rem 0; }
+.recipe strong:first-child { color: var(--grass); }
+.note { border-left: 3px solid var(--straw); padding: 0.1rem 0 0.1rem 1rem; color: var(--muted); margin: 1.2rem 0; }
+ul { padding-left: 1.2rem; }
+li { margin: 0.35rem 0; }
+.punnett { display: inline-grid; grid-template-columns: repeat(3, auto); gap: 3px; margin: 0.4rem 1.4rem 0.4rem 0; vertical-align: top; font: 700 0.8rem "JetBrains Mono", monospace; }
+.punnett span { min-width: 2.6em; text-align: center; padding: 0.3em 0.35em; border-radius: 0.3em; }
+.punnett .hd { color: var(--muted); }
+.punnett .cell { background: var(--card); border: 1px solid var(--line); }
+.punnett .hit { border-color: var(--gold); color: var(--gold); font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+<p class="eyebrow"><a href="/" style="color:inherit;text-decoration:none">← Back to the pond</a> · Field Reference</p>
+<h1>The Duck Genetics Guide</h1>
+<p class="lede">Every duck carries a diploid genome: thirteen loci, two alleles each, one from each parent. Nothing is hand-painted — plumage, build, bill, crest, and constitution are computed from these genes, so what you see on the pond is exactly what you can breed for.</p>
+
+<h2>1 · The thirteen loci</h2>
+<h3>Mendelian loci — dominance decides what shows</h3>
+<div class="tablewrap"><table>
+<tr><th>Locus</th><th>Alleles, dominant → recessive</th><th>What it does</th></tr>
+<tr><td><strong>Base colour</strong></td><td><span class="tile">M</span> mallard = <span class="tile rare">B</span> blue &gt; <span class="tile">W</span> white &gt; <span class="tile">k</span> black</td><td><span class="tile">M</span> and <span class="tile rare">B</span> are equal rank: an M/B duck is a <em>blend</em> — the Blue-Mallard. Blue is rare: absent from starters and shop stock.</td></tr>
+<tr><td><strong>Dilution</strong></td><td><span class="tile">D</span> full &gt; <span class="tile">d</span> dilute</td><td><span class="tile">d</span><span class="tile">d</span> lightens plumage 40% — the pastel "Dilute" look.</td></tr>
+<tr><td><strong>Pattern</strong></td><td><span class="tile">S</span> solid &gt; <span class="tile">p</span> spotted &gt; <span class="tile">c</span> capped</td><td>Solid hides spotted; both hide capped. A capped duck is always <span class="tile">c</span><span class="tile">c</span>.</td></tr>
+<tr><td><strong>Markings</strong></td><td><span class="tile">A</span> dark &gt; <span class="tile">a</span> pale</td><td>Colour of the spots or cap. Cosmetic — except that show standards call for one or the other.</td></tr>
+<tr><td><strong>Bill colour</strong></td><td><span class="tile rare">P</span> pink &gt; <span class="tile">O</span> orange &gt; <span class="tile">y</span> yellow</td><td>Pink is the second rare allele; one copy shows.</td></tr>
+<tr><td><strong>Crest</strong></td><td><span class="tile">n</span> plain &gt; <span class="tile">R</span> crest</td><td><em>Recessive</em>: only <span class="tile">R</span><span class="tile">R</span> grows the pom-pom. A single <span class="tile dim">R</span> is an invisible carrier.</td></tr>
+</table></div>
+<p>The higher-ranked allele is expressed; equal ranks (only M vs B) blend. Recessives hide until two copies meet — which is why surprises hatch.</p>
+
+<h3>Additive loci — count the <span class="tile">+</span> alleles</h3>
+<div class="tablewrap"><table>
+<tr><th>Trait</th><th>Loci</th><th>Range</th><th>Effect</th></tr>
+<tr><td><strong>Size</strong></td><td class="mono">size1–3</td><td>0–6</td><td>Body scale 75% → 130%. Extremes (0 or 6) score rarity.</td></tr>
+<tr><td><strong>Bill shape</strong></td><td class="mono">bill1–2</td><td>0–4</td><td>0 = stubby &amp; wide, 4 = long &amp; narrow. Extremes score rarity.</td></tr>
+<tr><td><strong>Vigor</strong></td><td class="mono">vigor1–2</td><td>0–4</td><td>Lifespan, sickness resistance, race speed. More is always better.</td></tr>
+</table></div>
+<p>No dominance here — every <span class="tile">+</span> counts, so these respond to steady selection rather than lucky pairings.</p>
+
+<h2>2 · Inheritance</h2>
+<ul>
+<li>Each parent contributes <strong>one random allele per locus</strong>.</li>
+<li><strong>Mutation:</strong> each inherited allele has a <strong>2% chance</strong> to flip — the only way <span class="tile rare">B</span> and <span class="tile rare">P</span> enter a closed flock, apart from wild visitors and Society stock. Heritage ponds add +1% per retirement (max +5%).</li>
+<li><strong>Starters</strong> carry no rare alleles but each hides at least one recessive (white/black, dilute, spotted/capped, or crest), so early clutches throw surprises.</li>
+<li><strong>Ducklings hide their colours</strong> under yellow fluff until the juvenile molt at one day old. The genes are set at lay time — the Scope reads them regardless.</li>
+<li><strong>Inbreeding:</strong> close kin (parent–child, siblings) give each <span class="tile">+</span> vigor allele a 35% chance of degrading to <span class="tile">−</span> in the clutch.</li>
+</ul>
+<h3>Worked examples</h3>
+<div>
+<div class="punnett"><span></span><span class="hd">R</span><span class="hd">n</span><span class="hd">R</span><span class="cell hit">RR ✓</span><span class="cell">Rn</span><span class="hd">n</span><span class="cell">Rn</span><span class="cell">nn</span></div>
+<div class="punnett"><span></span><span class="hd">B</span><span class="hd">B</span><span class="hd">M</span><span class="cell hit">B/M</span><span class="cell hit">B/M</span><span class="hd">M</span><span class="cell hit">B/M</span><span class="cell hit">B/M</span></div>
+</div>
+<ul>
+<li>Two crest carriers → 25% crested, 50% hidden carriers, 25% clean.</li>
+<li><span class="tile rare">B</span><span class="tile rare">B</span> Blue × <span class="tile">M</span><span class="tile">M</span> Mallard → 100% Blue-Mallard — the only reliable way to produce that breed. Blue-Mallards never breed true: B/M × B/M is 25 / 50 / 25.</li>
+<li>The Breed panel shows these exact odds for any pairing you select.</li>
+</ul>
+
+<h2>3 · What the genes feed into</h2>
+<h3>The Breed Book — 60 entries</h3>
+<p>A duck's <strong>breed</strong> is defined by four loci: base colour (five expressed colours, Blue-Mallard included) × dilution × pattern × crest. Discovery pays coins and Society points; each breed carries a Pure / Standard / Master award ladder.</p>
+<h3>Show standards — all thirteen loci</h3>
+<p>Every breed has a deterministic <strong>show standard</strong>: the Book loci homozygous (Blue-Mallard excepted — it wants the B/M pair), plus a per-breed build: size and bill-length targets, a bill colour (about a third want pink), a markings colour, and always 4/4 vigor. The card shows your % match over nine judged slots; ≥90% earns the Standard award. Egg Show judges weigh standard match as heavily as rarity; National derby races admit only ducks at 60%+.</p>
+<h3>Rarity (0–9) and pedigree (0–15)</h3>
+<p>Rarity: +2 each for expressed blue, pink bill, and crest; +1 each for size extreme, bill extreme, dilute. Pedigree: generations bred on your pond (≤6) + homozygous Book loci (≤4) + rare alleles carried (≤4) + 1 for purebred parents. Sale price scales with both — every pedigree point adds 8%.</p>
+<h3>Vigor in play</h3>
+<p>Race speed ×0.85–1.15, adult lifespan 11.2–16.8 days, up to −50% sickness chance, and a slot in every standard. The one stat with no downside — fix <span class="tile">+</span><span class="tile">+</span>/<span class="tile">+</span><span class="tile">+</span> into every line you keep. For racers, the build sweet spot is <em>slightly under medium</em> size — which conflicts with rarity's love of extremes. Temperament (energetic/mellow) is personality, not genetics: it can't be bred for.</p>
+
+<h2>4 · Reading genes</h2>
+<ul>
+<li><strong>Free clues:</strong> swatches, pattern and crest chips, size/bill/vigor gauges on every card.</li>
+<li><strong>Pedigree Scope</strong> (shop, 150) shows exact allele pairs — expressed bright <span class="tile">M</span>, masked dim <span class="tile dim">k</span> — plus "carries" chips for hidden recessives.</li>
+<li><strong>Breeding Advisor:</strong> <em>key breeder</em> (sole carrier of a rare gene), <em>worth keeping</em> (reaches Book entries nobody else can), <em>best of breed</em> (closest to its standard), or <em>covered — safe to sell</em>.</li>
+<li><strong>Breed panel:</strong> exact per-trait odds for any pairing, close-kin warnings, and how many undiscovered breeds a pairing could unlock.</li>
+</ul>
+
+<h2>5 · Getting the rare genes</h2>
+<ul>
+<li><strong>Wild visitors</strong> always bring blue, pink bill, or a true crest. Society rank upgrades the gifts — true-breeding pairs at rank 5, near-standard ducks for missing breeds at rank 10, and a winter visitor can carry pink bill <em>and</em> crest together. The Winter Lights "stranger on the wind" wish summons the best available.</li>
+<li><strong>Mutation</strong> — 2% per allele means roughly one duckling in twelve carries some novelty; heritage pushes it higher.</li>
+<li><strong>Commissioned stock</strong> — Society rank 8 lets you order a duck with a chosen rare gene outright.</li>
+</ul>
+
+<h2>6 · Breeding recipes</h2>
+<div class="recipe"><strong>Fix a gene.</strong> Pair two carriers, keep homozygous offspring. Without the Scope: a crested duck is always RR, a capped one always cc, and a blue from two non-blue parents carries exactly one B.</div>
+<div class="recipe"><strong>Chase a standard.</strong> Cross your best % match with a mate strong where it's weak — the standard card's per-slot chips show exactly which loci to fix. Partial matches are valuable parents even if they'll never show.</div>
+<div class="recipe"><strong>Keep a bloodline clean.</strong> Rotate two pairs, or park a spare drake in the Bachelor Pen — his genes stay available without adding drake pressure.</div>
+<div class="recipe"><strong>Mind the ratio.</strong> One drake per three hens (two always tolerated). Surplus drakes harry the hens: happiness, laying, and clutch viability all suffer — 6% viability per extra drake.</div>
+<p class="note">Viability isn't genetics — it's care: happiness × health of the pair at lay time (spring +5%). Egg warmth likewise shapes hatch speed and hatchling condition, never the genes.</p>
+
+<hr>
+<p class="note">Every number here is read from the simulation source (<span class="mono">src/sim/genetics.ts</span>, <span class="mono">standards.ts</span>, <span class="mono">pedigree.ts</span>, <span class="mono">breeding.ts</span>). If the code changes, trust the code.</p>
+</main>
+</body>
+</html>

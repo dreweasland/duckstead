@@ -502,6 +502,15 @@ body.feeding #pond-canvas {
   background: #e8b83a;
 }
 
+.guide-link {
+  color: #7fb8e6;
+  text-decoration: none;
+}
+
+.guide-link:hover {
+  text-decoration: underline;
+}
+
 .book-legend {
   display: flex;
   align-items: center;

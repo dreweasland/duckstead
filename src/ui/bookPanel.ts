@@ -70,6 +70,11 @@ function breedsTab(state: GameState, discovered: number, total: number): HTMLEle
     el(
       'div',
       { class: 'muted small book-legend' },
+      el('a', { class: 'guide-link', href: '/guide/', target: '_blank', rel: 'noopener' }, 'The full genetics guide ↗'),
+    ),
+    el(
+      'div',
+      { class: 'muted small book-legend' },
       `${awardCount(state)}/${total * AWARD_TIERS.length} awards · pips: `,
       el('span', { class: 'book-pip on' }), ' Pure ',
       el('span', { class: 'book-pip on' }), ' Standard (90% match) ',
