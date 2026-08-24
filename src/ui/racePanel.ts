@@ -355,7 +355,9 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
           `On to the ${next.title ?? 'next race'}!`,
         ),
       );
-    } else if (!opts.nextRace) {
+    } else if (opts.league) {
+      // Only the daily league race reopens the picker; a tournament final
+      // ends here (its purse would otherwise be farmable for free).
       actionRow.append(el('button', { class: 'action-btn primary', onclick: showPicker }, 'Race again'));
     }
     actionRow.append(el('button', { class: 'action-btn', onclick: close }, 'Back to the pond'));
