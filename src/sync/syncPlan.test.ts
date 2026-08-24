@@ -5,11 +5,19 @@ const cloud = (over: Partial<CloudMeta> = {}): CloudMeta => ({
   exists: true,
   seq: 10,
   owner: 'phone',
+  savedAt: 5000,
   ...over,
 });
 
 describe('planBoot', () => {
-  const local = (over = {}) => ({ lastSyncedSeq: 10, dirty: false, hasLocalSave: true, ...over });
+  const local = (over = {}) => ({
+    lastSyncedSeq: 10,
+    dirty: false,
+    hasLocalSave: true,
+    deviceId: 'desktop',
+    localSavedAt: 4000,
+    ...over,
+  });
 
   it('plays local when offline', () => {
     expect(planBoot('offline', local())).toBe('offline');
@@ -29,6 +37,14 @@ describe('planBoot', () => {
 
   it('asks when the cloud advanced AND local play never synced', () => {
     expect(planBoot(cloud({ seq: 12 }), local({ dirty: true }))).toBe('conflict');
+  });
+
+  it('self-resolves by recency when the cloud writes were our own', () => {
+    // A pagehide push landed but its response died: cloud ahead, dirty local,
+    // same owner. Newest copy wins with no dialog.
+    const mine = cloud({ seq: 12, owner: 'desktop', savedAt: 5000 });
+    expect(planBoot(mine, local({ dirty: true, localSavedAt: 6000 }))).toBe('use-local');
+    expect(planBoot(mine, local({ dirty: true, localSavedAt: 4000 }))).toBe('use-cloud');
   });
 
   it('plays local when nothing changed remotely', () => {

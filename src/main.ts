@@ -22,6 +22,8 @@ async function boot(): Promise<void> {
 
 if (new URLSearchParams(location.search).has('lab')) {
   runLab();
+} else if (location.pathname === '/companion' || location.pathname === '/companion/') {
+  void import('./companion/companion').then((m) => m.runCompanion());
 } else {
   void boot();
 }

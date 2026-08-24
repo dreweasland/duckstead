@@ -5,6 +5,7 @@ export interface CloudMeta {
   exists: boolean;
   seq: number;
   owner: string | null;
+  savedAt: number;
 }
 
 export type BootDecision =
@@ -19,13 +20,27 @@ export type BootDecision =
 
 export function planBoot(
   cloud: CloudMeta | 'offline',
-  local: { lastSyncedSeq: number; dirty: boolean; hasLocalSave: boolean },
+  local: {
+    lastSyncedSeq: number;
+    dirty: boolean;
+    hasLocalSave: boolean;
+    deviceId: string;
+    localSavedAt: number;
+  },
 ): BootDecision {
   if (cloud === 'offline') return 'offline';
   if (!cloud.exists) return 'use-local';
   if (!local.hasLocalSave) return 'use-cloud';
   if (cloud.seq > local.lastSyncedSeq) {
-    return local.dirty ? 'conflict' : 'use-cloud';
+    if (!local.dirty) return 'use-cloud';
+    // Cloud ahead AND local unsynced — but if the cloud's owner is still this
+    // very device, those cloud writes were our own (e.g. a pagehide push that
+    // landed after its response was lost). No second player involved, so
+    // resolve by recency instead of alarming the human.
+    if (cloud.owner === local.deviceId) {
+      return local.localSavedAt >= cloud.savedAt ? 'use-local' : 'use-cloud';
+    }
+    return 'conflict';
   }
   // cloud.seq <= lastSyncedSeq: our local copy is as new or newer.
   return 'use-local';

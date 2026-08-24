@@ -6,7 +6,7 @@ import { events } from '../events';
 import type { Game } from '../game';
 import { SAVE_KEY } from '../save/save';
 import { claimSave, pullSave, pullMeta, pushSave } from './syncClient';
-import { loadSyncMeta, saveSyncMeta } from './syncMeta';
+import { isSyncConfigured, loadSyncMeta, saveSyncMeta } from './syncMeta';
 import { planBoot, planPoll, planPush } from './syncPlan';
 
 export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'stale';
@@ -33,11 +33,19 @@ export async function prepareCloudBoot(): Promise<void> {
   } catch {
     return; // offline: play local, attachCloudSync keeps retrying
   }
-  const hasLocalSave = localStorage.getItem(SAVE_KEY) !== null;
+  const localBlob = localStorage.getItem(SAVE_KEY);
+  let localSavedAt = 0;
+  try {
+    localSavedAt = localBlob ? (JSON.parse(localBlob) as { savedAt?: number }).savedAt ?? 0 : 0;
+  } catch {
+    localSavedAt = 0;
+  }
   const decision = planBoot(cloud, {
     lastSyncedSeq: meta.lastSyncedSeq,
     dirty: meta.dirty,
-    hasLocalSave,
+    hasLocalSave: localBlob !== null,
+    deviceId: meta.deviceId,
+    localSavedAt,
   });
   const adoptCloud = (): void => {
     if (cloud.blob) localStorage.setItem(SAVE_KEY, cloud.blob);
@@ -46,6 +54,13 @@ export async function prepareCloudBoot(): Promise<void> {
   };
   if (decision === 'use-cloud') {
     adoptCloud();
+  } else if (decision === 'use-local' || decision === 'offline') {
+    if (decision === 'use-local' && cloud.exists) {
+      // Keeping local play: the cloud head becomes our CAS base so the next
+      // push lands (the DO keeps the replaced blob in its undo slot).
+      meta.lastSyncedSeq = cloud.seq;
+      if (localSavedAt > cloud.savedAt || meta.dirty) meta.dirty = true;
+    }
   } else if (decision === 'conflict') {
     const keepCloud = await askConflict(cloud.savedAt);
     if (keepCloud) {
@@ -131,6 +146,7 @@ export function attachCloudSync(game: Game): void {
       result = null;
     }
     pushing = false;
+    if (game.stale || !isSyncConfigured()) return; // unlinked or superseded mid-flight
     if (result === null) {
       meta.dirty = true;
       saveSyncMeta(meta);
@@ -160,7 +176,7 @@ export function attachCloudSync(game: Game): void {
   // Poll ownership: another device claiming shows up here within ~15s even
   // between autosaves. Doubles as the offline-recovery probe.
   const poll = async (): Promise<void> => {
-    if (game.stale) return;
+    if (game.stale || !isSyncConfigured()) return;
     try {
       const cloud = await pullMeta(meta);
       if (planPoll(cloud, meta.deviceId) === 'lost-ownership') {
