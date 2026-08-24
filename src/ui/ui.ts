@@ -58,7 +58,7 @@ export type PanelKind = 'duck' | 'breeding' | 'shop' | 'roster' | 'save' | 'book
 const CARDS_PREF_KEY = 'ducksim:ui:cards';
 // Inner scrollable lists whose scroll position must survive the periodic
 // panel rebuild. Any new scroll region in a panel belongs in this list.
-const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .society-ladder, .chronicle';
+const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .society-ladder, .chronicle, .nest-grid';
 
 export class UI {
   private root: HTMLElement;
@@ -84,6 +84,7 @@ export class UI {
   private railHost!: HTMLElement;
   private goalsHost!: HTMLElement;
   private floatHost!: HTMLElement;
+  private modalHost!: HTMLElement;
   private festivalChip!: HTMLElement;
   // Where the floating duck card sits; remembered across opens this session.
   private floatPos: { x: number; y: number } | null = null;
@@ -102,7 +103,8 @@ export class UI {
     this.railHost = el('div', { class: 'rail-host' });
     this.goalsHost = el('div', { class: 'goals-widget' });
     this.floatHost = el('div', { class: 'float-host' });
-    this.root.append(this.railHost, this.goalsHost, this.panelHost, this.floatHost, this.toastHost);
+    this.modalHost = el('div', { class: 'modal-host' });
+    this.root.append(this.railHost, this.goalsHost, this.panelHost, this.modalHost, this.floatHost, this.toastHost);
     this.bindFloatDrag();
     this.railHost.addEventListener('pointerdown', () => {
       this.pointerDownInRail = true;
@@ -139,6 +141,9 @@ export class UI {
       this.pointerDownInPanel = true;
     });
     this.floatHost.addEventListener('pointerdown', () => {
+      this.pointerDownInPanel = true;
+    });
+    this.modalHost.addEventListener('pointerdown', () => {
       this.pointerDownInPanel = true;
     });
     window.addEventListener('pointerup', () => {
@@ -652,6 +657,7 @@ export class UI {
     this.openPanelKind = null;
     this.panelHost.replaceChildren();
     this.floatHost.replaceChildren();
+    this.modalHost.replaceChildren();
   }
 
   // Pin the current duck card: it becomes its own floating window that stays
@@ -746,7 +752,7 @@ export class UI {
     const active = document.activeElement;
     if (
       active &&
-      (this.panelHost.contains(active) || this.floatHost.contains(active)) &&
+      (this.panelHost.contains(active) || this.floatHost.contains(active) || this.modalHost.contains(active)) &&
       (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement)
     ) {
       return;
@@ -778,14 +784,18 @@ export class UI {
         break;
     }
     if (panel) {
-      // The duck card floats (draggable); management panels stay docked.
-      const host = this.openPanelKind === 'duck' ? this.floatHost : this.panelHost;
-      const otherHost = host === this.floatHost ? this.panelHost : this.floatHost;
-      otherHost.replaceChildren();
+      // The duck card floats (draggable); breeding takes the centred modal;
+      // the other management panels stay docked on the right.
+      const host =
+        this.openPanelKind === 'duck' ? this.floatHost : this.openPanelKind === 'breeding' ? this.modalHost : this.panelHost;
+      for (const other of [this.panelHost, this.floatHost, this.modalHost]) {
+        if (other !== host) other.replaceChildren();
+      }
       if (host === this.floatHost) {
         panel.classList.add('floating');
         this.applyFloatPos();
       }
+      if (host === this.modalHost) panel.classList.add('modal');
       // Only the first render after opening plays the slide-in animation;
       // periodic refreshes swap content silently to avoid flicker.
       if (!this.justOpened) panel.classList.add('no-anim');

@@ -11,7 +11,7 @@ import type { Allele, Genome, LocusId } from '../sim/genetics';
 import { computePhenotype, expressedAlleles, LOCI } from '../sim/genetics';
 import { eggsIncubating, nestPair, pairViability } from '../sim/breeding';
 import { TICKS_PER_MINUTE } from '../sim/time';
-import { breedReadiness, canBreedPair, eggWarmth, tuckEgg } from '../sim/needs';
+import { breedReadiness, canBreedPair, eggSpeedFor, eggWarmth, tuckEgg } from '../sim/needs';
 import { breedingValue, childBreedKeys, keepVerdict } from '../sim/advisor';
 import { breedKey, breedLabel } from '../sim/breedBook';
 import type { GameState } from '../state';
@@ -27,6 +27,7 @@ import { PRESSURE_VIABILITY_PENALTY } from '../sim/needs';
 let slotA: string | null = null;
 let slotB: string | null = null;
 let choosing: 'A' | 'B' | null = null;
+let breedingTab: 'pairing' | 'nest' = 'pairing';
 
 // Called when a duck on the pond is clicked while this panel is open: fill
 // the slot being chosen, else the first empty one, else the slot of the same
@@ -59,21 +60,45 @@ export function renderBreedingPanel(ctx: PanelCtx): HTMLElement {
   if (slotB && !b) slotB = null;
 
   const nestUsed = eggsIncubating(state) + state.pendingClutches.length;
-  const panel = el('aside', { class: 'panel wide breeding' });
+  const panel = el('aside', { class: 'panel breeding' });
   panel.append(
     el(
       'div',
       { class: 'panel-header' },
       el('strong', { class: 'with-icon' }, icon('heart'), 'Breeding'),
-      el(
-        'span',
-        { class: `br-nest-pill${nestUsed >= nestCapacity(state) ? ' full' : ''}`, title: 'Eggs and courting pairs in the nest' },
-        icon('egg', 11),
-        ` ${nestUsed}/${nestCapacity(state)}`,
-      ),
       el('button', { class: 'close-btn', onclick: ctx.close }, icon('close', 13)),
     ),
   );
+
+  // Tabs: the pairing table and the nest.
+  const tabs = el('div', { class: 'shop-tabs' });
+  const tabDefs = [
+    { id: 'pairing' as const, label: 'Pairing', icon: 'heart' as const, badge: null as string | null },
+    { id: 'nest' as const, label: 'The Nest', icon: 'egg' as const, badge: `${nestUsed}/${nestCapacity(state)}` },
+  ];
+  for (const t of tabDefs) {
+    tabs.append(
+      el(
+        'button',
+        {
+          class: `shop-tab${breedingTab === t.id ? ' active' : ''}`,
+          onclick: () => {
+            breedingTab = t.id;
+            ctx.ui.refreshPanel();
+          },
+        },
+        icon(t.icon, 12),
+        t.label,
+        t.badge ? el('span', { class: `shop-tab-badge${nestUsed >= nestCapacity(state) ? ' full' : ''}` }, t.badge) : null,
+      ),
+    );
+  }
+  panel.append(tabs);
+
+  if (breedingTab === 'nest') {
+    panel.append(nestSection(ctx));
+    return panel;
+  }
 
   // --- The pair ---
   const pair = el(
@@ -85,7 +110,7 @@ export function renderBreedingPanel(ctx: PanelCtx): HTMLElement {
   );
   panel.append(pair);
   panel.append(
-    el('div', { class: 'muted hint br-hint' }, 'Tip: click a duck on the pond to drop it into a slot.'),
+    el('div', { class: 'muted hint br-hint' }, 'Tip: click a duck on the pond to drop it into a slot · Ctrl-click pins its card.'),
   );
 
   // --- Chooser ---
@@ -105,9 +130,6 @@ export function renderBreedingPanel(ctx: PanelCtx): HTMLElement {
       ),
     );
   }
-
-  // --- The nest ---
-  panel.append(nestSection(ctx));
   return panel;
 }
 
@@ -369,7 +391,8 @@ function offspringOdds(state: GameState, a: Duck, b: Duck): HTMLElement {
     });
     table.append(el('div', { class: 'br-trait' }, el('span', { class: 'br-trait-label' }, t.label), bar, legend));
   }
-  box.append(table);
+  const columns = el('div', { class: 'br-odds-columns' });
+  columns.append(el('div', {}, table));
 
   // Likely looks (sampled, grouped by what reads at a glance).
   const rng = createRng(hashIds(a.id, b.id));
@@ -399,7 +422,8 @@ function offspringOdds(state: GameState, a: Duck, b: Duck): HTMLElement {
       ),
     );
   }
-  box.append(el('div', { class: 'br-subtitle' }, 'Likely looks'), row);
+  columns.append(el('div', {}, el('div', { class: 'br-subtitle' }, 'Likely looks'), row));
+  box.append(columns);
 
   const scope = upgradeLevel(state, 'pedigreeScope') > 0;
   box.append(
@@ -422,69 +446,103 @@ function nestSection(ctx: PanelCtx): HTMLElement {
   const ducks = state.ducks;
   const eggs = ducks.filter((d) => d.stage === 'egg');
   const clutches = state.pendingClutches;
-  const box = el('div', { class: 'br-nest' }, el('div', { class: 'br-section-title' }, 'The nest'));
+  const box = el('div', { class: 'br-nest' });
   if (eggs.length === 0 && clutches.length === 0) {
-    box.append(el('div', { class: 'muted small' }, 'Empty. Nest a pair and the hen lays here after an hour of courtship.'));
+    box.append(
+      el(
+        'div',
+        { class: 'br-empty' },
+        icon('egg', 22),
+        el('div', {}, 'The nest is empty. Pair two adults and the hen lays here after an hour of courtship.'),
+      ),
+    );
     return box;
   }
-  for (const clutch of clutches) {
-    const mother = ducks.find((d) => d.id === clutch.motherId);
-    const father = ducks.find((d) => d.id === clutch.fatherId);
-    const mins = Math.ceil(clutch.ticksRemaining / TICKS_PER_MINUTE);
-    const odds = mother && father ? Math.round(pairViability(state, mother, father) * 100) : null;
-    box.append(
-      el(
-        'div',
-        { class: 'br-egg-row courting' },
-        mother ? duckPortrait(mother, 30) : icon('heartOutline', 14),
+
+  if (clutches.length > 0) {
+    box.append(el('div', { class: 'br-section-title' }, 'Courting'));
+    const grid = el('div', { class: 'nest-grid' });
+    for (const clutch of clutches) {
+      const mother = ducks.find((d) => d.id === clutch.motherId);
+      const father = ducks.find((d) => d.id === clutch.fatherId);
+      const mins = Math.ceil(clutch.ticksRemaining / TICKS_PER_MINUTE);
+      const pct = Math.max(0, Math.min(100, (1 - clutch.ticksRemaining / (60 * TICKS_PER_MINUTE)) * 100));
+      const odds = mother && father ? Math.round(pairViability(state, mother, father) * 100) : null;
+      const fill = el('div', { class: 'bar-fill' });
+      fill.style.width = `${pct}%`;
+      fill.style.background = '#e37ba3';
+      grid.append(
         el(
           'div',
-          { class: 'br-egg-text' },
-          el('div', {}, `${mother?.name ?? '?'} & ${father?.name ?? '?'} are courting`),
-          el('div', { class: 'muted small' }, `egg in ${mins}m${odds !== null ? ` · ${odds}% odds right now` : ''}`),
-        ),
-      ),
-    );
-  }
-  const target = eggIncubationTicks(state);
-  for (const egg of eggs) {
-    const pct = Math.min(100, (egg.incubationTicks / target) * 100);
-    const warmth = eggWarmth(egg);
-    const fill = el('div', { class: 'bar-fill' });
-    fill.style.width = `${pct}%`;
-    fill.style.background = '#e8b83a';
-    const warmFill = el('div', { class: 'bar-fill' });
-    warmFill.style.width = `${warmth}%`;
-    warmFill.style.background = warmth > 40 ? '#e0893a' : '#6aa0d8';
-    const mother = egg.parents ? ducks.find((d) => d.id === egg.parents![0]) : undefined;
-    const father = egg.parents ? ducks.find((d) => d.id === egg.parents![1]) : undefined;
-    box.append(
-      el(
-        'div',
-        { class: `br-egg-row${egg.readyToHatch ? ' ready' : ''}` },
-        duckPortrait(egg, 30),
-        el(
-          'div',
-          { class: 'br-egg-text' },
+          { class: 'nest-card courting' },
           el(
             'div',
-            { class: 'br-egg-title' },
-            egg.readyToHatch ? 'Cracking — ready to hatch!' : `Incubating ${pct.toFixed(0)}%`,
-            mother || father ? el('span', { class: 'muted small' }, ` · ${mother?.name ?? '?'} × ${father?.name ?? '?'}`) : null,
+            { class: 'nest-card-top' },
+            mother ? duckPortrait(mother, 40) : icon('heartOutline', 16),
+            el('span', { class: 'br-heart' }, icon('heart', 14)),
+            father ? duckPortrait(father, 40) : icon('heartOutline', 16),
           ),
-          el('div', { class: 'bar', title: 'Incubation' }, fill),
-          el('div', { class: 'bar bar-thin', title: `Warmth ${Math.round(warmth)}% — tap the egg to tuck it in` }, warmFill),
+          el('div', { class: 'nest-card-title' }, `${mother?.name ?? '?'} & ${father?.name ?? '?'}`),
+          el('div', { class: 'bar bar-thin', title: 'Courtship' }, fill),
+          el(
+            'div',
+            { class: 'muted small' },
+            `egg in ${mins}m`,
+            odds !== null ? el('span', { class: odds >= 80 ? 'ok-text' : odds >= 60 ? '' : 'warn-text' }, ` · ${odds}% odds`) : null,
+          ),
+          el('div', { class: 'muted small' }, 'Feed and pet them now — the roll happens at lay time.'),
         ),
+      );
+    }
+    box.append(grid);
+  }
+
+  if (eggs.length > 0) {
+    box.append(el('div', { class: 'br-section-title' }, `Incubating · ${eggs.length}`));
+    const grid = el('div', { class: 'nest-grid' });
+    const target = eggIncubationTicks(state);
+    for (const egg of eggs) {
+      const pct = Math.min(100, (egg.incubationTicks / target) * 100);
+      const warmth = eggWarmth(egg);
+      const speed = eggSpeedFor(warmth);
+      const fill = el('div', { class: 'bar-fill' });
+      fill.style.width = `${pct}%`;
+      fill.style.background = '#e8b83a';
+      const warmFill = el('div', { class: 'bar-fill' });
+      warmFill.style.width = `${warmth}%`;
+      warmFill.style.background = warmth > 40 ? '#e0893a' : '#6aa0d8';
+      const mother = egg.parents ? ducks.find((d) => d.id === egg.parents![0]) : undefined;
+      const father = egg.parents ? ducks.find((d) => d.id === egg.parents![1]) : undefined;
+      const minsLeft = Math.ceil((target - egg.incubationTicks) / speed / TICKS_PER_MINUTE);
+      grid.append(
         el(
           'div',
-          { class: 'br-egg-actions' },
-          egg.readyToHatch
-            ? el('button', { class: 'small-btn primary', onclick: () => { claimHatch(state, game.rng, egg.id); ctx.ui.refreshPanel(); } }, 'Hatch!')
-            : el('button', { class: 'small-btn', disabled: egg.petCooldownTicks > 0, title: egg.petCooldownTicks > 0 ? 'Tucked in recently' : 'Restore warmth', onclick: () => { tuckEgg(state, egg.id); ctx.ui.refreshPanel(); } }, 'Tuck'),
-          el('button', { class: 'small-btn', onclick: () => { sellDuck(state, egg.id); ctx.ui.refreshPanel(); } }, 'Sell ', icon('coin', 10), `${sellPrice(state, egg)}`),
+          { class: `nest-card${egg.readyToHatch ? ' ready' : ''}` },
+          el(
+            'div',
+            { class: 'nest-card-top' },
+            duckPortrait(egg, 40),
+            el(
+              'div',
+              { class: 'nest-card-id' },
+              el('div', { class: 'nest-card-title' }, egg.readyToHatch ? 'Cracking!' : `${pct.toFixed(0)}%`),
+              el('div', { class: 'muted small' }, mother || father ? `${mother?.name ?? '?'} × ${father?.name ?? '?'}` : 'wild clutch'),
+            ),
+          ),
+          el('div', { class: 'nest-bar-row' }, icon('egg', 10), el('div', { class: 'bar bar-thin', title: 'Incubation' }, fill), el('span', { class: 'muted small nest-mins' }, egg.readyToHatch ? 'now' : `~${minsLeft}m`)),
+          el('div', { class: 'nest-bar-row' }, icon('sparkle', 10), el('div', { class: 'bar bar-thin', title: 'Warmth — tuck to restore' }, warmFill), el('span', { class: `muted small nest-mins${warmth < 40 ? ' warn-text' : ''}` }, `${Math.round(warmth)}%`)),
+          el(
+            'div',
+            { class: 'br-egg-actions' },
+            egg.readyToHatch
+              ? el('button', { class: 'small-btn primary', onclick: () => { claimHatch(state, game.rng, egg.id); ctx.ui.refreshPanel(); } }, 'Hatch!')
+              : el('button', { class: 'small-btn', disabled: egg.petCooldownTicks > 0, title: egg.petCooldownTicks > 0 ? 'Tucked in recently' : 'Restore warmth', onclick: () => { tuckEgg(state, egg.id); ctx.ui.refreshPanel(); } }, 'Tuck in'),
+            el('button', { class: 'small-btn', onclick: () => { sellDuck(state, egg.id); ctx.ui.refreshPanel(); } }, 'Sell ', icon('coin', 10), `${sellPrice(state, egg)}`),
+          ),
         ),
-      ),
-    );
+      );
+    }
+    box.append(grid);
   }
   return box;
 }
