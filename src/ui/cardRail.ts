@@ -84,7 +84,8 @@ export function renderCardRail(game: Game, handlers: RailHandlers): HTMLElement 
           handlers.refresh();
         },
       },
-      icon(current.icon, 12),
+      el('span', { class: 'rail-sort-hint' }, 'Sort'),
+      icon(current.icon, 14),
       el('span', { class: 'rail-sort-label' }, current.label),
     ),
   );
