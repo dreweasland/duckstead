@@ -9,6 +9,7 @@ import { attachCloudSync, claimAndReload, prepareCloudBoot } from '../sync/sync'
 import { isSyncConfigured } from '../sync/syncMeta';
 import { formatClock } from '../sim/time';
 import { el } from '../ui/dom';
+import { icon } from '../ui/icons';
 import { renderPairScreen } from './pairScreen';
 import { dayScreen, duckScreen, flockScreen, pondScreen } from './screens';
 
@@ -62,7 +63,7 @@ class Shell {
     this.toastHost = el('div', { class: 'comp-toasts' });
     root.replaceChildren(this.header, this.screenHost, this.nav, this.toastHost);
 
-    const navBtn = (tab: Tab, label: string): HTMLElement =>
+    const navBtn = (tab: Tab, iconName: Parameters<typeof icon>[0], label: string): HTMLElement =>
       el(
         'button',
         {
@@ -74,9 +75,10 @@ class Shell {
             this.forceRender();
           },
         },
+        icon(iconName, 15),
         label,
       );
-    this.nav.append(navBtn('flock', '🦆 Flock'), navBtn('pond', '🌾 Chores'), navBtn('day', '📖 Day'));
+    this.nav.append(navBtn('flock', 'duck', 'Flock'), navBtn('pond', 'broom', 'Chores'), navBtn('day', 'book', 'Day'));
 
     // Never rebuild mid-touch: it would destroy the control under the finger
     // (and interrupt scrolling).
@@ -151,19 +153,20 @@ class Shell {
     const s = this.game.state;
     this.header.replaceChildren(
       el('span', { class: 'comp-clock' }, formatClock(s.clock)),
-      el('span', { class: 'comp-chip' }, `🪙 ${s.money}`),
-      el('span', { class: 'comp-chip' }, `🥣 ${s.inventory.feed}`),
-      el('span', { class: 'comp-chip' }, `🥚 ${s.inventory.eggs}`),
+      el('span', { class: 'comp-chip chip-coin' }, icon('coin', 13), String(s.money)),
+      el('span', { class: 'comp-chip chip-feed' }, icon('wheat', 13), String(s.inventory.feed)),
+      el('span', { class: 'comp-chip chip-eggs' }, icon('egg', 13), String(s.inventory.eggs)),
       el(
         'button',
         {
           class: `comp-chip comp-pause${this.game.speed === 0 ? ' paused' : ''}`,
+          title: this.game.speed === 0 ? 'Resume time' : 'Pause time',
           onclick: () => {
             this.game.speed = this.game.speed === 0 ? 1 : 0;
             this.forceRender();
           },
         },
-        this.game.speed === 0 ? '▶' : '⏸',
+        icon(this.game.speed === 0 ? 'play' : 'pause', 13),
       ),
     );
   }

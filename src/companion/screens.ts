@@ -2,6 +2,7 @@
 // existing pure sim function — this file is UI only.
 import type { Game } from '../game';
 import { el } from '../ui/dom';
+import { icon } from '../ui/icons';
 import { duckPortrait } from '../ui/portrait';
 import type { Duck } from '../sim/duck';
 import { breedKey, breedLabel } from '../sim/breedBook';
@@ -15,7 +16,7 @@ import {
   petDuck,
   tuckEgg,
 } from '../sim/needs';
-import { favouriteTreat, stockOf, type FoodKind } from '../sim/food';
+import { favouriteTreat, FOODS, stockOf } from '../sim/food';
 import { catchBugAt, DUCKWEED_FEED } from '../sim/bugs';
 import { henEggPrice, sellEggBasket, SHOP_ITEMS, consumableCost } from '../sim/economy';
 import { claimHatch, eggIncubationTicks } from '../sim/lifecycle';
@@ -35,17 +36,21 @@ const bar = (value: number, cls = ''): HTMLElement =>
 const needRow = (label: string, value: number): HTMLElement =>
   el('div', { class: 'comp-need' }, el('span', { class: 'comp-need-label' }, label), bar(value, value < 35 ? 'low' : ''));
 
-function careBadges(duck: Duck): string {
-  const badges: string[] = [];
+// What (if anything) this duck needs right now, as hand-drawn icon badges.
+function careBadges(duck: Duck): HTMLElement[] {
+  const badges: HTMLElement[] = [];
+  const badge = (cls: string, iconName: Parameters<typeof icon>[0], title: string): void => {
+    badges.push(el('span', { class: `comp-badge ${cls}`, title }, icon(iconName, 13)));
+  };
   if (duck.stage === 'egg') {
-    if (eggWarmth(duck) < 40) badges.push('🥶');
-    return badges.join('');
+    if (eggWarmth(duck) < 40) badge('b-cold', 'snow', 'Getting cold — tuck it in');
+    return badges;
   }
-  if (duck.sick) badges.push('🤒');
-  if (duck.needs.hunger < 35) badges.push('🍽');
-  if (duck.needs.cleanliness < 35) badges.push('🫧');
-  if (duck.needs.happiness < 35) badges.push('💔');
-  return badges.join('');
+  if (duck.sick) badge('b-sick', 'pill', 'Sick — needs medicine');
+  if (duck.needs.hunger < 35) badge('b-hunger', 'wheat', 'Hungry');
+  if (duck.needs.cleanliness < 35) badge('b-dirty', 'bubbles', 'Grubby — needs a clean');
+  if (duck.needs.happiness < 35) badge('b-sad', 'heartOutline', 'Unhappy — pet it or offer a treat');
+  return badges;
 }
 
 // ---- Flock ----------------------------------------------------------------
@@ -54,9 +59,10 @@ export function flockScreen(game: Game, openDuck: (id: string) => void): HTMLEle
   const grid = el('div', { class: 'comp-grid' });
   const ducks = [...game.state.ducks].sort((a, b) => (a.stage === 'egg' ? 1 : 0) - (b.stage === 'egg' ? 1 : 0));
   for (const duck of ducks) {
+    const badges = careBadges(duck);
     const card = el(
       'button',
-      { class: 'comp-card', onclick: () => openDuck(duck.id) },
+      { class: `comp-card${badges.length ? ' needs-care' : ''}`, onclick: () => openDuck(duck.id) },
       duckPortrait(duck, 64),
       el('div', { class: 'comp-card-name' }, duck.stage === 'egg' ? 'Egg' : duck.name),
       el(
@@ -66,7 +72,7 @@ export function flockScreen(game: Game, openDuck: (id: string) => void): HTMLEle
           ? `${Math.min(100, Math.round((duck.incubationTicks / eggIncubationTicks(game.state)) * 100))}% · warmth ${Math.round(eggWarmth(duck))}%`
           : `${duck.sex === 'M' ? '♂' : '♀'} ${duck.stage}`,
       ),
-      el('div', { class: 'comp-card-badges' }, careBadges(duck)),
+      el('div', { class: 'comp-card-badges' }, ...badges),
     );
     grid.append(card);
   }
@@ -133,25 +139,42 @@ export function duckScreen(game: Game, duckId: string, back: () => void): HTMLEl
   );
 
   const inv = state.inventory;
-  const treatBtn = (kind: FoodKind & ('peas' | 'worms' | 'berries'), emoji: string): HTMLElement => {
+  const iconAct = (
+    iconName: Parameters<typeof icon>[0],
+    label: string,
+    ok: boolean,
+    fn: () => unknown,
+    note = '',
+  ): HTMLElement =>
+    el(
+      'button',
+      { class: 'comp-btn', disabled: !ok, onclick: () => { fn(); } },
+      icon(iconName, 14),
+      `${label}${note ? ` ${note}` : ''}`,
+    );
+  const treatBtn = (kind: 'peas' | 'worms' | 'berries'): HTMLElement => {
     const fav = favouriteTreat(duck) === kind && duck.favouriteKnown;
-    return act(`${emoji} ${kind}${fav ? ' ★' : ''}`, stockOf(state, kind) > 0, () =>
-      feedDuckDirectly(state, duck.id, kind),
-      `(${stockOf(state, kind)})`,
+    const dot = el('span', { class: 'treat-dot' });
+    dot.style.background = FOODS[kind].color;
+    return el(
+      'button',
+      { class: 'comp-btn', disabled: stockOf(state, kind) === 0, onclick: () => { feedDuckDirectly(state, duck.id, kind); } },
+      dot,
+      `${FOODS[kind].name}${fav ? ' ★' : ''} (${stockOf(state, kind)})`,
     );
   };
   box.append(
     el(
       'div',
       { class: 'comp-actions' },
-      act('🥣 Feed', inv.feed > 0, () => feedDuckDirectly(state, duck.id, false), `(${inv.feed})`),
-      act('✨ Premium', inv.premiumFeed > 0, () => feedDuckDirectly(state, duck.id, true), `(${inv.premiumFeed})`),
-      act('🤲 Pet', true, () => petDuck(state, duck.id)),
-      act('🫧 Clean', duck.needs.cleanliness < 100, () => cleanDuck(state, duck.id)),
-      treatBtn('peas', '🟢'),
-      treatBtn('worms', '🪱'),
-      treatBtn('berries', '🫐'),
-      duck.sick ? act('💊 Medicine', inv.medicine > 0, () => medicateDuck(state, duck.id), `(${inv.medicine})`) : el('span'),
+      iconAct('wheat', 'Feed', inv.feed > 0, () => feedDuckDirectly(state, duck.id, false), `(${inv.feed})`),
+      iconAct('sparkle', 'Premium', inv.premiumFeed > 0, () => feedDuckDirectly(state, duck.id, true), `(${inv.premiumFeed})`),
+      iconAct('hand', 'Pet', true, () => petDuck(state, duck.id)),
+      iconAct('bubbles', 'Clean', duck.needs.cleanliness < 100, () => cleanDuck(state, duck.id)),
+      treatBtn('peas'),
+      treatBtn('worms'),
+      treatBtn('berries'),
+      duck.sick ? iconAct('pill', 'Medicine', inv.medicine > 0, () => medicateDuck(state, duck.id), `(${inv.medicine})`) : el('span'),
     ),
   );
   return box;
@@ -159,13 +182,13 @@ export function duckScreen(game: Game, duckId: string, back: () => void): HTMLEl
 
 // ---- Pond (homestead chores) ----------------------------------------------
 
-const PICKUP_LABEL: Record<string, string> = {
-  beetle: '🪲 Beetle',
-  snail: '🐌 Snail',
-  firefly: '✨ Firefly',
-  feather: '🪶 Feather',
-  duckweed: '🌿 Duckweed',
-  henEgg: '🥚 Hen egg',
+const PICKUPS: Record<string, { icon: Parameters<typeof icon>[0]; label: string }> = {
+  beetle: { icon: 'bug', label: 'Beetle' },
+  snail: { icon: 'snail', label: 'Snail' },
+  firefly: { icon: 'sparkle', label: 'Firefly' },
+  feather: { icon: 'feather', label: 'Feather' },
+  duckweed: { icon: 'leaf', label: 'Duckweed' },
+  henEgg: { icon: 'egg', label: 'Hen egg' },
 };
 
 export function pondScreen(game: Game): HTMLElement {
@@ -248,7 +271,8 @@ export function pondScreen(game: Game): HTMLElement {
               if (got?.kind === 'duckweed') events.emit('toast', `Duckweed! +${DUCKWEED_FEED} feed`);
             },
           },
-          PICKUP_LABEL[bug.kind] ?? bug.kind,
+          icon(PICKUPS[bug.kind]?.icon ?? 'bug', 14),
+          PICKUPS[bug.kind]?.label ?? bug.kind,
         ),
       );
     }

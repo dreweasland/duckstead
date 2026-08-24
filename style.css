@@ -3563,3 +3563,61 @@ body.feeding #pond-canvas {
     display: none;
   }
 }
+
+/* Companion: hand-drawn badges + care indicators */
+.comp-badge {
+  display: inline-flex;
+}
+
+.comp-badge.b-sick { color: #e08585; }
+.comp-badge.b-hunger { color: #e0a93a; }
+.comp-badge.b-dirty { color: #7fb4d8; }
+.comp-badge.b-sad { color: #eeaad4; }
+.comp-badge.b-cold { color: #9ec8ee; }
+
+.comp-card.needs-care {
+  border-color: #b08a3f;
+  box-shadow: 0 0 0 1px rgba(224, 169, 58, 0.25);
+}
+
+.comp-card-badges {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+}
+
+.comp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.comp-chip.chip-coin .icon { color: #e8b83a; }
+.comp-chip.chip-feed .icon { color: #d9b45c; }
+
+.comp-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.comp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.comp-btn .treat-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.comp-pair-duck {
+  color: #e8b83a;
+  display: flex;
+  justify-content: center;
+}

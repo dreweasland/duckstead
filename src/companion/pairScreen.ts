@@ -1,5 +1,6 @@
 // First-run screen on an unlinked device: enter the code the desktop shows.
 import { el } from '../ui/dom';
+import { icon } from '../ui/icons';
 import { pairClaim } from '../sync/syncClient';
 import { newDeviceId, saveSyncMeta } from '../sync/syncMeta';
 
@@ -54,7 +55,7 @@ export function renderPairScreen(host: HTMLElement, onPaired: () => void): void 
     el(
       'div',
       { class: 'comp-pair' },
-      el('div', { class: 'comp-pair-duck' }, '🦆'),
+      el('div', { class: 'comp-pair-duck' }, icon('duck', 56)),
       el('h1', {}, 'Duck Homestead'),
       el('p', { class: 'comp-muted' }, 'The pocket pond. On your computer, open Save → “Companion & cloud sync” → “Show a pairing code”, then type it here.'),
       input,

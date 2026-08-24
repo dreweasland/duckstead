@@ -26,7 +26,13 @@ export type IconName =
   | 'close'
   | 'cards'
   | 'flag'
-  | 'book';
+  | 'book'
+  | 'play'
+  | 'bug'
+  | 'snail'
+  | 'feather'
+  | 'leaf'
+  | 'snow';
 
 interface Shape {
   t: string;
@@ -187,6 +193,31 @@ const ICONS: Record<IconName, Shape[]> = {
     { t: 'path', a: { d: 'M12 6c-2-1.6-4.8-2.2-8-2v14.5c3.2-.2 6 .4 8 2 2-1.6 4.8-2.2 8-2V4c-3.2-.2-6 .4-8 2z', ...stroke2 } },
     { t: 'path', a: { d: 'M12 6v14.5', ...stroke2, 'stroke-width': '1.7' } },
   ],
+  play: [{ t: 'path', a: { d: 'M8 5.5l11 6.5-11 6.5z', ...fillCur } }],
+  bug: [
+    { t: 'circle', a: { cx: '12', cy: '6.5', r: '2.4', ...fillCur } },
+    { t: 'ellipse', a: { cx: '12', cy: '14', rx: '5', ry: '6', ...fillCur } },
+    { t: 'path', a: { d: 'M12 9v10', ...stroke2, stroke: '#10161e', 'stroke-width': '1.4' } },
+    { t: 'path', a: { d: 'M7 11l-3.4-2M7 15H3.2M7.5 18l-3 2.2M17 11l3.4-2M17 15h3.8M16.5 18l3 2.2', ...stroke2, 'stroke-width': '1.6' } },
+  ],
+  snail: [
+    { t: 'circle', a: { cx: '13.8', cy: '10.5', r: '5.6', ...stroke2 } },
+    { t: 'circle', a: { cx: '13.8', cy: '10.5', r: '2.2', ...stroke2, 'stroke-width': '1.5' } },
+    { t: 'path', a: { d: 'M3.5 19.5c1.8 0 2.6-.9 4-.9h9.3c1.5 0 2.7-.6 3.4-1.6', ...stroke2 } },
+    { t: 'path', a: { d: 'M5.5 18.5c0-3 1-5.5 2.5-7M6.5 8l-1.2-3M8.7 7.6l.4-3.2', ...stroke2, 'stroke-width': '1.6' } },
+  ],
+  feather: [
+    { t: 'path', a: { d: 'M6.5 17.5C8 8.5 13.5 4.5 19.5 4c.3 6-3.5 11.7-12 13.8z', ...fillCur } },
+    { t: 'path', a: { d: 'M4.5 20.5l13-13.5', ...stroke2, 'stroke-width': '1.4', stroke: '#10161e' } },
+  ],
+  leaf: [
+    { t: 'path', a: { d: 'M12.5 3.5C6.5 5.5 3.8 11 5 19.5 13 20.8 18.7 18 20.5 12 18.5 7 16 4.5 12.5 3.5z', ...fillCur } },
+    { t: 'path', a: { d: 'M6.5 18C9 13 13 9 17.5 6.8', ...stroke2, 'stroke-width': '1.5', stroke: '#10161e' } },
+  ],
+  snow: [
+    { t: 'path', a: { d: 'M12 3.5v17M4.6 7.8l14.8 8.4M19.4 7.8L4.6 16.2', ...stroke2, 'stroke-width': '1.8' } },
+    { t: 'path', a: { d: 'M12 3.5l-2 2m2-2l2 2m-2 13l-2-2m2 2l2-2', ...stroke2, 'stroke-width': '1.4' } },
+  ]
 };
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
