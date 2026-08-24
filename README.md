@@ -140,6 +140,9 @@ ducks, then "Breed selected" to inspect inheritance without playing the game.
 
 ## How the genetics work
 
+The full player guide — every locus, dominance rule, standard, and breeding
+recipe — lives in [GENETICS.md](GENETICS.md). The short version:
+
 Each duck has a diploid genome across 13 loci:
 
 | Trait | Kind | Notes |
