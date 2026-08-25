@@ -1,8 +1,11 @@
-// Dev-only gene lab (open with ?lab): renders a grid of random genomes and
-// lets you breed any two to inspect inheritance visually.
+// Gene lab (open with ?lab): renders a grid of genomes and lets you breed
+// any two to inspect inheritance visually. Seeds with random showcases, or
+// loads your own flock straight from the pond's save so you can play with
+// your actual genetics — sandboxed, nothing here touches the real save.
 import { createRng } from './rng';
 import { createDuck, type Duck } from './sim/duck';
 import { breed, formatGenotype, randomCommonGenome, LOCI } from './sim/genetics';
+import { loadFromStorage } from './save/save';
 import { el } from './ui/dom';
 import { icon } from './ui/icons';
 import { duckPortrait } from './ui/portrait';
@@ -21,6 +24,29 @@ export function runLab(): void {
 
   const makeDuck = (genome = randomCommonGenome(rng)): Duck =>
     createDuck(rng, { genome, stage: 'adult', pos: { x: 0, y: 0 } });
+
+  // Copies of the real flock (eggs stay secret until they hatch), cloned as
+  // adults so every portrait shows the full-grown phenotype. Fresh objects
+  // from the deserialized save — breeding them here can't touch the pond.
+  const status = el('span', { class: 'muted small' });
+  const loadPond = () => {
+    const save = loadFromStorage();
+    const flock = save?.ducks.filter((d) => d.stage !== 'egg') ?? [];
+    if (flock.length === 0) {
+      status.textContent = save ? 'The pond has no hatched ducks yet.' : 'No pond save found in this browser.';
+      return;
+    }
+    ducks = flock.map((d) => {
+      const copy = makeDuck(d.genome);
+      copy.name = d.name;
+      copy.sex = d.sex;
+      return copy;
+    });
+    parentA = null;
+    parentB = null;
+    status.textContent = `${ducks.length} ducks loaded from the pond.`;
+    render();
+  };
 
   // Seed with random genomes plus a few extreme/rare showcases.
   const showcase = () => {
@@ -57,6 +83,7 @@ export function runLab(): void {
           },
         },
         duckPortrait(duck, 80),
+        el('div', { class: 'small lab-name' }, `${duck.name} ${duck.sex === 'F' ? '\u2640' : '\u2642'}`),
         el('code', { class: 'small' }, formatGenotype(duck.genome)),
       );
       grid.append(cell);
@@ -69,6 +96,7 @@ export function runLab(): void {
       { class: 'lab-toolbar' },
       el('strong', { class: 'with-icon' }, icon('duck', 18), 'Gene Lab'),
       el('button', { class: 'action-btn', onclick: showcase }, 'Reroll genomes'),
+      el('button', { class: 'action-btn', onclick: loadPond }, 'Load my pond'),
       el(
         'button',
         {
@@ -84,6 +112,7 @@ export function runLab(): void {
         'Breed selected ×6',
       ),
       el('span', { class: 'muted small' }, `${LOCI.length} loci · click two ducks, then breed`),
+      status,
       el('a', { href: location.pathname }, '← back to game'),
     ),
     grid,

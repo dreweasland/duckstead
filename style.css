@@ -3223,6 +3223,11 @@ body.feeding #pond-canvas {
   border-color: #e8b83a;
 }
 
+.lab-name {
+  color: #dfe7ee;
+  font-weight: 600;
+}
+
 .lab-cell code {
   font-size: 10px;
   word-break: break-all;
