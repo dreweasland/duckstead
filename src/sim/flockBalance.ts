@@ -1,7 +1,9 @@
 // Flock balance: ducks keep best at about one drake to three hens. Surplus
 // drakes harass the hens — happiness drains, laying drops, clutches take less
-// often — and squabble among themselves. Pond capacities (8/12/16/20) divide
-// into 2/3/4/5 drakes, so a balanced flock fits every pond size exactly.
+// often — and squabble among themselves. The base pond capacities (8/12/16/20)
+// divide into 2/3/4/5 drakes; perk and heritage slots can push capacity to odd
+// sizes, which is fine — only *surplus* drakes are penalised, so a flock one
+// drake under ideal loses nothing.
 import type { GameState } from '../state';
 
 export const HENS_PER_DRAKE = 3;

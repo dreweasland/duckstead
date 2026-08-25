@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../state';
 import { activeStyle, addSocietyPoints, advanceRank, canAdvance, championTitle, hasPerk, RANKS } from './society';
-import { henEggPrice, nestCapacity } from './economy';
+import { duckCapacity, henEggPrice } from './economy';
 
 describe('society ladder', () => {
   it('needs both coins and points; grants styles, titles, and perks in order', () => {
@@ -19,12 +19,12 @@ describe('society ladder', () => {
     // Coins alone can't climb.
     expect(advanceRank(state)).toBe(false);
     addSocietyPoints(state, 2000);
-    const nestBefore = nestCapacity(state);
+    const pondBefore = duckCapacity(state);
     const eggBefore = henEggPrice(state);
     while (advanceRank(state)) { /* climb */ }
     expect(state.society.rank).toBe(RANKS.length);
-    expect(hasPerk(state, 'nestSlot')).toBe(true);
-    expect(nestCapacity(state)).toBe(nestBefore + 1);
+    expect(hasPerk(state, 'pondSlot')).toBe(true);
+    expect(duckCapacity(state)).toBe(pondBefore + 1);
     expect(hasPerk(state, 'goldenBasket')).toBe(true);
     expect(henEggPrice(state)).toBe(eggBefore * 2);
     expect(state.society.unlockedStyles.length).toBe(RANKS.filter((r) => r.style).length);

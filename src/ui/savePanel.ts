@@ -260,7 +260,7 @@ function heritageSection(ctx: PanelCtx): HTMLElement {
     el(
       'div',
       { class: 'muted small' },
-      'Retire this pond and found the next with one drake and one hen. The Breed Book, awards, Society standing, chronicle, and records carry over. Each retirement adds +1 nest slot, +1% mutation (new genes), and a better-stocked start.',
+      'Retire this pond and found the next with one drake and one hen. The Breed Book, awards, Society standing, chronicle, and records carry over. Each retirement adds +1 pond slot, +1% mutation (new genes), and a better-stocked start.',
     ),
   );
   const gate = canRetire(state);

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../state';
 import { canRetire, heritageMutationRate, retirePond } from './heritage';
 import { ALL_BREED_KEYS } from './breedBook';
-import { nestCapacity } from './economy';
+import { duckCapacity } from './economy';
 import { MUTATION_RATE } from './genetics';
 import { createStarterDuck, layEgg } from './duck';
 
@@ -32,7 +32,7 @@ describe('heritage', () => {
     expect(s.stats.biggestSale).toBe(500);
     expect(s.stats.ducksHatched).toBe(0);
     expect(s.money).toBe(150);
-    expect(nestCapacity(s)).toBe(nestCapacity(state) + 1);
+    expect(duckCapacity(s)).toBe(duckCapacity(state) + 1);
     expect(heritageMutationRate(s.heritage, MUTATION_RATE)).toBeCloseTo(0.03);
     // Founders are gen 0 and can breed straight away.
     const egg = layEgg(next.rng, s.ducks.find((d) => d.sex === 'F')!, s.ducks.find((d) => d.sex === 'M')!, { x: 0, y: 0 });

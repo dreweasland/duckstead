@@ -5,6 +5,7 @@ import { festivalToday } from './festivals';
 import { pedigreeScore } from './pedigree';
 import { chronicle } from './chronicle';
 import { hasPerk } from './society';
+import { heritagePondBonus } from './heritage';
 
 export const BALANCE = {
   startingMoney: 50,
@@ -253,11 +254,14 @@ export function upgradeLevel(state: GameState, id: UpgradeId): number {
 }
 
 export function nestCapacity(state: GameState): number {
-  return 2 + upgradeLevel(state, 'nestingBox') * 2 + (hasPerk(state, 'nestSlot') ? 1 : 0) + Math.min(5, state.heritage);
+  return 2 + upgradeLevel(state, 'nestingBox') * 2;
 }
 
 export function duckCapacity(state: GameState): number {
-  return 8 + upgradeLevel(state, 'pondExpansion') * 4;
+  // Beyond the pond-expansion sizes, the Society's Pondmaster perk and each
+  // pond retirement (heritage) add a duck slot apiece — pond room stays
+  // scarce at the 20 cap, so these are the late-game way to grow the flock.
+  return 8 + upgradeLevel(state, 'pondExpansion') * 4 + (hasPerk(state, 'pondSlot') ? 1 : 0) + heritagePondBonus(state);
 }
 
 // Hatched ducks on the pond. Eggs and courting pairs belong to the nest (its

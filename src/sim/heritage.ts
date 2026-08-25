@@ -1,7 +1,7 @@
 // Heritage: retire the pond and start again with one founder pair, keeping
 // the Breed Book, awards, Society standing, chronicle, and records. Each
 // retirement adds a permanent heritage bonus: more mutation (novel genes),
-// an extra nest slot, and a better-stocked start. The early game is quick
+// an extra pond slot, and a better-stocked start. The early game is quick
 // now, so the re-climb is short and the payoff is a stronger line.
 import type { GameState } from '../state';
 import { createNewGame } from '../state';
@@ -20,7 +20,8 @@ export function heritageMutationRate(heritage: number, base: number): number {
   return base + Math.min(HERITAGE_MAX, heritage) * HERITAGE_MUTATION_BONUS;
 }
 
-export function heritageNestBonus(state: GameState): number {
+// Extra pond capacity earned by retiring: +1 duck slot per heritage, up to 5.
+export function heritagePondBonus(state: GameState): number {
   return Math.min(HERITAGE_MAX, state.heritage);
 }
 

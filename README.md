@@ -121,7 +121,7 @@ npm run dev        # open http://localhost:5173
   promotions, discoveries — never coins). Ranks unlock pond styles (water,
   lilies, grass, hutch), titles for your top-pedigree duck, a champion
   statue, commissioned stock (order a duck with a chosen rare gene), an
-  extra nest slot, richer wild visitors, and a golden egg basket.
+  extra pond slot, richer wild visitors, and a golden egg basket.
 - **Derby league** — daily races sit in Pond → County → National tiers
   (bigger purses, tougher fields; National takes show-standard ducks only).
   Three net wins promote, three net losses relegate.
@@ -134,7 +134,7 @@ npm run dev        # open http://localhost:5173
   (new breeds, champions, farewells with descendants) and lifetime records.
 - **Heritage** (Save panel) — once the Book has 10 breeds, retire the pond
   and refound it with one drake and one hen. Book, awards, Society, chronicle
-  and records carry over; each retirement adds a nest slot and +1% mutation.
+  and records carry over; each retirement adds a pond slot and +1% mutation.
 - **Speed controls** — ⏸ / 1× / 4× / 16×. One game-day = 24 real minutes at 1×.
   The game autosaves to localStorage every 30 seconds; it only runs while the
   tab is visible (no offline progress).

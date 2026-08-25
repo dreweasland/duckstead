@@ -32,7 +32,7 @@ export const STYLES: Record<string, StyleDef> = {
   'hutch:gilded': { id: 'hutch:gilded', slot: 'hutch', name: 'Gilded Hutch', colors: ['#d9b24a', '#8a6a1e'] },
 };
 
-export type PerkId = 'statue' | 'commissionedStock' | 'nestSlot' | 'visitorGift' | 'goldenBasket';
+export type PerkId = 'statue' | 'commissionedStock' | 'pondSlot' | 'visitorGift' | 'goldenBasket';
 
 export interface RankDef {
   rank: number;
@@ -54,7 +54,7 @@ export const RANKS: RankDef[] = [
   { rank: 7, name: 'Fellow', cost: 2800, points: 30, style: 'water:turquoise' },
   { rank: 8, name: 'Agent', cost: 3500, points: 36, perk: 'commissionedStock' },
   { rank: 9, name: 'Curator', cost: 4300, points: 44, style: 'lily:white' },
-  { rank: 10, name: 'Nestmaster', cost: 5200, points: 52, perk: 'nestSlot' },
+  { rank: 10, name: 'Pondmaster', cost: 5200, points: 52, perk: 'pondSlot' },
   { rank: 11, name: 'Laureate', cost: 6200, points: 60, style: 'grass:golden' },
   { rank: 12, name: 'Artisan', cost: 7400, points: 70, style: 'hutch:painted' },
   { rank: 13, name: 'Master Breeder', cost: 8800, points: 80, title: 'Master’s Champion' },
@@ -121,7 +121,7 @@ export function rewardLabel(r: RankDef): string {
   switch (r.perk) {
     case 'statue': return 'Statue of your champion (decor)';
     case 'commissionedStock': return 'Commissioned stock: order a duck with a chosen rare gene';
-    case 'nestSlot': return '+1 nest slot';
+    case 'pondSlot': return '+1 pond slot';
     case 'visitorGift': return 'Wild visitors bring an extra rare gene';
     case 'goldenBasket': return 'Golden basket: hen eggs sell for double';
   }

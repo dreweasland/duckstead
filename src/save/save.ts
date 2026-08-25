@@ -63,6 +63,8 @@ export function deserialize(json: string): GameState {
   state.society.unlockedStyles ??= [];
   state.society.style ??= {};
   state.society.perks ??= [];
+  // The rank-10 perk was renamed when it moved from nest to pond capacity.
+  state.society.perks = state.society.perks.map((p) => ((p as string) === 'nestSlot' ? 'pondSlot' : p));
   state.commissions ??= [];
   state.festivalWins ??= {};
   state.league ??= { tier: 0, wins: 0, losses: 0 };

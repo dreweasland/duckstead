@@ -19,6 +19,15 @@ describe('save round-trip', () => {
     expect(restored).toEqual(state);
   });
 
+  it('migrates the renamed nestSlot perk to pondSlot', () => {
+    const { state } = createNewGame(2);
+    state.society.perks.push('pondSlot');
+    const json = serialize(state).replace('"pondSlot"', '"nestSlot"');
+    const restored = deserialize(json);
+    expect(restored.society.perks).toContain('pondSlot');
+    expect(restored.society.perks).not.toContain('nestSlot');
+  });
+
   it('rejects unknown save versions', () => {
     const { state } = createNewGame(1);
     const json = serialize(state).replace('"version":1', '"version":99');
