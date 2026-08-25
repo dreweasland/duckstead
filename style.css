@@ -1073,7 +1073,11 @@ body.feeding #pond-canvas {
 }
 
 .close-btn {
+  /* The thin scrollbar hugs the panel edge now, so the ✕ steps closer to it
+     (negative margin) while keeping a comfortable hit area. */
   margin-left: auto;
+  margin-right: -8px;
+  padding: 2px 8px;
   background: none;
   border: none;
   color: #8a97a5;
