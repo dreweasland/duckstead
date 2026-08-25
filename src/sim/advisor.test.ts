@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
 import { createNewGame } from '../state';
-import { breedingValue, childBreedKeys, keepVerdict } from './advisor';
+import { breedingValue, childBreedKeys, keepVerdict, verdictReason } from './advisor';
 import { breedKey, recordBreed } from './breedBook';
 import { createDuck } from './duck';
 import { randomCommonGenome, type Genome } from './genetics';
@@ -60,7 +60,8 @@ describe('breedingValue', () => {
     expect(breedKey(a.genome)).toBe('M|D|solid|n');
     const value = breedingValue(state, a);
     expect(value.newBreeds).toEqual([]);
-    expect(value.duplicated).toBe(true);
+    expect(value.duplicates).toEqual([b.name]);
+    expect(verdictReason(value)).toBe(`${b.name} carries identical Book genes.`);
     expect(keepVerdict(value)).toBe('covered');
   });
 
@@ -93,7 +94,9 @@ describe('marginal value', () => {
     const va = breedingValue(state, a);
     expect(va.newBreeds.length).toBeGreaterThan(0);
     expect(va.marginalBreeds).toHaveLength(0);
-    expect(va.coveredBy).toBe(1);
+    expect(va.coveredBy).toEqual([b.name]);
+    // Identical twins hit the more specific duplicates line first.
+    expect(verdictReason(va)).toBe(`${b.name} carries identical Book genes.`);
     // Identical genomes tie on standard, so neither is best of breed.
     expect(keepVerdict(va)).toBe('covered');
     // Remove the twin: now a is the only route to those breeds.

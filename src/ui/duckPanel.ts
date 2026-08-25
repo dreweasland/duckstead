@@ -240,7 +240,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
     } else if (verdict === 'useful') {
       line.append(el('span', { class: 'chip chip-ready' }, value.marginalBreeds.length > 0 ? 'worth keeping' : 'best of breed'));
     } else {
-      line.append(el('span', { class: 'chip chip-trait' }, value.duplicated ? 'genes duplicated — safe to sell' : 'covered — safe to sell'));
+      line.append(el('span', { class: 'chip chip-trait' }, value.duplicates.length > 0 ? 'genes duplicated — safe to sell' : 'covered — safe to sell'));
     }
     advisor.append(line, el('div', { class: 'muted small' }, verdictReason(value)));
     if (value.newBreeds.length > 0) {

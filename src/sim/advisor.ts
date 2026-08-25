@@ -55,13 +55,14 @@ export interface BreedingValue {
   marginalBreeds: string[];
   // Genes only this duck carries in the whole flock.
   uniqueAlleles: string[];
-  // Another living duck has identical genes at every book locus.
-  duplicated: boolean;
+  // Names of the other living ducks with identical genes at every book
+  // locus — the twins that make this duck redundant.
+  duplicates: string[];
   // Closest to its breed's show standard of all ducks of that breed.
   bestOfBreed: boolean;
   standardPct: number;
-  // How many other ducks could do everything this one can (same-sex cover).
-  coveredBy: number;
+  // Names of the other same-sex ducks that could do everything this one can.
+  coveredBy: string[];
 }
 
 // --- Caches ---------------------------------------------------------------
@@ -136,21 +137,25 @@ function computeFlockValues(state: GameState): Map<string, BreedingValue> {
   }
 
   const signature = (d: Duck) => BOOK_LOCI.map((id) => [...d.genome[id]].sort().join('')).join('|');
-  const sigCount = new Map<string, number>();
-  for (const d of flock) sigCount.set(signature(d), (sigCount.get(signature(d)) ?? 0) + 1);
+  const sigDucks = new Map<string, Array<{ id: string; name: string }>>();
+  for (const d of flock) {
+    const sig = signature(d);
+    if (!sigDucks.has(sig)) sigDucks.set(sig, []);
+    sigDucks.get(sig)!.push({ id: d.id, name: d.name });
+  }
 
   const out = new Map<string, BreedingValue>();
   for (const duck of flock) {
     const mine = reach.get(duck.id)!;
     const sameSex = breeders.filter((d) => d.sex === duck.sex && d.id !== duck.id);
     const others = new Set<string>();
-    let coveredBy = 0;
+    const coveredBy: string[] = [];
     for (const a of sameSex) {
       const r = reach.get(a.id)!;
       for (const k of r) others.add(k);
       let covers = true;
       for (const k of mine) if (!r.has(k)) { covers = false; break; }
-      if (covers) coveredBy += 1;
+      if (covers) coveredBy.push(a.name);
     }
     const marginalBreeds = [...mine].filter((k) => !others.has(k));
     const myKey = myKeyOf.get(duck.id)!;
@@ -171,8 +176,8 @@ function computeFlockValues(state: GameState): Map<string, BreedingValue> {
         if (!anyoneElse) uniqueAlleles.push(watch.name);
       }
     }
-    const duplicated = (sigCount.get(signature(duck)) ?? 0) > 1;
-    out.set(duck.id, { newBreeds: [...mine], marginalBreeds, uniqueAlleles, duplicated, bestOfBreed, standardPct, coveredBy });
+    const duplicates = (sigDucks.get(signature(duck)) ?? []).filter((d) => d.id !== duck.id).map((d) => d.name);
+    out.set(duck.id, { newBreeds: [...mine], marginalBreeds, uniqueAlleles, duplicates, bestOfBreed, standardPct, coveredBy });
   }
   return out;
 }
@@ -190,10 +195,10 @@ export function breedingValue(state: GameState, duck: Duck): BreedingValue {
     newBreeds: [],
     marginalBreeds: [],
     uniqueAlleles: [],
-    duplicated: false,
+    duplicates: [],
     bestOfBreed: false,
     standardPct: standardMatch(duck, breedKey(duck.genome)).pct,
-    coveredBy: 0,
+    coveredBy: [],
   };
 }
 
@@ -217,7 +222,13 @@ export function verdictReason(value: BreedingValue): string {
     return `Reaches ${value.marginalBreeds.length} undiscovered breed${value.marginalBreeds.length === 1 ? '' : 's'} no other duck can: ${value.marginalBreeds.slice(0, 3).map(breedLabel).join(', ')}${value.marginalBreeds.length > 3 ? '…' : ''}.`;
   }
   if (value.bestOfBreed && value.standardPct >= 50) return `Best of its breed — ${value.standardPct}% to the show standard.`;
-  if (value.duplicated) return 'Another duck carries identical Book genes.';
-  if (value.coveredBy > 0) return `${value.coveredBy} other duck${value.coveredBy === 1 ? '' : 's'} can reach everything this one can.`;
+  if (value.duplicates.length > 0) {
+    const shown = value.duplicates.slice(0, 3).join(', ') + (value.duplicates.length > 3 ? '\u2026' : '');
+    return `${shown} ${value.duplicates.length === 1 ? 'carries' : 'carry'} identical Book genes.`;
+  }
+  if (value.coveredBy.length > 0) {
+    const shown = value.coveredBy.slice(0, 3).join(', ') + (value.coveredBy.length > 3 ? ` and ${value.coveredBy.length - 3} more` : '');
+    return `${shown} can reach everything this one can.`;
+  }
   return 'No undiscovered breeds in reach with the current flock.';
 }
