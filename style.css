@@ -6,9 +6,14 @@
 
 /* Slim, dim scrollbars on every scroll area (panels, choosers, card rail)
    so the bright default strip doesn't break the dark UI's rounded edges.
-   Styled via the WebKit pseudo-elements rather than scrollbar-width so the
-   result is identical whether macOS shows overlay or always-on scrollbars
-   (the standard properties would override these if both were set). */
+   The standard properties carry the colour on every modern engine (Edge's
+   fluent overlay bars ignore the WebKit pseudo-elements entirely); the
+   WebKit rules below remain as a fallback for older engines only. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #46586c transparent;
+}
+
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -1093,7 +1098,7 @@ body.feeding #pond-canvas {
   /* The thin scrollbar hugs the panel edge now, so the ✕ steps closer to it
      (negative margin) while keeping a comfortable hit area. */
   margin-left: auto;
-  margin-right: -8px;
+  margin-right: -11px;
   padding: 2px 8px;
   background: none;
   border: none;
