@@ -3097,6 +3097,78 @@ body.feeding #pond-canvas {
   transform: translateY(0);
 }
 
+/* Life banners: growth, elderhood, and passings — bigger and longer-lived
+   than a toast so the pond's big moments can't slip past unnoticed. */
+.banner-host {
+  position: absolute;
+  top: 88px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 24;
+}
+
+.life-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(360px, calc(100vw - 40px));
+  background: rgba(18, 24, 32, 0.95);
+  border: 1px solid #3d4c5e;
+  border-left: 4px solid #5a7fb0;
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-10px) scale(0.97);
+  transition: all 0.35s;
+}
+
+.life-banner.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.life-banner.grown { border-left-color: #6fbf5f; }
+.life-banner.elder { border-left-color: #e8c35a; }
+
+.life-banner.passing {
+  border-left-color: #8a97a8;
+  background: rgba(22, 24, 30, 0.96);
+}
+
+.life-portrait {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #223041;
+  border: 1px solid #3d4c5e;
+}
+
+.life-banner.passing .life-portrait {
+  filter: grayscale(0.55) brightness(0.9);
+}
+
+.life-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.life-line {
+  font-size: 12.5px;
+  color: #b9c4cf;
+  line-height: 1.35;
+}
+
 /* Keep toasts clear of the bottom card rail. */
 .save-textarea {
   width: 100%;

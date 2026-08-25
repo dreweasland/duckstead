@@ -92,19 +92,26 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
           duck.stage = 'juvenile';
           duck.ageTicks = 0;
           state.stats.juvenilesRaised += 1;
+          events.emit('duck-grew', { duck, to: 'juvenile' });
+          events.emit('toast', `${duck.name} is finding ${duck.sex === 'F' ? 'her' : 'his'} feathers — a juvenile now!`);
         }
         break;
       case 'juvenile':
         if (duck.ageTicks >= (STAGE_DAYS.juvenile * TICKS_PER_DAY) / growthScale(state)) {
           duck.stage = 'adult';
           duck.ageTicks = 0;
+          chronicle(state, 'ofAge', `${duck.name} came of age.`);
+          // The UI turns this into a banner; the companion into a toast.
+          events.emit('duck-grew', { duck, to: 'adult' });
         }
         break;
       case 'adult':
         if (duck.ageTicks >= adultDurationTicks(duck.phenotype.vigor)) {
           duck.stage = 'elder';
           duck.ageTicks = 0;
-          events.emit('toast', `${duck.name} has become a wise old elder`);
+          const lived = duck.bornDay !== undefined ? dayOf(state.clock) - duck.bornDay : undefined;
+          chronicle(state, 'elder', `${duck.name} grew into an honoured elder${lived !== undefined ? ` at ${lived} days` : ''}.`);
+          events.emit('duck-grew', { duck, to: 'elder' });
         }
         break;
       case 'elder':
@@ -145,16 +152,13 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
     // An honoured passing: an elder that lived out its days on the pond
     // leaves a feather for the album, and the Society notes a life well
     // lived. Selling an elder forfeits all of this.
+    let honoured = 0;
     if (duck.stage === 'elder') {
-      const points = passingPoints(duck);
-      state.society.points += points;
-      state.society.lifetimePoints += points;
+      honoured = passingPoints(duck);
+      state.society.points += honoured;
+      state.society.lifetimePoints += honoured;
       state.featherAlbum[duck.phenotype.bodyColor] =
         (state.featherAlbum[duck.phenotype.bodyColor] ?? 0) + 1;
-      events.emit(
-        'toast',
-        `${duck.name}'s feather rests in the album — the Society honours a life well lived (+${points})`,
-      );
     }
     // A best friend grieves.
     const friend = state.ducks.find((d) => d.friendId === duck.id);
@@ -162,8 +166,9 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
       friend.needs.happiness = Math.max(0, friend.needs.happiness - 12);
       delete friend.friendId;
     }
-    events.emit('duck-died', duck);
-    events.emit('toast', `${duck.name} has passed away`);
+    // No toast here: the UI answers this with a farewell banner (and the
+    // companion with its own toast), so a passing can't slip by unnoticed.
+    events.emit('duck-died', { duck, descendants, honoured, ageDays: age });
   }
 }
 

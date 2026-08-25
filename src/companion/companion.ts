@@ -93,6 +93,16 @@ class Shell {
     });
 
     events.on('toast', (msg) => this.toast(String(msg)));
+    // The main UI shows banners for these; the companion keeps to toasts.
+    events.on('duck-grew', (payload) => {
+      const { duck, to } = payload as { duck: { name: string }; to: string };
+      if (to === 'adult') this.toast(`${duck.name} is all grown up — ready to nest`);
+      else if (to === 'elder') this.toast(`${duck.name} has become a wise old elder`);
+    });
+    events.on('duck-died', (payload) => {
+      const { duck } = payload as { duck: { name: string } };
+      this.toast(`${duck.name} has passed away`);
+    });
     events.on('takeover', (payload) =>
       this.showTakeover(Boolean((payload as { remote?: boolean } | undefined)?.remote)),
     );

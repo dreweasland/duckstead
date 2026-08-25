@@ -4,9 +4,26 @@ import { Game } from '../game';
 import { events } from '../events';
 import { dawnLines, dawnReport } from './daybook';
 import { createStarterDuck } from './duck';
-import { NIGHT_END, TICKS_PER_HOUR, hourOf, isNight } from './time';
+import { NIGHT_END, TICKS_PER_HOUR, dayOf, hourOf, isNight } from './time';
 
 describe('dawn report', () => {
+  it("lists yesterday's passages from the chronicle, and lets older news go", () => {
+    const { state } = createNewGame(9);
+    state.clock.totalTicks = 4 * 24 * TICKS_PER_HOUR;
+    const dayNow = dayOf(state.clock);
+    state.chronicle.push({ day: dayNow - 1, kind: 'death', text: 'Puddles passed peacefully at 20 days.' });
+    state.chronicle.push({ day: dayNow, kind: 'elder', text: 'Maple grew into an honoured elder at 14 days.' });
+    state.chronicle.push({ day: dayNow - 1, kind: 'ofAge', text: 'Sorrel came of age.' });
+    state.chronicle.push({ day: dayNow - 3, kind: 'death', text: 'Old news from days ago.' });
+    const report = dawnReport(state);
+    expect(report.sections.some((s) => s.title === 'Milestones')).toBe(true);
+    const text = dawnLines(report).join('\n');
+    expect(text).toContain('Puddles');
+    expect(text).toContain('Maple');
+    expect(text).toContain('Sorrel');
+    expect(text).not.toContain('Old news');
+  });
+
   it('lists festival, buyer, cold eggs, and pond state', () => {
     const { state } = createNewGame(5);
     state.clock.totalTicks = 3 * 24 * TICKS_PER_HOUR + 6 * TICKS_PER_HOUR; // day 4 = Egg Show

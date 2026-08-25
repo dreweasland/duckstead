@@ -150,6 +150,7 @@ function breedsTab(state: GameState, discovered: number, total: number): HTMLEle
 const KIND_ICON: Record<ChronicleKind, Parameters<typeof icon>[0]> = {
   breed: 'book', hatch: 'egg', death: 'grave', festival: 'flag', race: 'flag', award: 'star',
   visitor: 'sparkle', sale: 'coin', birthday: 'smile', society: 'star', milestone: 'star',
+  ofAge: 'duck', elder: 'feather',
 };
 
 function chronicleTab(state: GameState): HTMLElement {

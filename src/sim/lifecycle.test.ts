@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../state';
+import { events } from '../events';
 import { adultDurationTicks, createDuck, STAGE_DAYS } from './duck';
 import { randomCommonGenome } from './genetics';
 import { claimHatch, eggIncubationTicks, tickLifecycle } from './lifecycle';
@@ -81,6 +82,42 @@ describe('life stages', () => {
 
   it('vigor extends adult lifespan by up to 40%', () => {
     expect(adultDurationTicks(1)).toBeCloseTo(adultDurationTicks(0) * 1.5, -2);
+  });
+
+  it('growing up raises fanfare: duck-grew events and chronicle entries', () => {
+    const { state, rng } = createNewGame(7);
+    const duck = createDuck(rng, {
+      genome: randomCommonGenome(rng),
+      stage: 'juvenile',
+      pos: { x: 100, y: 100 },
+    });
+    duck.bornDay = 0;
+    state.ducks = [duck];
+    const grew: string[] = [];
+    const off = events.on('duck-grew', (p) => grew.push((p as { to: string }).to));
+    for (let i = 0; i < STAGE_DAYS.juvenile * TICKS_PER_DAY; i += 1) tickLifecycle(state, rng);
+    expect(duck.stage).toBe('adult');
+    expect(grew).toEqual(['adult']);
+    expect(state.chronicle.some((c) => c.kind === 'ofAge' && c.text.includes(duck.name))).toBe(true);
+    duck.ageTicks = adultDurationTicks(duck.phenotype.vigor);
+    tickLifecycle(state, rng);
+    expect(duck.stage).toBe('elder');
+    expect(grew).toEqual(['adult', 'elder']);
+    expect(state.chronicle.some((c) => c.kind === 'elder' && c.text.includes(duck.name))).toBe(true);
+    off();
+  });
+
+  it('a passing carries a rich payload for the farewell banner', () => {
+    const { state, rng } = createNewGame(8);
+    const duck = state.ducks[0];
+    duck.needs.health = 0;
+    let payload: { duck: { name: string }; descendants: number; honoured: number } | null = null;
+    const off = events.on('duck-died', (p) => { payload = p as typeof payload; });
+    tickLifecycle(state, rng);
+    off();
+    expect(payload!.duck.name).toBe(duck.name);
+    expect(payload!.descendants).toBe(0);
+    expect(payload!.honoured).toBe(0); // died young — no Society honours
   });
 
   it('a duck at zero health dies and is memorialized', () => {

@@ -5,7 +5,8 @@ import type { GameState } from '../state';
 import { dayOf, seasonOf, yearOf } from './time';
 
 export type ChronicleKind =
-  | 'breed' | 'hatch' | 'death' | 'festival' | 'race' | 'award' | 'visitor' | 'sale' | 'birthday' | 'society' | 'milestone';
+  | 'breed' | 'hatch' | 'death' | 'festival' | 'race' | 'award' | 'visitor' | 'sale' | 'birthday' | 'society' | 'milestone'
+  | 'ofAge' /* juvenile grew into an adult */ | 'elder' /* adult grew into an elder */;
 
 export interface ChronicleEntry {
   day: number;

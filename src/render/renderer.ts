@@ -18,7 +18,7 @@ interface Particle {
   vy: number;
   age: number; // seconds
   life: number;
-  kind: 'heart' | 'bubble' | 'sparkle';
+  kind: 'heart' | 'bubble' | 'sparkle' | 'feather';
 }
 
 export class Renderer {
@@ -138,15 +138,17 @@ export class Renderer {
     ctx.restore();
   };
 
-  // Spawn a little feedback particle at a world position.
-  spawnParticle(x: number, y: number, kind: 'heart' | 'bubble' | 'sparkle'): void {
+  // Spawn a little feedback particle at a world position. Feathers drift
+  // slowly down (a farewell) where the other kinds rise.
+  spawnParticle(x: number, y: number, kind: 'heart' | 'bubble' | 'sparkle' | 'feather'): void {
+    const feather = kind === 'feather';
     this.particles.push({
-      x: x + (Math.random() - 0.5) * 14,
-      y: y + (Math.random() - 0.5) * 8,
+      x: x + (Math.random() - 0.5) * (feather ? 30 : 14),
+      y: y + (Math.random() - 0.5) * 8 - (feather ? 14 + Math.random() * 12 : 0),
       vx: (Math.random() - 0.5) * 12,
-      vy: -22 - Math.random() * 14,
+      vy: feather ? 7 + Math.random() * 6 : -22 - Math.random() * 14,
       age: 0,
-      life: 0.9 + Math.random() * 0.4,
+      life: feather ? 2.4 + Math.random() * 1.2 : 0.9 + Math.random() * 0.4,
       kind,
     });
   }
@@ -188,6 +190,24 @@ export class Renderer {
         ctx.moveTo(p.x, p.y - s);
         ctx.lineTo(p.x, p.y + s);
         ctx.stroke();
+      } else if (p.kind === 'feather') {
+        // A soft moulted feather, swaying as it settles.
+        ctx.globalAlpha = Math.min(1, (1 - t) * 2.5);
+        const sway = Math.sin(p.age * 4 + p.x) * 9;
+        ctx.save();
+        ctx.translate(p.x + sway, p.y);
+        ctx.rotate(Math.sin(p.age * 4 + p.x) * 0.45);
+        ctx.fillStyle = 'rgba(238, 242, 246, 0.9)';
+        ctx.strokeStyle = '#c3ccd6';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-5, 0);
+        ctx.lineTo(5, 0);
+        ctx.stroke();
+        ctx.restore();
       } else {
         ctx.strokeStyle = '#d8ecf7';
         ctx.lineWidth = 1.2;

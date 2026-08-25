@@ -7,7 +7,8 @@ export type GameEvent =
   | 'unlock' // a panel became available
   | 'egg-laid'
   | 'egg-hatched'
-  | 'duck-died'
+  | 'duck-grew' // a duck moved up a life stage; payload { duck, to: 'juvenile' | 'adult' | 'elder' }
+  | 'duck-died' // payload { duck, descendants, honoured, ageDays } for the farewell banner
   | 'purchase'
   | 'duck-selected'
   | 'saved' // a local save just landed in localStorage (cloud sync pushes on it)

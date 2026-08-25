@@ -25,7 +25,7 @@ import {
   noteFestivalWinPublic,
   type MarketBuyer,
 } from '../sim/festivals';
-import { createDuck } from '../sim/duck';
+import { createDuck, type Duck } from '../sim/duck';
 import { createRng } from '../rng';
 import { dayOf, isNight } from '../sim/time';
 import { dawnReport } from '../sim/daybook';
@@ -69,6 +69,7 @@ export class UI {
     {} as Record<'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society', HTMLElement>;
   private panelHost: HTMLElement;
   private toastHost: HTMLElement;
+  private bannerHost: HTMLElement;
   // Two independent slots: the floating duck card and the centred modal
   // (shop/flock/book/breeding/save) can be open at the same time, so a card
   // pinned for comparison survives opening the Breeding or Shop panel.
@@ -107,11 +108,12 @@ export class UI {
     this.root.append(this.buildHud());
     this.panelHost = el('div', { class: 'panel-host' });
     this.toastHost = el('div', { class: 'toast-host' });
+    this.bannerHost = el('div', { class: 'banner-host' });
     this.railHost = el('div', { class: 'rail-host' });
     this.goalsHost = el('div', { class: 'goals-widget' });
     this.floatHost = el('div', { class: 'float-host' });
     this.modalHost = el('div', { class: 'modal-host' });
-    this.root.append(this.railHost, this.goalsHost, this.panelHost, this.modalHost, this.floatHost, this.toastHost);
+    this.root.append(this.railHost, this.goalsHost, this.panelHost, this.modalHost, this.floatHost, this.bannerHost, this.toastHost);
     this.bindFloatDrag();
     this.railHost.addEventListener('pointerdown', () => {
       this.pointerDownInRail = true;
@@ -137,7 +139,34 @@ export class UI {
       for (let i = 0; i < 6; i += 1) this.renderer.spawnParticle(duck.pos.x, duck.pos.y - 18, 'heart');
       if (this.duckCardOpen) this.refreshPanel();
     });
-    events.on('duck-died', () => {
+    events.on('duck-grew', (payload) => {
+      const { duck, to } = payload as { duck: Duck; to: 'juvenile' | 'adult' | 'elder' };
+      for (let i = 0; i < (to === 'juvenile' ? 6 : 10); i += 1) {
+        this.renderer.spawnParticle(duck.pos.x, duck.pos.y - 14, 'sparkle');
+      }
+      if (to === 'adult') {
+        this.lifeBanner('grown', duck, `${duck.name} is all grown up`, [
+          'Come of age — ready to nest, race, and win rosettes.',
+        ]);
+      } else if (to === 'elder') {
+        this.lifeBanner('elder', duck, `${duck.name} is an elder now`, [
+          'A wise old bird — done with nesting, honoured on the bank.',
+        ]);
+      }
+    });
+    events.on('duck-died', (payload) => {
+      const { duck, descendants, honoured, ageDays } = payload as {
+        duck: Duck; descendants: number; honoured: number; ageDays?: number;
+      };
+      for (let i = 0; i < 9; i += 1) this.renderer.spawnParticle(duck.pos.x, duck.pos.y - 6, 'feather');
+      const lines = [
+        duck.stage === 'elder'
+          ? `Passed peacefully${ageDays !== undefined ? ` at ${ageDays} days` : ''}.`
+          : `Died young${ageDays !== undefined ? ` at ${ageDays} days` : ''}.`,
+      ];
+      if (descendants > 0) lines.push(`${duck.sex === 'F' ? 'Her' : 'His'} line lives on in ${descendants} duck${descendants === 1 ? '' : 's'}.`);
+      if (honoured > 0) lines.push(`A feather rests in the album — the Society honours a life well lived (+${honoured}).`);
+      this.lifeBanner('passing', duck, `Farewell, ${duck.name}`, lines);
       if (this.duckCardOpen) this.refreshPanel();
     });
     events.on('takeover', (payload) => this.showTakeoverOverlay(Boolean((payload as { remote?: boolean } | undefined)?.remote)));
@@ -1733,6 +1762,33 @@ export class UI {
     setTimeout(() => {
       if (card.isConnected) dismiss();
     }, 20_000);
+  }
+
+  // A centred, longer-lived notice for the pond's big life moments — coming
+  // of age, elderhood, and passings — with the duck's portrait, so they can't
+  // slip past the way a toast can. Click to dismiss.
+  private lifeBanner(tone: 'grown' | 'elder' | 'passing', duck: Duck, title: string, lines: string[]): void {
+    while (this.bannerHost.children.length >= 3) this.bannerHost.firstElementChild!.remove();
+    const node = el(
+      'div',
+      { class: `life-banner ${tone}` },
+      el('span', { class: 'life-portrait' }, duckPortrait(duck, 44)),
+      el(
+        'div',
+        { class: 'life-text' },
+        el('div', { class: 'life-title' }, title),
+        ...lines.map((l) => el('div', { class: 'life-line' }, l)),
+      ),
+    );
+    const dismiss = () => {
+      if (!node.isConnected) return;
+      node.classList.remove('show');
+      setTimeout(() => node.remove(), 400);
+    };
+    node.addEventListener('click', dismiss);
+    this.bannerHost.append(node);
+    setTimeout(() => node.classList.add('show'), 10);
+    setTimeout(dismiss, tone === 'passing' ? 12_000 : 8_000);
   }
 
   toast(msg: string): void {

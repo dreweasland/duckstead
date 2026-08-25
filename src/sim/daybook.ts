@@ -14,7 +14,8 @@ import { penCapacity, penDucks } from './pen';
 import type { Season } from '../types';
 
 export type DawnIcon =
-  | 'coin' | 'duck' | 'egg' | 'flag' | 'heart' | 'wheat' | 'bubbles' | 'sparkle' | 'warning' | 'pill' | 'grave';
+  | 'coin' | 'duck' | 'egg' | 'flag' | 'heart' | 'wheat' | 'bubbles' | 'sparkle' | 'warning' | 'pill' | 'grave'
+  | 'feather' | 'smile';
 
 export interface DawnLine {
   icon: DawnIcon;
@@ -65,8 +66,21 @@ export function dawnReport(state: GameState): DawnReport {
   }
 
   const opportunities: DawnLine[] = [];
+  const milestones: DawnLine[] = [];
   const nest: DawnLine[] = [];
   const chores: DawnLine[] = [];
+
+  // Yesterday's passages — growth, elderhood, farewells, and year birthdays
+  // the player may have missed live. Pulled from the chronicle, so the dawn
+  // card doubles as the catch-up surface for the flock's life events.
+  {
+    const dayNow = dayOf(state.clock);
+    const LIFE_ICON: Partial<Record<string, DawnIcon>> = { death: 'grave', elder: 'feather', ofAge: 'duck', birthday: 'smile' };
+    const news = state.chronicle.filter((c) => c.day >= dayNow - 1 && LIFE_ICON[c.kind] !== undefined);
+    const shown = news.slice(-6);
+    for (const n of shown) milestones.push({ icon: LIFE_ICON[n.kind]!, text: n.text });
+    if (news.length > shown.length) milestones.push({ icon: 'sparkle', text: `…and ${news.length - shown.length} more in the Book.` });
+  }
 
   if (today) {
     opportunities.push({ icon: 'flag', text: `It's the ${FESTIVAL_NAMES[today]}!`, detail: 'Open the festival chip in the top bar to take part.' });
@@ -179,6 +193,7 @@ export function dawnReport(state: GameState): DawnReport {
 
   const sections: DawnSection[] = [];
   if (opportunities.length) sections.push({ title: 'Opportunities', lines: opportunities });
+  if (milestones.length) sections.push({ title: 'Milestones', lines: milestones });
   if (nest.length) sections.push({ title: 'The nest', lines: nest });
   if (chores.length) sections.push({ title: 'Chores', lines: chores });
   if (sections.length === 0) sections.push({ title: 'All quiet', lines: [{ icon: 'duck', text: 'The flock is content. Enjoy the morning.' }] });
