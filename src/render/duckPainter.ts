@@ -280,8 +280,13 @@ function drawHeadGroup(
   ctx.save();
 
   if (anim.headTuck > 0) {
-    // Sleeping: head rests back on the body.
-    ctx.translate(2, -8);
+    // Sleeping the way real ducks do: the head swivels right around
+    // (mirrored) and settles low on the back, bill angled down into the
+    // scapular feathers. A wing-coloured tuft is painted over the bill
+    // afterwards so it reads as buried, not resting on top.
+    ctx.translate(-4, -7);
+    ctx.scale(-1, 1);
+    ctx.rotate(0.55);
   } else if (anim.headBack > 0) {
     // Preening: the head swivels right around (mirrored) so the bill points
     // backward and dips down to nuzzle into the wing.
@@ -335,6 +340,15 @@ function drawHeadGroup(
   drawBill(ctx, p, anim);
   drawEye(ctx, duck, anim);
   ctx.restore();
+
+  if (anim.headTuck > 0) {
+    // The shoulder feathers folded over the tucked bill (wing-coloured, so
+    // it reads as part of the folded wing).
+    ctx.beginPath();
+    ctx.ellipse(-15, 1, 10.5, 6.5, 0.3, 0, Math.PI * 2);
+    ctx.fillStyle = darken(colors.body, 0.1);
+    ctx.fill();
+  }
 }
 
 function drawBill(ctx: CanvasRenderingContext2D, p: Phenotype, anim: AnimState): void {
