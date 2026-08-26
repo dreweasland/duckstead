@@ -22,6 +22,10 @@ const EAT_DISTANCE = 14;
 // Ducks are ~44 units across; keep centres well apart so they're clickable.
 const SEPARATION_DIST = 42;
 const FOLLOW_MOM_DIST = 70; // ducklings trail their mother past this
+// Once trailing, a duckling closes right up before resuming play — releasing
+// at the outer ring made the follow pull and its own wander target fight,
+// snapping its heading left and right every few ticks.
+const CATCH_UP_DIST = 34;
 
 // Stable per-duck temperament derived from the duck's identity — no stored
 // state, no save-format change. Energy scales how briskly a duck cycles
@@ -338,13 +342,34 @@ function steer(
     !isNight(state.clock)
   ) {
     const mom = state.ducks.find((d) => d.id === duck.parents![0]);
-    if (mom && dist(duck.pos, mom.pos) > FOLLOW_MOM_DIST) {
-      target = mom.pos;
-      speed = Math.max(speed, WADDLE_SPEED * 1.25);
-      if (duck.activity !== 'waddle' && duck.activity !== 'swim') {
-        duck.activity =
-          isInPond(state, mom.pos) && isInPond(state, duck.pos) ? 'swim' : 'waddle';
-        duck.activityTimer = 30;
+    if (mom && mom.stage !== 'egg') {
+      const gap = dist(duck.pos, mom.pos);
+      // Hysteresis: start trailing past the outer ring, keep trailing until
+      // properly caught up.
+      if (gap > FOLLOW_MOM_DIST) duck.chasingMom = true;
+      else if (duck.chasingMom && gap < CATCH_UP_DIST) {
+        delete duck.chasingMom;
+        // A stale far-away destination would march it straight back out and
+        // re-trigger the chase — potter about near mother instead. Clear the
+        // local goal too: the activity switch above already aimed this tick
+        // at the old target, and one stray outward step is the exact twitch
+        // this hysteresis exists to remove.
+        if (duck.wanderTarget && dist(duck.wanderTarget, mom.pos) > FOLLOW_MOM_DIST) {
+          delete duck.wanderTarget;
+          duck.activity = 'idle';
+          duck.activityTimer = 20 + Math.floor(rng.range(0, 20));
+          target = null;
+          speed = 0;
+        }
+      }
+      if (duck.chasingMom) {
+        target = mom.pos;
+        speed = Math.max(speed, WADDLE_SPEED * 1.25);
+        if (duck.activity !== 'waddle' && duck.activity !== 'swim') {
+          duck.activity =
+            isInPond(state, mom.pos) && isInPond(state, duck.pos) ? 'swim' : 'waddle';
+          duck.activityTimer = 30;
+        }
       }
     }
   }
@@ -466,9 +491,11 @@ export function roostSpot(state: GameState, duck: Duck): Vec2 {
     }
   }
   // Best friends roost side by side: the younger follows the elder's spot.
+  // Never follow a duckling friend: its spot derives from its mother's, and a
+  // duckling who befriends its own mother would recurse here forever.
   if (duck.friendId) {
     const friend = state.ducks.find((d) => d.id === duck.friendId);
-    if (friend && friend.friendId === duck.id && friend.id < duck.id) {
+    if (friend && friend.stage !== 'duckling' && friend.friendId === duck.id && friend.id < duck.id) {
       const spot = roostSpot(state, friend);
       return { x: spot.x + 30, y: spot.y + 6 };
     }

@@ -37,6 +37,7 @@ export interface Duck {
   favouriteKnown?: boolean; // the player has found this duck's favourite treat
   lineage?: import('./lineage').Lineage; // ancestry, stamped at lay time
   wanderTarget?: Vec2; // where the current swim/waddle is headed
+  chasingMom?: boolean; // duckling follow-hysteresis: trailing mother until caught up
   penned?: boolean; // kept in the bachelor pen: out of the breeding population
   pennedInside?: boolean; // has reached the pen (until then it's walking in)
   // Egg tending (stage === 'egg'): warmth drifts down and the player tucks
