@@ -15,7 +15,7 @@ import { clamp } from '../types';
 import { dayOf } from '../sim/time';
 import { computeAnim } from '../render/animation';
 import { drawDuck } from '../render/duckPainter';
-import { el } from './dom';
+import { el, statBar } from './dom';
 import { icon } from './icons';
 import { duckPortrait } from './portrait';
 
@@ -129,10 +129,22 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
         el('strong', { class: 'with-icon' }, icon('flag', 16), title),
         el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
       ),
+    );
+    // The stakes at a glance, dawn-card style.
+    const tile = (ic: Parameters<typeof icon>[0], value: string, label: string) =>
+      el('div', { class: 'race-tile' }, icon(ic, 13), el('strong', {}, value), el('span', { class: 'race-tile-label' }, label));
+    card.append(
       el(
         'div',
-        { class: 'muted' },
-        `Pick your racer — entry ${fee} coins, prizes ${prizes[0]} / ${prizes[1]}. `,
+        { class: 'race-stats' },
+        tile('coin', String(fee), 'entry'),
+        tile('star', String(prizes[0]), '1st prize'),
+        tile('starOutline', String(prizes[1] ?? 0), '2nd prize'),
+        tile('duck', String(eligible.length), eligible.length === 1 ? 'racer ready' : 'racers ready'),
+      ),
+      el(
+        'div',
+        { class: 'muted small race-blurb' },
         'Speed comes from vigor, energy, and a trim build.',
         opts.ignoreDailyLimit ? '' : ' Each duck races once a day.',
       ),
@@ -147,15 +159,24 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     if (game.state.money < fee) {
       card.append(el('div', { class: 'section warn-text' }, 'Not enough coins for the entry fee.'));
     }
+    // Fastest first, each with a speed bar relative to the best on the pond —
+    // the field reads like a form guide instead of lines of text.
+    const field = [...eligible].sort((a, b) => raceSpeed(b) - raceSpeed(a));
+    const maxSpeed = raceSpeed(field[0]);
     const grid = el('div', { class: 'race-picker' });
-    for (const duck of eligible) {
+    field.forEach((duck, i) => {
       const rested = opts.ignoreDailyLimit || raceRested(game, duck);
       const allowed = !tierDef?.eligible || tierDef.eligible(duck);
+      const spd = raceSpeed(duck);
+      const favourite = i === 0 && field.length > 1 && allowed && rested;
+      const bar = statBar((spd / maxSpeed) * 100, favourite ? '#e8b83a' : '#69b356', true);
+      bar.classList.add('race-speed-bar');
+      const status = !allowed ? 'not eligible' : !rested ? 'raced today' : favourite ? 'the favourite' : '\u00a0';
       grid.append(
         el(
           'button',
           {
-            class: 'race-pick',
+            class: `race-pick${favourite ? ' favourite' : ''}`,
             disabled: game.state.money < fee || !rested || !allowed,
             title: !allowed ? `${duck.name} doesn't meet the ${tierDef!.name} rule` : rested ? '' : `${duck.name} already raced today`,
             onclick: () => {
@@ -163,12 +184,13 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
               startRace(duck);
             },
           },
-          duckPortrait(duck, 48),
-          el('span', { class: 'small' }, duck.name),
-          el('span', { class: 'muted small' }, !allowed ? 'not eligible' : rested ? `speed ${Math.round(raceSpeed(duck))}` : 'raced today'),
+          duckPortrait(duck, 52),
+          el('span', { class: 'race-pick-name' }, duck.name),
+          el('span', { class: 'race-speed-row' }, bar, el('span', { class: 'race-speed-num' }, String(Math.round(spd)))),
+          el('span', { class: `muted small race-pick-status${status === 'the favourite' ? ' fav' : ''}` }, status),
         ),
       );
-    }
+    });
     card.append(grid);
   };
 

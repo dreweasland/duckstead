@@ -2898,6 +2898,43 @@ body.feeding #pond-canvas {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 }
 
+/* The stakes tiles above the racer picker. */
+.race-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(84px, 1fr));
+  gap: 8px;
+}
+
+.race-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  background: #1f2833;
+  border: 1px solid #2e3b4a;
+}
+
+.race-tile > .icon {
+  opacity: 0.7;
+}
+
+.race-tile strong {
+  font-size: 15px;
+}
+
+.race-tile-label {
+  font-size: 10.5px;
+  color: #8a97a5;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.race-blurb {
+  text-align: center;
+}
+
 .race-picker {
   display: flex;
   flex-wrap: wrap;
@@ -2919,8 +2956,46 @@ body.feeding #pond-canvas {
   transition: transform 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }
 
-.race-pick span.small:not(.muted) {
+.race-pick {
+  width: 108px;
+}
+
+.race-pick-name {
   font-weight: 700;
+  font-size: 13px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.race-pick.favourite {
+  border-color: #7a6428;
+}
+
+.race-speed-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.race-speed-row .bar {
+  flex: 1;
+}
+
+.race-speed-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: #b9c4cf;
+}
+
+.race-pick-status {
+  font-size: 10.5px;
+}
+
+.race-pick-status.fav {
+  color: #e8b83a;
 }
 
 .race-pick:hover:not(:disabled) {
