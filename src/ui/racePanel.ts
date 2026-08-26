@@ -105,7 +105,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
   const prizes = opts.prizes ?? tierDef?.prizes ?? BALANCE.racePrizes;
   const aiBoost = opts.aiBoost ?? tierDef?.aiBoost ?? 1;
   const overlay = el('div', { class: 'race-overlay' });
-  const card = el('div', { class: 'race-card' });
+  const card = el('div', { class: 'race-card theme-derby' });
   overlay.append(card);
   document.getElementById('ui-root')!.append(overlay);
 
@@ -119,6 +119,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
   };
 
   const showPicker = () => {
+    card.classList.remove('win');
     const eligible = raceEligible(game);
     const fee = entryFee;
     card.replaceChildren(
@@ -329,7 +330,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
         el(
           'div',
           { class: `race-result-row${racer.isPlayer ? ' mine' : ''}` },
-          el('span', { class: 'race-place' }, `${i + 1}.`),
+          el('span', { class: `race-place p${i + 1}` }, `${i + 1}`),
           duckPortrait(racer.duck, 36),
           el('span', { class: 'race-result-name' }, racer.duck.name + (racer.isPlayer ? ' (you)' : '')),
           racer.isPlayer && (prizes[i] ?? 0) > 0
@@ -369,6 +370,8 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
         : playerPlace === 0
           ? 'Victory!'
           : 'Race finished';
+    // A win turns the header band gold.
+    card.classList.toggle('win', playerPlace === 0 && !next);
     card.replaceChildren(
       el(
         'div',

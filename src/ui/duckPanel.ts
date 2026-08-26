@@ -48,7 +48,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
       duckPortrait(duck, 84),
       el(
         'div',
-        {},
+        { class: 'panel-title' },
         buildNameEditor(ctx, duck.id, duck.name),
         duck.stage === 'egg'
           ? el('div', { class: 'muted' }, 'Egg')

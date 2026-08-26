@@ -1201,7 +1201,7 @@ export class UI {
   private showRaceRecap(race: { heatPlace: number; finalPlace?: number; prize: number }): void {
     if (document.querySelector('.race-overlay')) return;
     const overlay = el('div', { class: 'race-overlay' });
-    const card = el('div', { class: 'race-card' });
+    const card = el('div', { class: 'race-card theme-derby' });
     const place = (n: number) => `${n + 1}${['st', 'nd', 'rd'][n] ?? 'th'}`;
     const lines: string[] = [`Qualifying heat: ${place(race.heatPlace)}${race.heatPlace <= 1 ? ' — advanced' : ' — eliminated'}.`];
     if (race.finalPlace !== undefined) lines.push(`Final: ${place(race.finalPlace)}${race.prize > 0 ? ` — ${race.prize} coins` : ''}.`);
@@ -1242,7 +1242,7 @@ export class UI {
     if (buyers.length === 0) {
       // Packed up: show the day's tally instead of a shrug.
       const overlay0 = el('div', { class: 'race-overlay' });
-      const card0 = el('div', { class: 'race-card' });
+      const card0 = el('div', { class: 'race-card theme-market' });
       card0.append(
         el(
           'div',
@@ -1265,7 +1265,7 @@ export class UI {
     }
 
     const overlay = el('div', { class: 'race-overlay' });
-    const card = el('div', { class: 'race-card' });
+    const card = el('div', { class: 'race-card theme-market' });
     const close = () => overlay.remove();
     let index = 0;
     // A buyer leaves the queue when dealt with; the stall is "entered" once
@@ -1382,7 +1382,7 @@ export class UI {
       const last = state.lastFestival;
       if (last?.kind === 'winterLights' && last.day === dayOf(state.clock) && last.winter) {
         const overlay0 = el('div', { class: 'race-overlay' });
-        const card0 = el('div', { class: 'race-card' });
+        const card0 = el('div', { class: 'race-card theme-winter' });
         card0.append(
           el(
             'div',
@@ -1403,7 +1403,7 @@ export class UI {
       return;
     }
     const overlay = el('div', { class: 'race-overlay' });
-    const card = el('div', { class: 'race-card' });
+    const card = el('div', { class: 'race-card theme-winter' });
     const close = () => overlay.remove();
     let lit = 0;
 
@@ -1504,7 +1504,7 @@ export class UI {
     const state = this.game.state;
     const eggs = state.ducks.filter((d) => d.stage === 'egg');
     const overlay = el('div', { class: 'race-overlay' });
-    const card = el('div', { class: 'race-card egg-show' });
+    const card = el('div', { class: 'race-card egg-show theme-egg' });
     const timers: number[] = [];
     const close = () => {
       timers.forEach((t) => clearTimeout(t));
@@ -1533,7 +1533,7 @@ export class UI {
           el(
             'div',
             { class: `race-result-row${entry.isPlayer ? ' mine' : ''}` },
-            el('span', { class: 'race-place' }, `${i + 1}.`),
+            el('span', { class: `race-place p${i + 1}` }, `${i + 1}`),
             duckPortrait(sample, 34),
             el(
               'span',
@@ -1548,6 +1548,7 @@ export class UI {
           ),
         );
       });
+      card.classList.toggle('win', result.playerPlace === 0);
       card.replaceChildren(
         el(
           'div',

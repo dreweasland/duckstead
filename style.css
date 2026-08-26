@@ -1027,6 +1027,24 @@ body.feeding #pond-canvas {
   align-items: center;
   gap: 4px;
   margin-left: auto;
+  flex: 0 0 auto;
+}
+
+/* The name/stage block yields before the window buttons do, so a "pinned"
+   chip can never shove the ✕ out of frame on a narrow card. */
+.panel-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-title .muted {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-title .name-input {
+  max-width: 100%;
 }
 
 .pin-btn:disabled {
@@ -2763,14 +2781,25 @@ body.feeding #pond-canvas {
 }
 
 /* Pond Derby race minigame */
+/* Event windows: the derby, festivals, and ceremonies all share this card.
+   Each event tints the header band with its own colours, the way the dawn
+   card announces the morning. */
 .race-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(8, 12, 18, 0.75);
+  background: rgba(8, 12, 18, 0.72);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 40;
+  animation: overlay-fade 0.25s ease-out;
+}
+
+@keyframes overlay-fade {
+  from {
+    opacity: 0;
+  }
 }
 
 .race-card {
@@ -2778,30 +2807,102 @@ body.feeding #pond-canvas {
   flex-direction: column;
   gap: 12px;
   background: #141c26;
-  border: 1px solid #32404f;
-  border-radius: 12px;
-  padding: 18px 20px;
+  border: 1px solid #3a4a5c;
+  border-radius: 14px;
+  padding: 0 20px 18px;
   max-width: 920px;
   max-height: 92vh;
   overflow-y: auto;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  animation: card-rise 0.32s ease-out;
 }
 
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+}
+
+/* The header is a full-bleed banner band, tinted per event. */
 .race-header {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin: 0 -20px;
+  padding: 13px 20px;
+  border-radius: 13px 13px 0 0;
+  background: linear-gradient(135deg, #2c3c50, #3a4a5c);
+  color: #f7f1e2;
+  flex: 0 0 auto;
+}
+
+.race-header strong {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  letter-spacing: 0.01em;
+}
+
+.race-header strong svg {
+  width: 30px;
+  height: 30px;
+  padding: 7px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.race-header .close-btn {
+  color: rgba(247, 241, 226, 0.8);
+}
+
+.race-card.theme-derby .race-header {
+  background: linear-gradient(135deg, #24557f 0%, #2c6899 55%, #2f8c68 100%);
+}
+
+.race-card.theme-egg .race-header {
+  background: linear-gradient(135deg, #3f7a3a 0%, #6fa04f 60%, #c99ab5 100%);
+}
+
+.race-card.theme-market .race-header {
+  background: linear-gradient(135deg, #7a4a24 0%, #a06a2e 55%, #c28f3a 100%);
+}
+
+.race-card.theme-winter .race-header {
+  background: linear-gradient(135deg, #1e2a52 0%, #3a3f7a 55%, #6b4d8f 100%);
+}
+
+/* A victory turns the band gold, whatever the event. */
+.race-card.win .race-header {
+  background: linear-gradient(135deg, #8f6a1e 0%, #c2952e 55%, #e8c35a 100%);
+  color: #241c08;
+}
+
+.race-card.win .race-header strong svg {
+  background: rgba(0, 0, 0, 0.14);
+  box-shadow: none;
+}
+
+.race-card.win .race-header .close-btn {
+  color: rgba(36, 28, 8, 0.7);
 }
 
 .race-canvas {
   border-radius: 10px;
   max-width: 100%;
   cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
 }
 
 .race-picker {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  justify-content: center;
 }
 
 .race-pick {
@@ -2811,47 +2912,80 @@ body.feeding #pond-canvas {
   gap: 4px;
   background: #1c2733;
   border: 1px solid #2c3947;
-  border-radius: 10px;
-  padding: 10px 14px;
+  border-radius: 12px;
+  padding: 12px 16px;
   color: inherit;
   cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.race-pick span.small:not(.muted) {
+  font-weight: 700;
 }
 
 .race-pick:hover:not(:disabled) {
   background: #26354a;
   border-color: #3d5372;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
 }
 
 .race-pick:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
+  filter: grayscale(0.4);
 }
 
+/* The paddle meter: glossy, with the sweet spot marked. */
 .race-meter {
   position: relative;
-  height: 16px;
-  border-radius: 8px;
+  height: 22px;
+  border-radius: 11px;
   background:
     linear-gradient(
       90deg,
       #5c2f2c 0%,
       #7a5a2a 30%,
-      #4a7a4e 42%,
-      #4a7a4e 58%,
+      #3f8a52 42%,
+      #46a05e 50%,
+      #3f8a52 58%,
       #7a5a2a 70%,
       #5c2f2c 100%
     );
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
   overflow: hidden;
+}
+
+.race-meter::before {
+  content: '';
+  position: absolute;
+  inset: 1px 1px 55%;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+.race-meter::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: rgba(255, 255, 255, 0.55);
 }
 
 .race-meter-marker {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 4px;
-  margin-left: -2px;
+  width: 5px;
+  margin-left: -2.5px;
   background: #ffffff;
-  border-radius: 2px;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
 }
 
 .race-meter.hit-good {
@@ -2864,13 +2998,13 @@ body.feeding #pond-canvas {
 
 @keyframes meter-flash-good {
   from {
-    box-shadow: 0 0 0 3px rgba(127, 195, 110, 0.9);
+    box-shadow: 0 0 0 4px rgba(127, 195, 110, 0.9), inset 0 0 12px rgba(127, 195, 110, 0.5);
   }
 }
 
 @keyframes meter-flash-weak {
   from {
-    box-shadow: 0 0 0 3px rgba(224, 169, 58, 0.7);
+    box-shadow: 0 0 0 4px rgba(224, 169, 58, 0.7), inset 0 2px 6px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -2878,11 +3012,12 @@ body.feeding #pond-canvas {
   text-align: center;
 }
 
+/* Results: a podium list — medals for the top three, gold trim for you. */
 .race-results {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 320px;
+  min-width: 340px;
 }
 
 .race-result-row {
@@ -2890,17 +3025,56 @@ body.feeding #pond-canvas {
   align-items: center;
   gap: 10px;
   background: #1c2733;
-  border-radius: 8px;
-  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 7px 12px;
+  animation: row-slide 0.3s ease-out backwards;
+}
+
+.race-result-row:nth-child(2) { animation-delay: 0.06s; }
+.race-result-row:nth-child(3) { animation-delay: 0.12s; }
+.race-result-row:nth-child(4) { animation-delay: 0.18s; }
+.race-result-row:nth-child(5) { animation-delay: 0.24s; }
+
+@keyframes row-slide {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
 }
 
 .race-result-row.mine {
-  border: 1px solid #e8b83a;
+  border-color: #e8b83a;
+  background: linear-gradient(rgba(232, 184, 58, 0.08), rgba(232, 184, 58, 0.08)), #1c2733;
 }
 
 .race-place {
-  font-weight: 700;
-  width: 20px;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 13px;
+  background: #26313f;
+  color: #8a97a5;
+}
+
+.race-place.p1 {
+  background: linear-gradient(#f4d05e, #c9992e);
+  color: #2a2109;
+  box-shadow: 0 0 10px rgba(232, 184, 58, 0.45);
+}
+
+.race-place.p2 {
+  background: linear-gradient(#dfe5ec, #9aa6b2);
+  color: #232b34;
+}
+
+.race-place.p3 {
+  background: linear-gradient(#d8975a, #9c6430);
+  color: #2a1a0a;
 }
 
 .race-result-name {
@@ -2921,18 +3095,23 @@ body.feeding #pond-canvas {
   min-width: 420px;
   justify-content: center;
   text-align: center;
+  padding: 10px 0 6px;
+  border-radius: 12px;
+  background: radial-gradient(ellipse at 50% 28%, rgba(232, 184, 58, 0.1), transparent 65%);
 }
 
 .egg-pedestal {
-  background: linear-gradient(#2a3542, #1c2733);
-  border: 1px solid #3d4c5e;
-  border-radius: 10px 10px 4px 4px;
-  padding: 12px 26px 4px;
+  background: linear-gradient(#324054, #1c2733);
+  border: 1px solid #4a5b70;
+  border-radius: 12px 12px 5px 5px;
+  padding: 14px 30px 6px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   animation: float-in 0.3s ease-out;
 }
 
 .egg-breeder {
   font-weight: 700;
+  font-size: 15px;
 }
 
 .egg-comment {
@@ -2974,21 +3153,57 @@ body.feeding #pond-canvas {
   flex-wrap: wrap;
 }
 
+/* Market Day: the buyer's quote reads as a speech bubble over the stall. */
 .market-stage {
   min-height: 180px;
 }
 
-/* Winter Lights lanterns */
+.market-stage .egg-comment {
+  background: #1c2733;
+  border: 1px solid #32404f;
+  border-radius: 12px;
+  padding: 9px 14px;
+  position: relative;
+}
+
+.market-stage .egg-comment::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: #1c2733;
+  border-right: 1px solid #32404f;
+  border-bottom: 1px solid #32404f;
+  transform: rotate(45deg);
+}
+
+/* Winter Lights lanterns, strung against the night. */
 .lantern-row {
   display: flex;
   justify-content: center;
-  gap: 18px;
-  padding: 18px 30px 26px;
+  gap: 22px;
+  padding: 26px 36px 30px;
+  position: relative;
+  border-radius: 12px;
+  background: radial-gradient(ellipse at 50% 115%, #182338, #0d1420 75%);
+}
+
+.lantern-row::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 19px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .lantern {
-  width: 34px;
-  height: 46px;
+  width: 38px;
+  height: 52px;
   background: #2a3542;
   border: 2px solid #3d4c5e;
   border-radius: 10px 10px 14px 14px;
@@ -3019,11 +3234,12 @@ body.feeding #pond-canvas {
 
 .lantern:hover:not(.lit) {
   border-color: #5d7189;
+  transform: translateY(-2px);
 }
 
 .lantern.lit {
   border-color: #e8b83a;
-  box-shadow: 0 0 22px rgba(255, 208, 110, 0.45);
+  box-shadow: 0 0 26px rgba(255, 208, 110, 0.5), 0 0 60px rgba(255, 190, 90, 0.18);
   cursor: default;
 }
 
