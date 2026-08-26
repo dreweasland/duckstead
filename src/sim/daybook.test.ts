@@ -15,6 +15,11 @@ describe('dawn report', () => {
     state.chronicle.push({ day: dayNow, kind: 'elder', text: 'Maple grew into an honoured elder at 14 days.' });
     state.chronicle.push({ day: dayNow - 1, kind: 'ofAge', text: 'Sorrel came of age.' });
     state.chronicle.push({ day: dayNow - 3, kind: 'death', text: 'Old news from days ago.' });
+    // A carried entry from a previous pond: recent-looking day, older era.
+    state.heritage = 1;
+    state.chronicle.forEach((c) => { c.era = 1; });
+    state.chronicle.push({ day: dayNow, kind: 'death', text: 'A previous pond passing.' });
+    state.chronicle[state.chronicle.length - 1].era = 0;
     const report = dawnReport(state);
     expect(report.sections.some((s) => s.title === 'Milestones')).toBe(true);
     const text = dawnLines(report).join('\n');
@@ -22,6 +27,7 @@ describe('dawn report', () => {
     expect(text).toContain('Maple');
     expect(text).toContain('Sorrel');
     expect(text).not.toContain('Old news');
+    expect(text).not.toContain('previous pond passing');
   });
 
   it('lists festival, buyer, cold eggs, and pond state', () => {

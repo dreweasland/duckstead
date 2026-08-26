@@ -76,7 +76,9 @@ export function dawnReport(state: GameState): DawnReport {
   {
     const dayNow = dayOf(state.clock);
     const LIFE_ICON: Partial<Record<string, DawnIcon>> = { death: 'grave', elder: 'feather', ofAge: 'duck', birthday: 'smile' };
-    const news = state.chronicle.filter((c) => c.day >= dayNow - 1 && LIFE_ICON[c.kind] !== undefined);
+    // Scope to this pond's era: a retired pond's chronicle carries over, and
+    // its old day numbers would otherwise replay in the new pond's recap.
+    const news = state.chronicle.filter((c) => (c.era ?? 0) === state.heritage && c.day >= dayNow - 1 && LIFE_ICON[c.kind] !== undefined);
     const shown = news.slice(-6);
     for (const n of shown) milestones.push({ icon: LIFE_ICON[n.kind]!, text: n.text });
     if (news.length > shown.length) milestones.push({ icon: 'sparkle', text: `…and ${news.length - shown.length} more in the Book.` });

@@ -12,12 +12,16 @@ export interface ChronicleEntry {
   day: number;
   kind: ChronicleKind;
   text: string;
+  // Which pond wrote it: the heritage count at the time. Carried entries keep
+  // their era, so the dawn recap can scope to the current pond while the Book
+  // still shows the whole line's history. Absent = era 0 (or a pre-era save).
+  era?: number;
 }
 
 export const CHRONICLE_CAP = 200;
 
 export function chronicle(state: GameState, kind: ChronicleKind, text: string): void {
-  state.chronicle.push({ day: dayOf(state.clock), kind, text });
+  state.chronicle.push({ day: dayOf(state.clock), kind, text, ...(state.heritage > 0 ? { era: state.heritage } : {}) });
   if (state.chronicle.length > CHRONICLE_CAP) state.chronicle.splice(0, state.chronicle.length - CHRONICLE_CAP);
 }
 
