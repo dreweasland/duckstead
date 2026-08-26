@@ -62,6 +62,18 @@ const CARDS_PREF_KEY = 'ducksim:ui:cards';
 // panel rebuild. Any new scroll region in a panel belongs in this list.
 const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .society-ladder, .chronicle, .nest-grid';
 
+// A labelled stat tile for event recap cards (matches the race picker's).
+function statTile(ic: Parameters<typeof icon>[0], value: string, label: string): HTMLElement {
+  return el('div', { class: 'race-tile' }, icon(ic, 13), el('strong', {}, value), el('span', { class: 'race-tile-label' }, label));
+}
+
+// A row of already-lit lanterns for Winter Lights recaps.
+function litLanternRow(): HTMLElement {
+  const row = el('div', { class: 'lantern-row static' });
+  for (let i = 0; i < 5; i += 1) row.append(el('span', { class: 'lantern lit' }, el('span', { class: 'lantern-flame' })));
+  return row;
+}
+
 export class UI {
   private root: HTMLElement;
   private hudClock!: HTMLElement;
@@ -1201,18 +1213,31 @@ export class UI {
   private showRaceRecap(race: { heatPlace: number; finalPlace?: number; prize: number }): void {
     if (document.querySelector('.race-overlay')) return;
     const overlay = el('div', { class: 'race-overlay' });
-    const card = el('div', { class: 'race-card theme-derby' });
-    const place = (n: number) => `${n + 1}${['st', 'nd', 'rd'][n] ?? 'th'}`;
-    const lines: string[] = [`Qualifying heat: ${place(race.heatPlace)}${race.heatPlace <= 1 ? ' — advanced' : ' — eliminated'}.`];
-    if (race.finalPlace !== undefined) lines.push(`Final: ${place(race.finalPlace)}${race.prize > 0 ? ` — ${race.prize} coins` : ''}.`);
+    const won = race.finalPlace === 0;
+    const card = el('div', { class: `race-card theme-derby${won ? ' win' : ''}` });
+    const round = (label: string, placed: number, note: string, reward: number) =>
+      el(
+        'div',
+        { class: 'race-result-row mine' },
+        el('span', { class: `race-place p${placed + 1}` }, String(placed + 1)),
+        el('span', { class: 'race-result-name' }, label),
+        el('span', { class: 'muted small' }, note),
+        reward > 0 ? el('span', { class: 'goal-reward with-icon' }, icon('coin', 11), String(reward)) : null,
+      );
+    const rows = el(
+      'div',
+      { class: 'race-results' },
+      round('Qualifying Heat', race.heatPlace, race.heatPlace <= 1 ? 'advanced to the final' : 'eliminated', 0),
+    );
+    if (race.finalPlace !== undefined) rows.append(round('Final', race.finalPlace, won ? 'champion!' : 'finished', race.prize));
     card.append(
       el(
         'div',
         { class: 'race-header' },
-        el('strong', { class: 'with-icon' }, icon('flag', 16), festivalTitle(this.game.state, 'grandPrix')),
+        el('strong', { class: 'with-icon' }, icon('flag', 16), won ? 'Grand Prix champions!' : festivalTitle(this.game.state, 'grandPrix')),
         el('button', { class: 'close-btn', onclick: () => overlay.remove() }, icon('close', 13)),
       ),
-      ...lines.map((t) => el('div', { class: 'egg-comment' }, t)),
+      rows,
       el('div', { class: 'actions race-actions' }, el('button', { class: 'action-btn primary', onclick: () => overlay.remove() }, 'Back to the pond')),
     );
     overlay.append(card);
@@ -1252,10 +1277,14 @@ export class UI {
         ),
         el(
           'div',
+          { class: 'race-stats fit' },
+          statTile('duck', String(market.sold), market.sold === 1 ? 'duck sold' : 'ducks sold'),
+          statTile('coin', String(market.earned), 'earned'),
+        ),
+        el(
+          'div',
           { class: 'egg-comment' },
-          market.sold > 0
-            ? `The stalls have packed up. You sold ${market.sold} duck${market.sold === 1 ? '' : 's'} for ${market.earned} coins today.`
-            : 'The stalls have packed up — nothing sold this year.',
+          market.sold > 0 ? 'The stalls have packed up until next autumn.' : 'The stalls have packed up — nothing sold this year.',
         ),
         el('div', { class: 'actions race-actions' }, el('button', { class: 'action-btn primary', onclick: () => overlay0.remove() }, 'Back to the pond')),
       );
@@ -1285,7 +1314,13 @@ export class UI {
             el('strong', { class: 'with-icon' }, icon('cart', 16), 'Market Day'),
             el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
           ),
-          el('div', { class: 'muted' }, 'The last buyer tips their hat. The stalls pack up until next autumn.'),
+          el(
+            'div',
+            { class: 'race-stats fit' },
+            statTile('duck', String(market.sold), market.sold === 1 ? 'duck sold' : 'ducks sold'),
+            statTile('coin', String(market.earned), 'earned'),
+          ),
+          el('div', { class: 'egg-comment' }, 'The last buyer tips their hat. The stalls pack up until next autumn.'),
           el(
             'div',
             { class: 'actions race-actions' },
@@ -1390,8 +1425,13 @@ export class UI {
             el('strong', { class: 'with-icon' }, icon('sparkle', 16), 'The pond glows'),
             el('button', { class: 'close-btn', onclick: () => overlay0.remove() }, icon('close', 13)),
           ),
-          el('div', { class: 'egg-comment' }, 'The lanterns burn on into the night.'),
-          el('div', { class: 'egg-score' }, `+${last.winter.coins} coins · +${last.winter.premiumFeed} premium feed`),
+          litLanternRow(),
+          el(
+            'div',
+            { class: 'race-stats fit' },
+            statTile('coin', `+${last.winter.coins}`, 'coins'),
+            statTile('wheat', `+${last.winter.premiumFeed}`, 'premium feed'),
+          ),
           el('div', { class: 'egg-comment' }, last.winter.wishText),
           el('div', { class: 'actions race-actions' }, el('button', { class: 'action-btn primary', onclick: () => overlay0.remove() }, 'Back to the pond')),
         );
@@ -1459,13 +1499,16 @@ export class UI {
                     { class: 'egg-comment' },
                     'The whole flock drifts in beneath the lights, feathers silvered by the glow. Somebody quacks softly. It is perfect.',
                   ),
+                  litLanternRow(),
                   reward
                     ? el(
                         'div',
-                        { class: 'egg-score' },
-                        `+${reward.coins} coins · +${reward.premiumFeed} premium feed · a very happy flock`,
+                        { class: 'race-stats fit' },
+                        statTile('coin', `+${reward.coins}`, 'coins'),
+                        statTile('wheat', `+${reward.premiumFeed}`, 'premium feed'),
                       )
                     : null,
+                  reward ? el('div', { class: 'muted small race-blurb' }, 'And a very happy flock.') : null,
                   reward ? el('div', { class: 'egg-comment' }, reward.wishText) : null,
                   el(
                     'div',

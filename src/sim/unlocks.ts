@@ -14,6 +14,10 @@ export const UNLOCK_LABELS: Record<Unlockable, string> = {
 };
 
 export function isUnlocked(state: GameState, what: Unlockable): boolean {
+  // A heritage pond has seen it all before: the per-pond counters these
+  // rules read reset on retirement, and the goal chain that would re-teach
+  // them carries over as done — so nothing may re-lock after retiring.
+  if (state.heritage > 0) return true;
   const s = state.stats;
   switch (what) {
     case 'breeding':

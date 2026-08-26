@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../state';
 import { canRetire, heritageMutationRate, retirePond } from './heritage';
+import { isUnlocked, UNLOCKABLES } from './unlocks';
 import { ALL_BREED_KEYS } from './breedBook';
 import { duckCapacity } from './economy';
 import { MUTATION_RATE } from './genetics';
@@ -33,6 +34,9 @@ describe('heritage', () => {
     expect(s.stats.ducksHatched).toBe(0);
     expect(s.money).toBe(150);
     expect(duckCapacity(s)).toBe(duckCapacity(state) + 1);
+    // Nothing re-locks on a heritage pond — the goal chain that would
+    // re-introduce the panels is already done.
+    for (const u of UNLOCKABLES) expect(isUnlocked(s, u)).toBe(true);
     expect(heritageMutationRate(s.heritage, MUTATION_RATE)).toBeCloseTo(0.03);
     // Founders are gen 0 and can breed straight away.
     const egg = layEgg(next.rng, s.ducks.find((d) => d.sex === 'F')!, s.ducks.find((d) => d.sex === 'M')!, { x: 0, y: 0 });

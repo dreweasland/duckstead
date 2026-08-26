@@ -2935,6 +2935,27 @@ body.feeding #pond-canvas {
   text-align: center;
 }
 
+/* Recap variant: a few centred tiles instead of the picker's 4-up grid. */
+.race-stats.fit {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.race-stats.fit .race-tile {
+  min-width: 104px;
+  padding: 8px 14px;
+}
+
+/* Recap lanterns are decoration, not buttons. */
+.lantern-row.static {
+  padding: 20px 30px 22px;
+}
+
+.lantern-row.static .lantern {
+  cursor: default;
+}
+
 .race-picker {
   display: flex;
   flex-wrap: wrap;
