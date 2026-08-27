@@ -663,8 +663,8 @@ export class UI {
       // Default: centered horizontally, upper third of the screen — unless a
       // modal is open, in which case the card steps aside so both stay
       // readable (a drag still puts it anywhere).
-      if (this.openModalKind) {
-        const modal = this.modalHost.firstElementChild as HTMLElement | null;
+      if (this.openModalKind || document.querySelector('.race-overlay')) {
+        const modal = (this.modalHost.firstElementChild ?? document.querySelector('.race-overlay .race-card')) as HTMLElement | null;
         const modalLeft = modal ? modal.getBoundingClientRect().left : window.innerWidth / 2 - 390;
         const w = this.floatHost.offsetWidth || 340;
         const x = Math.max(4, Math.min(modalLeft - w - 12, window.innerWidth - w - 4));
@@ -755,6 +755,7 @@ export class UI {
 
   closeDuckCard(): void {
     this.duckCardOpen = false;
+    this.floatHost.classList.remove('above-overlay');
     this.floatHost.replaceChildren();
   }
 
@@ -1295,7 +1296,10 @@ export class UI {
 
     const overlay = el('div', { class: 'race-overlay' });
     const card = el('div', { class: 'race-card theme-market' });
-    const close = () => overlay.remove();
+    const close = () => {
+      overlay.remove();
+      this.floatHost.classList.remove('above-overlay');
+    };
     let index = 0;
     // A buyer leaves the queue when dealt with; the stall is "entered" once
     // the last one goes.
@@ -1397,8 +1401,22 @@ export class UI {
           { class: 'egg-stage market-stage' },
           el('div', { class: 'egg-breeder' }, buyer.name),
           el('div', { class: 'egg-comment' }, buyer.quote),
-          el('div', { class: 'egg-pedestal' }, duckPortrait(duck, 64)),
+          el(
+            'button',
+            {
+              class: 'egg-pedestal pedestal-btn',
+              title: `Look ${duck.name} over before you decide`,
+              onclick: () => {
+                // The duck card normally sits under the stall overlay; lift
+                // it above and it steps aside so both stay readable.
+                this.floatHost.classList.add('above-overlay');
+                this.selectDuck(duck.id);
+              },
+            },
+            duckPortrait(duck, 64),
+          ),
           el('div', { class: 'muted small' }, `${duck.name} — offering `, icon('coin', 11), ` ${buyer.offer}`),
+          el('div', { class: 'muted small pedestal-hint' }, 'tap the pedestal to look them over'),
         ),
         actions,
       );

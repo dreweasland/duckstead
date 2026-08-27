@@ -2947,6 +2947,29 @@ body.feeding #pond-canvas {
   padding: 8px 14px;
 }
 
+/* The duck card lifted above an event overlay (e.g. checking a market
+   buyer's duck before selling). */
+.float-host.above-overlay {
+  z-index: 45;
+}
+
+/* Market pedestal doubles as a button opening the duck's card. */
+.pedestal-btn {
+  cursor: pointer;
+  color: inherit;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.pedestal-btn:hover {
+  border-color: #5d7189;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.pedestal-hint {
+  font-size: 10.5px;
+}
+
 /* Recap lanterns are decoration, not buttons. */
 .lantern-row.static {
   padding: 20px 30px 22px;
