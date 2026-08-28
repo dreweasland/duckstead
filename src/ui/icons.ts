@@ -32,7 +32,8 @@ export type IconName =
   | 'snail'
   | 'feather'
   | 'leaf'
-  | 'snow';
+  | 'snow'
+  | 'lock';
 
 interface Shape {
   t: string;
@@ -43,6 +44,10 @@ const stroke2 = { fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'st
 const fillCur = { fill: 'currentColor' };
 
 const ICONS: Record<IconName, Shape[]> = {
+  lock: [
+    { t: 'rect', a: { x: '5', y: '10.5', width: '14', height: '10', rx: '2', ...fillCur } },
+    { t: 'path', a: { d: 'M8 10.5V7.5a4 4 0 0 1 8 0v3', ...stroke2 } },
+  ],
   duck: [
     { t: 'circle', a: { cx: '15.5', cy: '7.5', r: '3.6', ...fillCur } },
     { t: 'path', a: { d: 'M18.6 6.4l3.9-.9v2.6l-3.9.4z', ...fillCur } },

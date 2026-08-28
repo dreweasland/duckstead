@@ -405,6 +405,12 @@ export const GOALS: GoalDef[] = [
   },
 ];
 
+// The goal that opens a panel — the early-game gates the Goals list makes
+// a point of, and what a locked button names when clicked.
+export function goalUnlocking(what: Unlockable): GoalDef | undefined {
+  return GOALS.find((g) => g.unlocks === what);
+}
+
 // Progress toward a goal, clamped to its target.
 export function goalProgress(state: GameState, goal: GoalDef): number {
   return Math.min(goal.target, goal.value(state));

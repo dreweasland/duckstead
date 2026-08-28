@@ -2,7 +2,8 @@ import type { Game } from '../game';
 import type { Renderer } from '../render/renderer';
 import { events } from '../events';
 import { formatClock } from '../sim/time';
-import { goalProgress, pendingGoals } from '../sim/goals';
+import { goalProgress, goalUnlocking, pendingGoals } from '../sim/goals';
+import type { Unlockable } from '../sim/unlocks';
 import { describeRequest, matchesRequest } from '../sim/visitors';
 import { FESTIVAL_NAMES, festivalEnteredToday, festivalToday, festivalTitle, upcomingFestival } from '../sim/festivals';
 import { openEggShow, openGrandPrix, openMarketStall, openWinterLights, type FestivalHost } from './festivalScreens';
@@ -104,6 +105,7 @@ export class UI {
       showCards: () => this.showCards,
       toggleCardRail: () => this.toggleCardRail(),
       setSpeed: (sp) => this.setSpeed(sp),
+      openRace: () => this.openRace(),
     });
     this.hudClock = hud.hudClock;
     this.festivalChip = hud.festivalChip;
@@ -249,13 +251,12 @@ export class UI {
     }
     if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
     if (document.querySelector('.race-overlay')) return; // Space belongs to the race
-    const s = this.game.state;
     switch (e.key) {
-      case '1': if (isUnlocked(s, 'breeding')) this.togglePanel('breeding'); break;
-      case '2': if (isUnlocked(s, 'shop')) this.togglePanel('shop'); break;
+      case '1': this.togglePanel('breeding'); break;
+      case '2': this.togglePanel('shop'); break;
       case '3': this.togglePanel('roster'); break;
-      case '4': if (isUnlocked(s, 'book')) this.togglePanel('book'); break;
-      case '5': if (isUnlocked(s, 'race')) openRacePanel(this.game, { toast: (m) => this.toast(m) }, { league: true }); break;
+      case '4': this.togglePanel('book'); break;
+      case '5': this.openRace(); break;
       case '6': this.togglePanel('save'); break;
       case 'c': case 'C': this.toggleCardRail(); break;
       case '?': this.togglePanel('settings'); break;
@@ -501,7 +502,22 @@ export class UI {
     return null;
   }
 
+  // A locked panel explains itself instead of doing nothing: the goal that
+  // opens it is the answer, and the Goals list is where it lives.
+  private gate(what: Unlockable): boolean {
+    if (isUnlocked(this.game.state, what)) return true;
+    const goal = goalUnlocking(what);
+    this.toast(goal ? `${UNLOCK_LABELS[what]} is locked — "${goal.label}" (in Goals) unlocks it.` : `${UNLOCK_LABELS[what]} is locked.`);
+    return false;
+  }
+
+  openRace(): void {
+    if (!this.gate('race')) return;
+    openRacePanel(this.game, { toast: (m) => this.toast(m) }, { league: true });
+  }
+
   togglePanel(kind: PanelKind): void {
+    if ((kind === 'breeding' || kind === 'shop' || kind === 'book') && !this.gate(kind)) return;
     const open = kind === 'duck' ? this.duckCardOpen : this.openModalKind === kind;
     if (open) {
       if (kind === 'duck') this.closeDuckCard();
@@ -715,18 +731,24 @@ export class UI {
       return;
     }
     const SHOWN = 6;
-    const rows = pending.slice(0, SHOWN).map((goal) => {
+    // Goals that open part of the game come first and look like gates —
+    // they're the early tutorial, not side quests.
+    const gates = (g: (typeof pending)[number]) => Boolean(g.unlocks && !isUnlocked(this.game.state, g.unlocks));
+    const ordered = [...pending].sort((a, b) => Number(gates(b)) - Number(gates(a)));
+    const anyGate = ordered.some(gates);
+    const rows = ordered.slice(0, SHOWN).map((goal) => {
       const progress = goalProgress(this.game.state, goal);
+      const isGate = gates(goal);
       const row = el(
         'div',
-        { class: 'goal-row' },
-        el('span', { class: 'goal-dot' }),
+        { class: `goal-row${isGate ? ' unlock' : ''}`, title: isGate ? `Completing this opens the ${UNLOCK_LABELS[goal.unlocks!]} button in the top bar` : '' },
+        isGate ? el('span', { class: 'goal-lock' }, icon('lock', 10)) : el('span', { class: 'goal-dot' }),
         el(
           'span',
           { class: 'goal-label' },
           goal.label,
-          goal.unlocks && !isUnlocked(this.game.state, goal.unlocks)
-            ? el('span', { class: 'goal-unlock' }, `→ ${UNLOCK_LABELS[goal.unlocks]}`)
+          isGate
+            ? el('span', { class: 'goal-unlock' }, `unlocks ${UNLOCK_LABELS[goal.unlocks!]}`)
             : null,
         ),
         goal.target > 1
@@ -743,7 +765,10 @@ export class UI {
     });
     const children: Array<HTMLElement> = [];
     if (rows.length > 0) {
-      children.push(el('div', { class: 'goals-title' }, 'Goals'), ...rows);
+      children.push(
+        el('div', { class: 'goals-title' }, 'Goals', anyGate ? el('span', { class: 'goals-sub' }, ' · locked goals open the pond') : null),
+        ...rows,
+      );
       if (pending.length > SHOWN) {
         children.push(el('div', { class: 'muted goals-more' }, `+${pending.length - SHOWN} more to come`));
       }
@@ -827,7 +852,19 @@ export class UI {
     // Progressive reveal: panels appear as the goal chain introduces them.
     for (const what of UNLOCKABLES) {
       const open = isUnlocked(s, what);
-      this.root.querySelector(`.unlock-${what}`)?.classList.toggle('locked', !open);
+      const btn = this.root.querySelector<HTMLElement>(`.unlock-${what}`);
+      if (btn) {
+        btn.classList.toggle('locked', !open);
+        const badge = btn.querySelector('.lock-badge');
+        if (!open && !badge) {
+          btn.append(el('span', { class: 'lock-badge' }, icon('lock', 9)));
+          const goal = goalUnlocking(what);
+          btn.setAttribute('data-tip', goal ? `Locked — complete "${goal.label}" (in Goals) to open ${UNLOCK_LABELS[what]}` : 'Locked');
+        } else if (open && badge) {
+          badge.remove();
+          btn.removeAttribute('data-tip');
+        }
+      }
       if (open && !this.unlockedSeen.has(what)) {
         this.unlockedSeen.add(what);
         if (this.hudReady) this.toast(`${UNLOCK_LABELS[what]} unlocked!`);

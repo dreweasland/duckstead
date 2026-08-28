@@ -4457,3 +4457,67 @@ body.text-large .toast {
   gap: 2px;
   text-align: left;
 }
+
+/* Duck card tabs: needs and quick care stay above; the rest lives in tabs. */
+.card-tabs {
+  margin: 4px 0 8px;
+}
+
+.card-tabs .shop-tab {
+  flex: 1 1 22%;
+  padding: 6px 4px;
+  font-size: 12px;
+}
+
+.card-tab-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Unlock goals read as gates: pinned first, a lock, and the button they
+   open named. The locked buttons themselves stay visible, dimmed, with a
+   lock — so "where is the Shop?" answers itself. */
+.hud-btn.locked {
+  display: inline-flex;
+  opacity: 0.45;
+  position: relative;
+}
+
+.hud-btn.locked:hover {
+  opacity: 0.7;
+}
+
+.lock-badge {
+  display: inline-flex;
+  margin-left: 2px;
+  color: var(--lilac);
+}
+
+.goal-row.unlock {
+  background: rgba(192, 154, 236, 0.1);
+  border: 1px solid rgba(192, 154, 236, 0.35);
+  border-radius: 7px;
+  padding: 4px 6px;
+  margin: 2px -6px;
+}
+
+.goal-lock {
+  display: inline-flex;
+  color: var(--lilac);
+  flex: none;
+}
+
+.goal-row.unlock .goal-unlock {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-left: 0;
+}
+
+.goals-sub {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  color: var(--lilac);
+}

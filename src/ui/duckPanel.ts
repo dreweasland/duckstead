@@ -110,6 +110,16 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
       );
     }
     if (duck.penned) traits.append(el('span', { class: 'chip chip-trait with-icon', title: 'In the bachelor pen — out of the breeding population' }, icon('cross', 9), 'penned'));
+    if (duck.stage !== 'elder') {
+      const v = keepVerdict(breedingValue(game.state, duck));
+      traits.append(
+        v === 'key'
+          ? el('span', { class: 'chip chip-rare', title: 'Sole carrier of a rare gene — see the Line tab' }, 'key breeder')
+          : v === 'useful'
+            ? el('span', { class: 'chip chip-ready', title: 'Reaches breeds nobody else can — see the Line tab' }, 'worth keeping')
+            : el('span', { class: 'chip chip-trait', title: 'Its genes are covered by the rest of the flock — see the Line tab' }, 'safe to sell'),
+      );
+    }
     const title = championTitle(game.state, duck);
     if (title) traits.append(el('span', { class: 'chip chip-rare with-icon', title: 'A Society title held by the pond\'s top-pedigree duck' }, icon('star', 9), title));
     const friend = duck.friendId
@@ -123,6 +133,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
     if (traits.childElementCount > 0) panel.append(el('div', { class: 'section' }, traits));
   }
 
+  // Eggs are short: everything fits without tabs.
   if (duck.stage === 'egg') {
     const target = eggIncubationTicks(game.state);
     const pct = Math.min(100, (duck.incubationTicks / target) * 100);
@@ -169,7 +180,18 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
             ),
       ),
     );
-  } else {
+  }
+  if (duck.stage === 'egg') {
+    panel.append(buildGeneticsCard(game.state, duck), buildPedigreeCard(game.state, duck));
+    return panel;
+  }
+
+  // At a glance: needs and the four quick care actions stay above the tabs.
+  const careTab = el('div', { class: 'card-tab-body' });
+  const genesTab = el('div', { class: 'card-tab-body' });
+  const lineTab = el('div', { class: 'card-tab-body' });
+  const sellTab = el('div', { class: 'card-tab-body' });
+  {
     const needsBox = el('div', { class: 'section' });
     for (const [key, iconName, label] of NEED_LABELS) {
       const value = duck.needs[key];
@@ -216,6 +238,8 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
         actionBtn(ctx, 'pill', 'Medicine', duck.sick && inv.medicine > 0, () => medicateDuck(game.state, duck.id),
           !duck.sick ? `${duck.name} is not sick` : inv.medicine <= 0 ? 'No medicine in stock' : ''),
       ),
+    );
+    careTab.append(
       el(
         'div',
         { class: 'fav-line' },
@@ -274,7 +298,27 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
       drills,
       el('div', { class: 'muted small' }, `Stats fade a point a day. Bold ducks take to sprints; timid ones to poise. Drills pay up to ${drillCoinsLeft(game.state)} more coins today.`),
     );
-    panel.append(box);
+    careTab.append(box);
+  }
+
+  // Bachelor pen: park a duck out of breeding without selling it.
+  if (duck.stage !== 'duckling') {
+    const gate = canPen(game.state, duck);
+    const used = penDucks(game.state).length;
+    careTab.append(
+      el(
+        'div',
+        { class: 'section actions' },
+        duck.penned
+          ? el('button', { class: 'action-btn', onclick: () => { releaseDuck(game.state, duck.id); ctx.ui.refreshPanel(); } }, 'Release from the pen')
+          : el(
+              'button',
+              { class: 'action-btn', disabled: !gate.ok, title: gate.reason ?? `${used}/${penCapacity(game.state)} in the pen`, onclick: () => { penDuck(game.state, duck.id); ctx.ui.refreshPanel(); } },
+              gate.ok ? `Send to the pen (${used}/${penCapacity(game.state)})` : gate.reason ?? 'Send to the pen',
+            ),
+        el('div', { class: 'muted small' }, duck.penned ? 'Sitting out: no breeding, no drake pressure, no laying. Still needs feeding and brushing.' : 'Sits out of breeding without being sold — handy for a surplus drake.'),
+      ),
+    );
   }
 
   // Breeding advisor: is this duck worth keeping?
@@ -290,8 +334,8 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
         'Past breeding age. Elder hens keep nest eggs warm, elders steady the young, and a life lived out here ends in an honoured passing.',
       ),
     );
-    panel.append(advisor);
-  } else if (duck.stage !== 'egg') {
+    lineTab.append(advisor);
+  } else {
     const value = breedingValue(game.state, duck);
     const verdict = keepVerdict(value);
     const advisor = el('div', { class: 'section advisor' }, el('strong', {}, 'Breeding value'));
@@ -325,34 +369,13 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
         ),
       );
     }
-    panel.append(advisor);
+    lineTab.append(advisor);
   }
 
   // Genetics card.
-  const geneCard = buildGeneticsCard(game.state, duck);
-  panel.append(geneCard);
-  panel.append(buildPedigreeCard(game.state, duck));
-  if (duck.stage !== 'egg') panel.append(buildStandardCard(game.state, duck));
-
-  // Bachelor pen: park a duck out of breeding without selling it.
-  if (duck.stage !== 'egg' && duck.stage !== 'duckling') {
-    const gate = canPen(game.state, duck);
-    const used = penDucks(game.state).length;
-    panel.append(
-      el(
-        'div',
-        { class: 'section actions' },
-        duck.penned
-          ? el('button', { class: 'action-btn', onclick: () => { releaseDuck(game.state, duck.id); ctx.ui.refreshPanel(); } }, 'Release from the pen')
-          : el(
-              'button',
-              { class: 'action-btn', disabled: !gate.ok, title: gate.reason ?? `${used}/${penCapacity(game.state)} in the pen`, onclick: () => { penDuck(game.state, duck.id); ctx.ui.refreshPanel(); } },
-              gate.ok ? `Send to the pen (${used}/${penCapacity(game.state)})` : gate.reason ?? 'Send to the pen',
-            ),
-        el('div', { class: 'muted small' }, duck.penned ? 'Sitting out: no breeding, no drake pressure, no laying. Still needs feeding and brushing.' : 'Sits out of breeding without being sold — handy for a surplus drake.'),
-      ),
-    );
-  }
+  genesTab.append(buildGeneticsCard(game.state, duck));
+  genesTab.append(buildStandardCard(game.state, duck));
+  lineTab.append(buildPedigreeCard(game.state, duck));
 
   // Commissions this duck could fill — and ones it's the right breed for but
   // falls short on, with the gap spelled out.
@@ -394,7 +417,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
         ),
       );
     }
-    panel.append(box);
+    sellTab.append(box);
   }
 
   // Premium sale to the visiting buyer, when this duck matches the request.
@@ -445,7 +468,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
         ),
       );
     }
-    panel.append(buyerSection);
+    sellTab.append(buyerSection);
   }
 
   // Inline two-step confirm — native confirm() would block the game loop.
@@ -509,9 +532,44 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
       ),
     );
   }
-  panel.append(sellSection);
+  sellTab.append(sellSection);
+
+  // The tabs. Sell lights up when a commission or a buyer wants this duck.
+  const tab = cardTabs.get(duck.id) ?? 'care';
+  const fitsAny = game.state.commissions.some((c) => duckFits(duck, c)) || (game.state.request !== null && matchesRequest(duck, game.state.request));
+  const drillBadge = duck.stage !== 'duckling' ? drillsLeft(game.state, duck) : 0;
+  const tabs: Array<[CardTab, IconName, string, string | null]> = [
+    ['care', 'hand', 'Care', drillBadge > 0 ? String(drillBadge) : null],
+    ['genes', 'book', 'Genes', null],
+    ['line', 'star', 'Line', null],
+    ['sell', 'coin', 'Sell', fitsAny ? '!' : null],
+  ];
+  const bar_ = el('div', { class: 'shop-tabs card-tabs' });
+  for (const [id, ic, label, badge] of tabs) {
+    bar_.append(
+      el(
+        'button',
+        {
+          class: `shop-tab${tab === id ? ' active' : ''}`,
+          'aria-pressed': String(tab === id),
+          onclick: () => {
+            cardTabs.set(duck.id, id);
+            ctx.ui.refreshPanel();
+          },
+        },
+        icon(ic, 12),
+        label,
+        badge ? el('span', { class: 'shop-tab-badge' }, badge) : null,
+      ),
+    );
+  }
+  panel.append(bar_, tab === 'care' ? careTab : tab === 'genes' ? genesTab : tab === 'line' ? lineTab : sellTab);
   return panel;
 }
+
+// Which tab each card is showing; keyed by duck so pinned cards keep theirs.
+type CardTab = 'care' | 'genes' | 'line' | 'sell';
+const cardTabs = new Map<string, CardTab>();
 
 let pendingSellFor: string | null = null;
 let pendingCommissionFor: string | null = null;

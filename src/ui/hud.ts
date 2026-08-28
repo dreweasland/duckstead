@@ -8,7 +8,6 @@ import { isSyncConfigured } from '../sync/syncMeta';
 import { FOODS, TREATS, type FoodKind } from '../sim/food';
 import { el } from './dom';
 import { icon } from './icons';
-import { openRacePanel } from './racePanel';
 
 export type HudCountKey = 'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society';
 
@@ -23,6 +22,7 @@ export interface HudHost {
   showCards(): boolean;
   toggleCardRail(): void;
   setSpeed(speed: number): void;
+  openRace(): void;
 }
 
 export interface HudRefs {
@@ -139,7 +139,7 @@ export function buildHud(host: HudHost): HudRefs {
     el('button', { class: 'hud-btn unlock-book', onclick: () => host.togglePanel('book') }, icon('book'), el('span', { class: 'hud-btn-label' }, 'Book')),
     el(
       'button',
-      { class: 'hud-btn unlock-race', onclick: () => openRacePanel(host.game, { toast: (m) => host.toast(m) }, { league: true }) },
+      { class: 'hud-btn unlock-race', onclick: () => host.openRace() },
       icon('flag'),
       el('span', { class: 'hud-btn-label' }, 'Race'),
     ),
