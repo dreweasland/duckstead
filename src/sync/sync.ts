@@ -3,6 +3,7 @@
 // player has linked a device — otherwise none of this code runs and the
 // game is exactly the offline localStorage game it always was.
 import { events } from '../events';
+import { el } from '../ui/dom';
 import type { Game } from '../game';
 import { deserialize, SAVE_KEY } from '../save/save';
 import { claimSave, pullSave, pullMeta, pushSave } from './syncClient';
@@ -47,11 +48,11 @@ function adoptBlob(blob: string | null): boolean {
 export async function prepareCloudBoot(): Promise<void> {
   const meta = loadSyncMeta();
   if (!meta) return;
-  let cloud;
+  let cloud: Awaited<ReturnType<typeof pullSave>> | 'offline';
   try {
     cloud = await pullSave(meta);
   } catch {
-    return; // offline: play local, attachCloudSync keeps retrying
+    cloud = 'offline'; // play local; attachCloudSync keeps retrying
   }
   const localBlob = localStorage.getItem(SAVE_KEY);
   let localSavedAt = 0;
@@ -67,6 +68,9 @@ export async function prepareCloudBoot(): Promise<void> {
     deviceId: meta.deviceId,
     localSavedAt,
   });
+  // 'offline' now flows through planBoot's documented contract; the check on
+  // `cloud` narrows the union for everything below.
+  if (decision === 'offline' || cloud === 'offline') return;
   const adoptCloud = (): void => {
     if (adoptBlob(cloud.blob)) {
       meta.lastSyncedSeq = cloud.seq;
@@ -81,8 +85,8 @@ export async function prepareCloudBoot(): Promise<void> {
   };
   if (decision === 'use-cloud') {
     adoptCloud();
-  } else if (decision === 'use-local' || decision === 'offline') {
-    if (decision === 'use-local' && cloud.exists) {
+  } else if (decision === 'use-local') {
+    if (cloud.exists) {
       // Keeping local play: the cloud head becomes our CAS base so the next
       // push lands (the DO keeps the replaced blob in its undo slot).
       meta.lastSyncedSeq = cloud.seq;
@@ -117,25 +121,22 @@ function askConflict(cloudSavedAt: number): Promise<boolean> {
       month: 'short',
       day: 'numeric',
     });
-    const overlay = document.createElement('div');
-    overlay.className = 'sync-conflict-overlay';
-    overlay.innerHTML = `
-      <div class="sync-conflict-card">
-        <h2>Two ponds diverged</h2>
-        <p>The cloud save is newer (last played ${when}), but this device also
-        has progress that never synced. Which one should the pond keep?</p>
-        <div class="sync-conflict-actions">
-          <button class="action-btn" data-pick="cloud">Load the cloud save</button>
-          <button class="action-btn" data-pick="local">Keep this device's save</button>
-        </div>
-        <p class="muted small">The other copy is kept in the cloud's undo slot either way.</p>
-      </div>`;
-    overlay.addEventListener('click', (e) => {
-      const pick = (e.target as HTMLElement).dataset?.pick;
-      if (!pick) return;
-      overlay.remove();
-      resolve(pick === 'cloud');
-    });
+    // Built with el() so every string lands as a text node — this was the
+    // codebase's only innerHTML sink.
+    const pickBtn = (label: string, keepCloud: boolean): HTMLElement =>
+      el('button', { class: 'action-btn', onclick: () => { overlay.remove(); resolve(keepCloud); } }, label);
+    const overlay = el(
+      'div',
+      { class: 'sync-conflict-overlay' },
+      el(
+        'div',
+        { class: 'sync-conflict-card' },
+        el('h2', {}, 'Two ponds diverged'),
+        el('p', {}, `The cloud save is newer (last played ${when}), but this device also has progress that never synced. Which one should the pond keep?`),
+        el('div', { class: 'sync-conflict-actions' }, pickBtn('Load the cloud save', true), pickBtn("Keep this device's save", false)),
+        el('p', { class: 'muted small' }, "The other copy is kept in the cloud's undo slot either way."),
+      ),
+    );
     document.body.append(overlay);
   });
 }
@@ -159,6 +160,7 @@ export function attachCloudSync(game: Game): void {
   if (!meta) return;
 
   let pushing = false;
+  let pendingPush = false;
 
   const markStale = (): void => {
     if (game.stale) return;
@@ -168,11 +170,9 @@ export function attachCloudSync(game: Game): void {
     events.emit('takeover', { remote: true });
   };
 
-  const push = async (keepalive = false): Promise<void> => {
-    if (game.stale || pushing) return;
+  const pushOnce = async (keepalive: boolean): Promise<void> => {
     const blob = localStorage.getItem(SAVE_KEY);
     if (!blob) return;
-    pushing = true;
     setStatus('syncing');
     let result;
     try {
@@ -180,7 +180,6 @@ export function attachCloudSync(game: Game): void {
     } catch {
       result = null;
     }
-    pushing = false;
     if (game.stale || !isSyncConfigured()) return; // unlinked or superseded mid-flight
     if (result === null) {
       meta.dirty = true;
@@ -202,6 +201,26 @@ export function attachCloudSync(game: Game): void {
         break;
       case 'retry-offline':
         break;
+    }
+  };
+
+  const push = async (keepalive = false): Promise<void> => {
+    if (game.stale) return;
+    if (pushing) {
+      // A save landed while a push was in flight: the blob being sent is
+      // already stale. Chase it with a follow-up once this push settles —
+      // dropping it left the HUD "synced" while the cloud was behind.
+      pendingPush = true;
+      return;
+    }
+    pushing = true;
+    await pushOnce(keepalive);
+    pushing = false;
+    if (pendingPush) {
+      pendingPush = false;
+      // Only chase the newer blob when the last push landed; a failed push
+      // already marked dirty and the poll retries it.
+      if (!game.stale && isSyncConfigured() && !meta.dirty) void push();
     }
   };
 
