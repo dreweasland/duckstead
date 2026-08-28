@@ -42,7 +42,7 @@ const WORLD_H_SAFE = WORLD_H - 15;
 const DECOR_PICK_RADIUS = 26;
 import { el } from './dom';
 import { icon } from './icons';
-import { renderCardRail } from './cardRail';
+import { railSignature, renderCardRail } from './cardRail';
 import { renderDuckPanel } from './duckPanel';
 import { pickMateFromPond, renderBreedingPanel } from './breedingPanel';
 import { renderShopPanel } from './shopPanel';
@@ -1111,6 +1111,8 @@ export class UI {
     this.refreshCardRail();
   }
 
+  private lastRailSig = '';
+
   private refreshCardRail(): void {
     document.body.classList.toggle('cards-on', this.showCards);
     if (!this.showCards) {
@@ -1118,6 +1120,11 @@ export class UI {
       return;
     }
     if (this.pointerDownInRail) return;
+    // Skip the rebuild (and its 20 portraits) when nothing visible changed —
+    // the 500ms cadence mostly fires on an unchanged flock.
+    const sig = railSignature(this.game);
+    if (sig === this.lastRailSig && this.railHost.firstElementChild) return;
+    this.lastRailSig = sig;
     // Preserve horizontal scroll across rebuilds.
     const prevScroll = (this.railHost.firstElementChild as HTMLElement | null)?.scrollLeft ?? 0;
     const rail = renderCardRail(this.game, {

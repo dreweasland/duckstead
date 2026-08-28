@@ -18,9 +18,8 @@ const IDLE_ANIM = {
   blink: false,
 };
 
-// Portraits are free because drawing is procedural — render the duck to a
-// small offscreen canvas.
-export function duckPortrait(duck: Duck, size = 72): HTMLCanvasElement {
+// The procedural render, uncached.
+function renderPortrait(duck: Duck, size: number): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   const dpr = window.devicePixelRatio || 1;
   canvas.width = size * dpr;
@@ -39,6 +38,44 @@ export function duckPortrait(duck: Duck, size = 72): HTMLCanvasElement {
     facingLeft: false,
     eggProgress: 0,
   });
+  return canvas;
+}
+
+// The card rail and roster rebuild portraits twice a second; without a cache
+// that is dozens of full procedural redraws per second for stills that
+// almost never change. Key on everything the still actually shows: genome is
+// immutable per id, so id + the mutable visual inputs (cleanliness bucketed
+// so dirt smudges update coarsely). FIFO-capped: synthetic ducks (pedigree
+// ancestors, egg-show samples) carry fresh ids and must not grow it forever.
+const portraitCache = new Map<string, HTMLCanvasElement>();
+const PORTRAIT_CACHE_CAP = 300;
+
+function portraitKey(duck: Duck, size: number): string {
+  const dpr = window.devicePixelRatio || 1;
+  const clean = duck.stage === 'egg' ? 9 : Math.round(duck.needs.cleanliness / 15);
+  const sad = duck.stage !== 'egg' && duck.needs.happiness < 25 ? 1 : 0;
+  return `${duck.id}|${size}|${dpr}|${duck.stage}|${duck.sick ? 1 : 0}|${clean}|${sad}`;
+}
+
+export function duckPortrait(duck: Duck, size = 72): HTMLCanvasElement {
+  const key = portraitKey(duck, size);
+  let src = portraitCache.get(key);
+  if (!src) {
+    if (portraitCache.size >= PORTRAIT_CACHE_CAP) {
+      const oldest = portraitCache.keys().next().value;
+      if (oldest !== undefined) portraitCache.delete(oldest);
+    }
+    src = renderPortrait(duck, size);
+    portraitCache.set(key, src);
+  }
+  // A canvas node can only live in one DOM spot, so each call still returns
+  // a fresh element — but blitting the cached bitmap skips the redraw.
+  const canvas = document.createElement('canvas');
+  canvas.width = src.width;
+  canvas.height = src.height;
+  canvas.style.width = `${size}px`;
+  canvas.style.height = `${size}px`;
+  canvas.getContext('2d')!.drawImage(src, 0, 0);
   return canvas;
 }
 

@@ -68,6 +68,21 @@ function railCompare(sort: RailSort): (a: Duck, b: Duck) => number {
   }
 }
 
+// Everything the rail visibly shows, hashed cheaply — when this string is
+// unchanged the 500ms refresh skips the whole rebuild (and its portraits).
+export function railSignature(game: Game): string {
+  const inv = game.state.inventory;
+  let s = `${railSort}|${game.selectedDuckId}|${inv.feed > 0 ? 1 : 0}${inv.medicine > 0 ? 1 : 0}|`;
+  for (const d of game.state.ducks) {
+    if (d.stage === 'egg') {
+      s += `${d.id}~${Math.round(d.incubationTicks / 150)}${d.readyToHatch ? 'r' : ''};`;
+    } else {
+      s += `${d.id}~${d.stage[0]}${d.sick ? 's' : ''}${d.penned ? 'p' : ''}${d.petCooldownTicks > 0 ? 'c' : ''}${d.name}#${Math.round(d.needs.hunger)},${Math.round(d.needs.cleanliness)},${Math.round(d.needs.happiness)},${Math.round(d.needs.health)};`;
+    }
+  }
+  return s;
+}
+
 export function renderCardRail(game: Game, handlers: RailHandlers): HTMLElement {
   const rail = el('div', { class: 'card-rail' });
   const current = RAIL_SORTS.find((s) => s.id === railSort)!;
