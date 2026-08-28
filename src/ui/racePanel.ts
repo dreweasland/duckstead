@@ -10,7 +10,7 @@ import { chronicle } from '../sim/chronicle';
 import { addSocietyPoints } from '../sim/society';
 import { currentTier, leagueStanding, recordLeagueResult } from '../sim/league';
 import { randomCommonGenome } from '../sim/genetics';
-import { createRng } from '../rng';
+import { createRng, type Rng } from '../rng';
 import { clamp } from '../types';
 import { dayOf } from '../sim/time';
 import { events } from '../events';
@@ -186,14 +186,17 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
   };
 
   const startRace = (playerDuck: Duck) => {
-    const rng = createRng((Date.now() ^ 0x5eed) >>> 0);
+    // Seeded from the game's rng: the whole race — field, skills, lanes, AI
+    // paddling — is reproducible, so tests can pin difficulty. (Drawing the
+    // seed also makes each race a real event in the sim's random stream.)
+    const rng = createRng(game.rng.int(0xffffffff) >>> 0);
     if (!opts.ignoreDailyLimit) {
       const live = game.state.ducks.find((d) => d.id === playerDuck.id);
       if (live) live.lastRaceDay = dayOf(game.state.clock);
     }
     const taken = [playerDuck.name];
     const racers: Racer[] = [
-      makeRacer(playerDuck, true),
+      makeRacer(playerDuck, true, rng),
     ];
     racers[0].baseSpeed *= 1 + upgradeLevel(game.state, 'trainingPerch') * 0.04;
     for (let i = 0; i < LANES - 1; i += 1) {
@@ -205,7 +208,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
       wild.name = freshName(rng, taken, WILD_NAMES);
       taken.push(wild.name);
       wild.activity = 'swim';
-      const racer = makeRacer(wild, false);
+      const racer = makeRacer(wild, false, rng);
       racer.baseSpeed *= aiBoost;
       racer.skill = rng.range(0.8, 1.2);
       racers.push(racer);
@@ -268,8 +271,8 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
         if (elapsed < 1) continue; // "Ready…" moment before the start
         const wobble = 1 + Math.sin(now / 400 + racer.phase) * 0.12;
         let v = racer.baseSpeed * wobble + racer.boost;
-        if (!racer.isPlayer && Math.random() < dt * AI_HITS_PER_SEC * racer.skill) {
-          racer.boost += AI_BOOST_MIN + Math.random() * AI_BOOST_VAR;
+        if (!racer.isPlayer && rng.chance(dt * AI_HITS_PER_SEC * racer.skill)) {
+          racer.boost += AI_BOOST_MIN + rng.next() * AI_BOOST_VAR;
         }
         racer.boost *= Math.pow(0.15, dt);
         racer.x += v * dt;
@@ -398,13 +401,13 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
   }
 }
 
-function makeRacer(duck: Duck, isPlayer: boolean): Racer {
+function makeRacer(duck: Duck, isPlayer: boolean, rng: Rng): Racer {
   return {
     duck: { ...duck, activity: 'swim' },
     x: 0,
     baseSpeed: raceSpeed(duck),
     boost: 0,
-    phase: Math.random() * Math.PI * 2,
+    phase: rng.range(0, Math.PI * 2),
     finishedAt: null,
     isPlayer,
     skill: 1,
