@@ -1,5 +1,8 @@
+/// <reference types="vite/client" />
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import pondGuide from '../public/guide/game/index.html?raw';
+import geneticsGuide from '../public/guide/index.html?raw';
+import bookPanelSource from './ui/bookPanel.ts?raw';
 import { FESTIVAL_NAMES } from './sim/festivals';
 import { RANKS } from './sim/society';
 import { MARKS } from './sim/marks';
@@ -13,7 +16,7 @@ import { SHORTCUTS } from './ui/settingsPanel';
 // The pond guide is prose, so nothing keeps it honest but this: every named
 // thing in the sim must at least be mentioned. Rename a rank or add a mark
 // and the guide has to follow.
-const guide = readFileSync('public/guide/game/index.html', 'utf8').toLowerCase();
+const guide = pondGuide.toLowerCase();
 
 describe('the pond guide', () => {
   it('names every festival, league tier, rank, mark, weather, rival, upgrade, decoration, stat, and shortcut', () => {
@@ -36,9 +39,8 @@ describe('the pond guide', () => {
 
   it('links both guides to each other and the Book links to both', () => {
     expect(guide).toContain('href="/guide/"');
-    expect(readFileSync('public/guide/index.html', 'utf8')).toContain('href="/guide/game/"');
-    const book = readFileSync('src/ui/bookPanel.ts', 'utf8');
-    expect(book).toContain("'/guide/game/'");
-    expect(book).toContain("'/guide/'");
+    expect(geneticsGuide).toContain('href="/guide/game/"');
+    expect(bookPanelSource).toContain("'/guide/game/'");
+    expect(bookPanelSource).toContain("'/guide/'");
   });
 });
