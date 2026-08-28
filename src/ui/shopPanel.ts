@@ -2,7 +2,7 @@
 // name, stat chips, a short blurb, and a price button pinned to the bottom —
 // so the eye can scan prices and effects without reading paragraphs.
 import type { PanelCtx } from './ui';
-import { el } from './dom';
+import { el, panelHeader } from './dom';
 import { icon, type IconName } from './icons';
 import { decorPortrait } from './portrait';
 import {
@@ -82,13 +82,7 @@ export function renderShopPanel(ctx: PanelCtx): HTMLElement {
   const state = game.state;
   const panel = el('aside', { class: 'panel wide shop' });
   panel.append(
-    el(
-      'div',
-      { class: 'panel-header' },
-      el('strong', { class: 'with-icon' }, icon('cart'), 'Shop'),
-      el('span', { class: 'shop-coins with-icon' }, icon('coin', 12), ` ${state.money}`),
-      el('button', { class: 'close-btn', onclick: ctx.close }, icon('close', 13)),
-    ),
+    panelHeader('cart', 'Shop', ctx.close, el('span', { class: 'shop-coins with-icon' }, icon('coin', 12), ` ${state.money}`)),
   );
 
   // Tabs.

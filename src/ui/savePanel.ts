@@ -1,5 +1,5 @@
 import type { PanelCtx } from './ui';
-import { el } from './dom';
+import { el, panelHeader } from './dom';
 import { icon } from './icons';
 import { deserialize, serialize } from '../save/save';
 import { canRetire } from '../sim/heritage';
@@ -27,12 +27,7 @@ export function renderSavePanel(ctx: PanelCtx): HTMLElement {
   const { game } = ctx;
   const panel = el('aside', { class: 'panel save' });
   panel.append(
-    el(
-      'div',
-      { class: 'panel-header' },
-      el('strong', { class: 'with-icon' }, icon('disk'), 'Save & Load'),
-      el('button', { class: 'close-btn', onclick: ctx.close }, icon('close', 13)),
-    ),
+    panelHeader('disk', 'Save & Load', ctx.close),
   );
 
   const textarea = el('textarea', { class: 'save-textarea', rows: 6 }) as HTMLTextAreaElement;

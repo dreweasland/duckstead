@@ -1,5 +1,5 @@
 import type { PanelCtx } from './ui';
-import { el, statBar } from './dom';
+import { el, statBar, panelHeader } from './dom';
 import { icon } from './icons';
 import { duckPortrait } from './portrait';
 import {
@@ -31,13 +31,7 @@ export function renderBookPanel(ctx: PanelCtx): HTMLElement {
 
   const panel = el('aside', { class: 'panel roster book' });
   panel.append(
-    el(
-      'div',
-      { class: 'panel-header' },
-      el('strong', { class: 'with-icon' }, icon('book'), 'Breed Book'),
-      el('span', { class: 'br-nest-pill' }, ` ${discovered}/${total}`),
-      el('button', { class: 'close-btn', onclick: ctx.close }, icon('close', 13)),
-    ),
+    panelHeader('book', 'Breed Book', ctx.close, el('span', { class: 'br-nest-pill' }, ` ${discovered}/${total}`)),
   );
   const tabs = el('div', { class: 'shop-tabs' });
   const defs: Array<{ id: Tab; label: string; icon: Parameters<typeof icon>[0]; badge?: string }> = [

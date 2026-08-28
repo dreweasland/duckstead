@@ -42,3 +42,15 @@ export function el(tag: string, attrs: Attrs = {}, ...children: Child[]): HTMLEl
 export function statTile(ic: Parameters<typeof icon>[0], value: string, label: string): HTMLElement {
   return el('div', { class: 'race-tile' }, icon(ic, 13), el('strong', {}, value), el('span', { class: 'race-tile-label' }, label));
 }
+
+// The standard panel header: icon + title, optional middle content (pills,
+// coin counts), and the closing X. Five panels rebuilt this shape inline.
+export function panelHeader(ic: Parameters<typeof icon>[0], title: string, close: () => void, ...middle: Child[]): HTMLElement {
+  return el(
+    'div',
+    { class: 'panel-header' },
+    el('strong', { class: 'with-icon' }, icon(ic), title),
+    ...middle,
+    el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
+  );
+}

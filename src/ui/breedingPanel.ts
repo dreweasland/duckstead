@@ -3,7 +3,7 @@
 // the nest itself (courting pairs and incubating eggs).
 import { clamp } from '../types';
 import type { PanelCtx } from './ui';
-import { el } from './dom';
+import { el, panelHeader } from './dom';
 import { icon, sexBadge } from './icons';
 import { duckPortrait } from './portrait';
 import type { Duck } from '../sim/duck';
@@ -64,12 +64,7 @@ export function renderBreedingPanel(ctx: PanelCtx): HTMLElement {
   const nestUsed = eggsIncubating(state) + state.pendingClutches.length;
   const panel = el('aside', { class: 'panel breeding' });
   panel.append(
-    el(
-      'div',
-      { class: 'panel-header' },
-      el('strong', { class: 'with-icon' }, icon('heart'), 'Breeding'),
-      el('button', { class: 'close-btn', onclick: ctx.close }, icon('close', 13)),
-    ),
+    panelHeader('heart', 'Breeding', ctx.close),
   );
 
   // Tabs: the pairing table and the nest.

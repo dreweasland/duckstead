@@ -18,8 +18,8 @@ const IDLE_ANIM = {
   blink: false,
 };
 
-// The procedural render, uncached.
-function renderPortrait(duck: Duck, size: number): HTMLCanvasElement {
+// A square canvas at devicePixelRatio resolution, transform pre-applied.
+function hidpiCanvas(size: number): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
   const canvas = document.createElement('canvas');
   const dpr = window.devicePixelRatio || 1;
   canvas.width = size * dpr;
@@ -28,6 +28,12 @@ function renderPortrait(duck: Duck, size: number): HTMLCanvasElement {
   canvas.style.height = `${size}px`;
   const ctx = canvas.getContext('2d')!;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { canvas, ctx };
+}
+
+// The procedural render, uncached.
+function renderPortrait(duck: Duck, size: number): HTMLCanvasElement {
+  const { canvas, ctx } = hidpiCanvas(size);
   ctx.translate(size / 2 - 4, size / 2 + 6);
   const zoom = (size / 90) * (duck.stage === 'duckling' ? 1.6 : duck.stage === 'egg' ? 2 : 1);
   ctx.scale(zoom, zoom);
@@ -81,14 +87,7 @@ export function duckPortrait(duck: Duck, size = 72): HTMLCanvasElement {
 
 // A small still of a decoration for the shop.
 export function decorPortrait(kind: DecorKind, size = 56): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = size * dpr;
-  canvas.height = size * dpr;
-  canvas.style.width = `${size}px`;
-  canvas.style.height = `${size}px`;
-  const ctx = canvas.getContext('2d')!;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const { canvas, ctx } = hidpiCanvas(size);
   const zoom = size / 40;
   ctx.scale(zoom, zoom);
   drawDecoration(ctx, kind, { x: 20, y: 27 }, 0, 0.4);

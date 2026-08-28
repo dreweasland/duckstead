@@ -1,5 +1,5 @@
 import type { PanelCtx } from './ui';
-import { el, needColor, statBar } from './dom';
+import { el, needColor, statBar, panelHeader } from './dom';
 import { icon, sexBadge, starRow, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { quickActions } from './quickActions';
@@ -118,17 +118,16 @@ export function renderRosterPanel(ctx: PanelCtx): HTMLElement {
   const state = game.state;
   const panel = el('aside', { class: 'panel roster' });
   panel.append(
-    el(
-      'div',
-      { class: 'panel-header' },
-      el('strong', { class: 'with-icon' }, icon('list'), 'Flock'),
+    panelHeader(
+      'list',
+      'Flock',
+      ctx.close,
       el(
         'span',
         { class: `br-nest-pill${isOvercrowded(state) ? ' full' : ''}`, title: 'Hatched ducks on the pond; eggs live in the nest and elders don\'t count against capacity' },
         icon('duck', 11),
         ` ${pondOccupancy(state)}/${duckCapacity(state)}${isOvercrowded(state) ? ' overcrowded' : ''}`,
       ),
-      el('button', { class: 'close-btn', onclick: ctx.close }, icon('close', 13)),
     ),
   );
   const bal = flockBalance(state);
