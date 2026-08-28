@@ -87,3 +87,18 @@ describe('saveToStorage honesty', () => {
     delete (globalThis as { localStorage?: unknown }).localStorage;
   });
 });
+
+describe('memorial cap', () => {
+  it('keeps the newest entries plus the record holders', async () => {
+    const { MEMORIAL_CAP, trimMemorial } = await import('../state');
+    const entry = (i: number, ageDays: number, descendants: number) =>
+      ({ name: `d${i}`, sex: 'F', bodyColor: '#fff', genome: {}, diedOnDay: i, rarityScore: 0, diedStage: 'elder', ageDays, gen: 0, pedigree: 0, descendants }) as never;
+    const memorial = [entry(0, 99, 0), entry(1, 1, 42)];
+    for (let i = 2; i < MEMORIAL_CAP + 40; i += 1) memorial.push(entry(i, 5, 1));
+    const trimmed = trimMemorial(memorial);
+    expect(trimmed.length).toBe(MEMORIAL_CAP + 2);
+    expect(trimmed.some((m) => (m as { name: string }).name === 'd0')).toBe(true); // longest-lived kept
+    expect(trimmed.some((m) => (m as { name: string }).name === 'd1')).toBe(true); // most descendants kept
+    expect(trimmed[trimmed.length - 1]).toBe(memorial[memorial.length - 1]); // recency order intact
+  });
+});

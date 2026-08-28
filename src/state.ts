@@ -17,6 +17,21 @@ export const WORLD_H = 600;
 export const GROUND_TOP = 225;
 export let WORLD_W = 960;
 
+// The garden of remembrance is dear, but unbounded it bloats every autosave
+// and cloud push (each entry carries a full genome; at 16x ducks die
+// continuously). Keep the newest MEMORIAL_CAP, but never evict the record
+// holders the Book celebrates.
+export const MEMORIAL_CAP = 80;
+
+export function trimMemorial(memorial: DuckSummary[]): DuckSummary[] {
+  if (memorial.length <= MEMORIAL_CAP) return memorial;
+  const longest = memorial.reduce((best, m) => ((m.ageDays ?? 0) > (best.ageDays ?? -1) ? m : best));
+  const most = memorial.reduce((best, m) => ((m.descendants ?? 0) > (best.descendants ?? 0) ? m : best));
+  const tail = memorial.slice(-MEMORIAL_CAP);
+  const keepers = [longest, most].filter((m, i, arr) => !tail.includes(m) && arr.indexOf(m) === i);
+  return [...keepers, ...tail];
+}
+
 export function fitWorldToWindow(): void {
   const aspect = window.innerWidth / window.innerHeight;
   WORLD_W = Math.round(Math.min(2200, Math.max(700, WORLD_H * aspect)));
@@ -90,7 +105,7 @@ export interface GameState {
   seasonCache: Season;
   money: number;
   ducks: Duck[];
-  memorial: DuckSummary[];
+  memorial: DuckSummary[]; // capped via trimMemorial — see below
   chronicle: import('./sim/chronicle').ChronicleEntry[];
   // Breed Book award tiers earned, by breed key.
   awards: Record<string, import('./sim/awards').BreedAwards>;

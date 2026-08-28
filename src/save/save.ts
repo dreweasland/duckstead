@@ -1,5 +1,5 @@
 import type { GameState, GameStats } from '../state';
-import { GROUND_TOP, WORLD_H, WORLD_W } from '../state';
+import { GROUND_TOP, trimMemorial, WORLD_H, WORLD_W } from '../state';
 import { computePhenotype } from '../sim/genetics';
 import { recordBreed } from '../sim/breedBook';
 import { nestPos } from '../sim/pond';
@@ -56,6 +56,7 @@ export function deserialize(json: string): GameState {
   state.inventory ??= { feed: 0, premiumFeed: 0, peas: 0, worms: 0, berries: 0, medicine: 0, eggs: 0 };
   state.foodPellets ??= [];
   state.memorial ??= [];
+  state.memorial = trimMemorial(state.memorial); // heal saves from before the cap
   state.pendingClutches ??= [];
   state.pond ??= { cleanliness: 100 };
   state.feeder ??= { food: 0 };

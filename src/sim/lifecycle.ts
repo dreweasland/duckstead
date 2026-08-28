@@ -1,4 +1,5 @@
 import type { GameState } from '../state';
+import { trimMemorial } from '../state';
 import type { Rng } from '../rng';
 import type { Duck } from './duck';
 import { adultDurationTicks, DUCK_NAMES, EGG_DAYS, freshName, HATCH_NAMES, STAGE_DAYS } from './duck';
@@ -140,6 +141,7 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
       pedigree: pedigreeScore(duck),
       descendants,
     });
+    state.memorial = trimMemorial(state.memorial);
     const age = duck.bornDay !== undefined ? dayOf(state.clock) - duck.bornDay : undefined;
     const line = descendants > 0 ? ` ${duck.sex === 'F' ? 'Her' : 'His'} line lives on in ${descendants} duck${descendants === 1 ? '' : 's'}.` : '';
     chronicle(
