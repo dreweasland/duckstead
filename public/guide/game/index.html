@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Pond Guide — Duck Homestead</title>
+<meta name="description" content="How Duck Homestead fits together: the daily loop, a duck's life, money, competition, the rival ponds, the Society, the calendar, and the long game.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%234a90c2'/%3E%3Ccircle cx='15.5' cy='7.5' r='3.6' fill='%23f2ede2'/%3E%3Cpath d='M18.6 6.4l3.4-.8v2.4l-3.4.3z' fill='%23e8912d'/%3E%3Cpath d='M3.5 13.5c0 4 3.2 6.5 7.5 6.5h3.5c3.4 0 5.9-2 5.9-4.9 0-.5-.1-1-.2-1.4l-3.4.8c-2.1.5-4.1-1.1-4.1-3.2v-1c-.9-.5-2.1-.8-3.4-.8-3.4 0-5.8 1.6-5.8 4z' fill='%23f2ede2'/%3E%3C/svg%3E">
+<style>
+:root {
+  --paper: #eef2ee; --ink: #26333b; --muted: #5c6d76; --line: #d3dcd4;
+  --water: #3d7fb5; --straw: #c9a55c; --grass: #4f8a3f; --gold: #b07f22;
+  --tile-bg: #35506e; --tile-fg: #e8f1f8; --tile-dim: #9fb0bf; --card: #ffffff;
+}
+:root:not([data-theme="light"]) { }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #151c23; --ink: #dfe7ea; --muted: #93a4ae; --line: #2b3945;
+    --water: #6aa6d8; --straw: #d9b571; --grass: #83bd6d; --gold: #e0b45a;
+    --tile-bg: #3d5372; --tile-fg: #d9ecf7; --tile-dim: #6e8090; --card: #1c252e;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #151c23; --ink: #dfe7ea; --muted: #93a4ae; --line: #2b3945;
+  --water: #6aa6d8; --straw: #d9b571; --grass: #83bd6d; --gold: #e0b45a;
+  --tile-bg: #3d5372; --tile-fg: #d9ecf7; --tile-dim: #6e8090; --card: #1c252e;
+}
+body { background: var(--paper); color: var(--ink); font: 400 16px/1.65 "Nunito Sans", system-ui, sans-serif; margin: 0; }
+main { max-width: 62rem; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+h1, h2, h3 { font-family: "Baloo 2", "Nunito Sans", sans-serif; line-height: 1.15; text-wrap: balance; }
+h1 { font-size: 2.6rem; font-weight: 700; margin: 0.4rem 0 0.6rem; }
+h2 { font-size: 1.5rem; font-weight: 700; margin: 2.8rem 0 0.6rem; color: var(--water); }
+h3 { font-size: 1.1rem; font-weight: 700; margin: 1.6rem 0 0.4rem; }
+p, li { max-width: 74ch; }
+.eyebrow { font: 800 0.72rem/1 "Nunito Sans", sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--straw); }
+.lede { font-size: 1.12rem; color: var(--muted); max-width: 70ch; }
+a { color: var(--water); }
+hr { border: 0; border-top: 1px solid var(--line); margin: 2.5rem 0; }
+.tablewrap { overflow-x: auto; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+th { text-align: left; font: 800 0.72rem/1.3 "Nunito Sans", sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 0.75rem 0.4rem 0; border-bottom: 2px solid var(--line); }
+td { padding: 0.55rem 0.75rem 0.55rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tile { display: inline-flex; align-items: center; justify-content: center; min-width: 1.35em; height: 1.35em; padding: 0 0.2em; border-radius: 0.3em; background: var(--tile-bg); color: var(--tile-fg); font: 700 0.82em/1 "JetBrains Mono", monospace; vertical-align: -0.15em; }
+.tile.dim { background: transparent; color: var(--tile-dim); box-shadow: inset 0 0 0 1.5px var(--tile-dim); }
+.tile.rare { background: var(--gold); color: #fff; }
+code, .mono { font: 500 0.9em "JetBrains Mono", monospace; }
+.recipe { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.2rem; margin: 0.9rem 0; }
+.recipe strong:first-child { color: var(--grass); }
+.note { border-left: 3px solid var(--straw); padding: 0.1rem 0 0.1rem 1rem; color: var(--muted); margin: 1.2rem 0; }
+ul { padding-left: 1.2rem; }
+li { margin: 0.35rem 0; }
+.punnett { display: inline-grid; grid-template-columns: repeat(3, auto); gap: 3px; margin: 0.4rem 1.4rem 0.4rem 0; vertical-align: top; font: 700 0.8rem "JetBrains Mono", monospace; }
+.punnett span { min-width: 2.6em; text-align: center; padding: 0.3em 0.35em; border-radius: 0.3em; }
+.punnett .hd { color: var(--muted); }
+.punnett .cell { background: var(--card); border: 1px solid var(--line); }
+.punnett .hit { border-color: var(--gold); color: var(--gold); font-weight: 700; }
+.eli5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 0.9rem; margin: 1rem 0; }
+.eli5 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.9rem 1.1rem; }
+.eli5 .card strong { display: block; color: var(--grass); margin-bottom: 0.25rem; }
+.eli5 .card p { margin: 0.3rem 0 0; font-size: 0.95rem; }
+.hand { display: inline-flex; gap: 0.2em; padding: 0.15em 0.3em; border: 1.5px dashed var(--line); border-radius: 0.5em; vertical-align: -0.3em; }
+.combo-row { display: flex; flex-wrap: wrap; gap: 0.5rem 1.1rem; align-items: center; margin: 0.6rem 0 0.2rem; font-size: 0.95rem; }
+</style>
+<style>
+.toc { columns: 2; column-gap: 2rem; padding-left: 1.2rem; font-size: 0.95rem; }
+.toc li { margin: 0.2rem 0; break-inside: avoid; }
+.kbd { display: inline-block; font: 600 0.8em "JetBrains Mono", monospace; padding: 0.1em 0.45em; border-radius: 0.35em; border: 1px solid var(--line); background: var(--card); }
+.calendar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; margin: 1rem 0; }
+.calendar .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.8rem 1rem; font-size: 0.92rem; }
+.calendar .card strong { display: block; color: var(--water); margin-bottom: 0.3rem; }
+@media (max-width: 640px) { .toc { columns: 1; } .calendar { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<main>
+<p class="eyebrow"><a href="/" style="color:inherit;text-decoration:none">← Back to the pond</a> · Player's Handbook · <a href="/guide/" style="color:inherit">Genetics guide →</a></p>
+<h1>The Pond Guide</h1>
+<p class="lede">Duck Homestead is a breeding sim first, but a pond is more than its genes. This is how the whole thing fits together — the daily loop, what a duck's life is made of, where the coins come from, how the competitions are won, who the rival ponds are, and what the long game looks like. The <a href="/guide/">genetics guide</a> covers the loci, standards, and breeding recipes in depth; this page points to it where it matters.</p>
+
+<ul class="toc">
+<li><a href="#day">1 · Your first day</a></li>
+<li><a href="#life">2 · A duck's life</a></li>
+<li><a href="#flock">3 · Running the flock</a></li>
+<li><a href="#money">4 · Money</a></li>
+<li><a href="#competition">5 · Competition</a></li>
+<li><a href="#rivals">6 · The rival ponds</a></li>
+<li><a href="#society">7 · The Society</a></li>
+<li><a href="#calendar">8 · The calendar</a></li>
+<li><a href="#long">9 · The long game</a></li>
+<li><a href="#tools">10 · Companion, keyboard, settings</a></li>
+</ul>
+
+<h2 id="day">1 · Your first day</h2>
+<p>You start with 50 coins, four adult ducks (two drakes, two hens, each hiding a recessive surprise), 10 feed, 3 premium feed, 5 peas, and one medicine. Time runs at one game-minute per real second: a day is 24 real minutes at 1×, a season is six days, a year is 24. Night falls at 21:00 and the flock sleeps on the bank until 06:00; needs drift at 30% overnight, and a <strong>Sleep 'til dawn</strong> button skips to the morning.</p>
+<div class="eli5">
+<div class="card"><strong>Four needs, four tools</strong><p>Hunger falls 6 points an hour (faster in winter and snow), cleanliness 3, happiness 2. Feed (+40) or premium (+60, +5 happy) from the Care menu — click the pond to scatter it. Rub a duck to pet it (+15 happiness, once an hour); pick the brush and rub to scrub it. Health drains only when a duck is starving (hunger under 20) or sick.</p></div>
+<div class="card"><strong>Sickness</strong><p>A duck below 30 cleanliness risks 2% an hour; every sick pond-mate adds 1%. Untreated, a sick duck loses 4 health an hour — about a day to the end. Medicine (20 coins) cures on the spot. The Vet Clinic halves all of it.</p></div>
+<div class="card"><strong>The pond itself</strong><p>Water fouls at 0.4 per duck per hour. Below 70% wild ducks stop visiting and a <strong>Scrub pond</strong> button appears; below 30% ducks dirty twice as fast. Rain freshens it; the Bog Filter halves fouling and the Waterfall cuts it by 30%.</p></div>
+<div class="card"><strong>Goals unlock the game</strong><p>The Goals list on the left is a tutorial in disguise: pet the flock four times → <em>Breeding</em>; have an egg laid → <em>Shop</em>; hatch a duckling → <em>Breed Book</em> and <em>Pond Derby</em>. The Commissions Board is open from day one. Each goal pays coins; there are forty-odd of them, and the later ones stretch into year two.</p></div>
+<div class="card"><strong>Forage</strong><p>Tap what appears on the grass: beetles (3 coins) and snails (2) by day, fireflies (1) at night, frogs (2) on the rim and dragonflies (3) over the water, moulted feathers (2, plus a Feather Album entry), duckweed (free feed), and the eggs your hens lay (into the basket). Feathers and duckweed never expire.</p></div>
+<div class="card"><strong>The dawn report</strong><p>At 06:00 a card lists the day: a buyer at the gate, a wild visitor, cracking or cold eggs, courting pairs, the festival countdown, hungry ducks, the pond's state. Read it, then start the day.</p></div>
+</div>
+
+<h2 id="life">2 · A duck's life</h2>
+<p>A duck's genes set its ceiling — see the genetics guide — but the life it leads decides where under that ceiling it lands. Here is the arc.</p>
+<div class="tablewrap"><table>
+<tr><th>Stage</th><th>Lasts</th><th>What matters</th></tr>
+<tr><td><strong>Egg</strong></td><td>Half a day (Incubator: a quarter)</td><td>Warmth starts at 70 and falls 10 an hour; tap the egg to tuck it in (+40, once an hour). Warmth sets incubation speed (0.5× cold → 1.3× toasty) and the hatchling's condition: a snug egg hatches at up to 90 hunger, 100 happiness, 100 health; a cold one at 40/45/70. Nesting boxes slow the loss 25% a level; elder hens and a broody hen slow it further. A cracked egg hatches itself after an hour if you don't tap it.</td></tr>
+<tr><td><strong>Duckling</strong></td><td>1 day</td><td>Yellow fluff hides its true colours. It follows its mother and holds its cheer better within reach of an elder. What happens now is tallied for its <em>marks</em> (below). It can't race or train.</td></tr>
+<tr><td><strong>Juvenile</strong></td><td>2 days</td><td>Colours revealed at the molt (and <em>hardy</em> or <em>scrappy</em> awarded). It can race and drill — racing or drilling now earns <em>keen</em> for life.</td></tr>
+<tr><td><strong>Adult</strong></td><td>11–17 days (14 × vigor)</td><td>Breeds, lays, races, shows. Coming of age settles the rest of its marks. This is the productive life; the Brooder Lamp gets ducks here 20% sooner a level.</td></tr>
+<tr><td><strong>Elder</strong></td><td>4 days</td><td>Past breeding, but free: elders don't count against pond capacity. Elder hens sit broody by the nest (−25% egg-warmth loss each, two at most), and young ducks within 140 units of an elder lose happiness 30% slower. A life lived out here ends in an <em>honoured passing</em>: a feather for the album and 2–5 Society points by pedigree. Selling an elder forfeits that — the sell button says so.</td></tr>
+</table></div>
+<p>Birthdays come every season (+10 happiness); a full year is a chronicle event. Each duck also has a secret <strong>favourite treat</strong> (peas, worms, or berries): the first time it eats it you get a heart burst, and from then on that treat restores 1.5× and adds 8 happiness.</p>
+
+<h3>Temperament</h3>
+<p>Two heritable loci (<span class="mono">temper1–2</span>) make a duck <strong>timid</strong> (0/4), <strong>steady</strong> (2/4), or <strong>bold</strong> (4/4). Bold ducks are busier, start races faster (about 10% over a timid duck), lay through a worse mood (happiness 45 needed instead of 65), win drake rivalries more often, and gain <em>paddle</em> 20% faster; timid ducks gain <em>poise</em> 20% faster. Every breed standard asks for one of the three. Sociability (social / loner) is the one quirk that stays personality, not genes.</p>
+
+<h3>Training</h3>
+<p>Every juvenile or older duck has three trained stats, 0–100, on its card:</p>
+<div class="tablewrap"><table>
+<tr><th>Stat</th><th>Drill</th><th>What it does at 100</th></tr>
+<tr><td><strong>Paddle</strong></td><td><em>Paddle drill</em> — eight paddles on the beat; the average timing is the score.</td><td>+15% race speed.</td></tr>
+<tr><td><strong>Stamina</strong></td><td><em>Long haul</em> — hold to paddle, let go before the fatigue bar fills or the duck stalls; distance in twelve seconds.</td><td>+5% race speed, and boosts fade 35% slower down the track.</td></tr>
+<tr><td><strong>Poise</strong></td><td><em>Show stance</em> — stop the needle in a shrinking mark, five rounds.</td><td>A parent's Egg Show care score is lifted by up to 50%, and the flock's poise counts in the Winter Lights parade.</td></tr>
+</table></div>
+<p>A drill gains 4 (fumbled) to 14 (perfect) points, less as the stat nears 100, costs 8 hunger, cheers the duck 3, and pays 3 coins × form up to 15 coins a day. One drill per duck per day, +1 per Training Perch level. <strong>Every stat fades a point a day</strong> — a champion is kept, not just bred. Sick ducks, hungry ducks (under 30), and ducklings can't drill.</p>
+
+<h3>Upbringing marks</h3>
+<p>Permanent, earned once, from how a duck was raised. They show as chips on the card and lines in the Chronicle.</p>
+<div class="tablewrap"><table>
+<tr><th>Mark</th><th>How it's earned</th><th>Effect</th></tr>
+<tr><td><strong>hardy</strong></td><td>Hatch from an egg kept at 70%+ average warmth.</td><td>Falls sick 20% less.</td></tr>
+<tr><td><strong>scrappy</strong></td><td>Hatch from a cold egg (under 35%) and survive.</td><td>10% less sickness, +2% race speed.</td></tr>
+<tr><td><strong>steady</strong></td><td>Spend a quarter of its youth within reach of an elder.</td><td>Happiness fades 10% slower.</td></tr>
+<tr><td><strong>keen</strong></td><td>Race or drill as a juvenile.</td><td>+3% race speed for life.</td></tr>
+<tr><td><strong>spoiled</strong></td><td>Eat three or more treats while young.</td><td>Treats cheer it 50% more — but it sulks 10% faster.</td></tr>
+<tr><td><strong>proud</strong></td><td>Win a drake rivalry (a life event).</td><td>+2% race speed; shrugs off drake squabbles.</td></tr>
+</table></div>
+
+<h3>Life events</h3>
+<p>At 11:00 there is a 30% chance something needs a decision; a <strong>Decide</strong> chip lights in the HUD and a card opens. Close it to think; by 20:00 the flock settles it their own way.</p>
+<div class="recipe"><strong>A hen goes broody.</strong> <em>Let her sit</em>: every nest egg loses warmth half as fast today, she skips laying, and she's content (+8). <em>Shoo her off</em>: she lays as usual and sulks (−6). Unanswered, she sits.</div>
+<div class="recipe"><strong>Two drakes fall out.</strong> <em>Let them settle it</em>: the bolder one usually wins (+8 happiness, the <em>proud</em> mark); the loser takes −10 happiness and −6 health. <em>Distract with treats</em> (2 premium feed): both +6, nobody hurt. <em>Send the challenger to the pen</em>: needs a free pen place. Unanswered, they settle it.</div>
+
+<h2 id="flock">3 · Running the flock</h2>
+<h3>Breeding</h3>
+<p>Open Breed and click two adults on the pond (or use the chooser). Both must be adult, not sick, not penned, happiness over 50, health over 60, and rested — a nesting sets a 12-hour cooldown. The pair courts for <strong>one game-hour</strong>; at the end the hen lays with probability <em>happiness × health</em> (their averages, as fractions), +5% in spring, −6% per surplus drake. Feed and pet them during the courtship to tip it. Your very first clutch always takes. The nest holds 2 eggs (+2 per Nesting Box level); courting pairs count against it, so an egg pipeline keeps running even at a full pond.</p>
+<p>Close kin (parent–child, siblings) throw clutches whose vigor alleles have a 35% chance each of degrading. Every egg is stamped with two generations of ancestry, so the family tree survives the parents leaving.</p>
+<h3>Laying</h3>
+<p>Every adult or elder hen that's fed (hunger over 40) and content (see temperament) drops one unfertilised egg a day between 07:00 and 17:00, on the grass or the nearest bank. Tap it into the basket. Surplus drakes make her skip: each is a coin-flip against the egg. A broody hen skips her egg for the day.</p>
+<h3>Flock balance and the pen</h3>
+<p>Ducks keep best at <strong>one drake per three hens</strong> (two drakes are always fine). Each surplus drake drains hens' happiness 0.7 an hour and drakes' 0.3, costs clutches 6% viability, and halves laying — up to four surplus. The Flock panel shows the ratio. The <strong>Bachelor Pen</strong> (220, then 550 coins; 3 places a level) parks any adult out of the breeding population without selling: penned ducks don't lay, breed, race, or add pressure, and still need feeding and brushing.</p>
+<h3>Capacity</h3>
+<p>The pond holds 8 hatched ducks, +4 per Pond Expansion (100 / 250 / 500), +1 for the Society's Pondmaster perk, +1 per heritage pond. Eggs and elders don't count. Hatch over the limit and the pond is <em>overcrowded</em>: every extra duck adds 0.6 happiness loss an hour to everyone, the water fouls faster, and wild ducks stay away until you sell or expand.</p>
+<h3>Wild visitors</h3>
+<p>At 10:00, if the pond is over 70% clean, the flock averages 60+ happiness, and nothing is overcrowded, there's a 35% chance a wild duck lands (20% once you hold blue, pink bill, and crest). Each decoration you've placed lowers both bars by 3, up to five. The first visitor is guaranteed on day 2. Feed it three premium treats and it joins — bringing at least one rare gene; Society rank 5 makes the gift a true-breeding pair, rank 10 adds a chance of a near-standard duck for a breed your Book lacks, and a winter visitor at rank 10 can carry pink bill and crest together. It leaves the next day.</p>
+
+<h2 id="money">4 · Money</h2>
+<p>You can't go broke — every spend is gated and the grass keeps paying — but late-game sinks are large, so it helps to know every tap.</p>
+<div class="tablewrap"><table>
+<tr><th>Faucet</th><th>Pays</th><th>Notes</th></tr>
+<tr><td>Egg basket</td><td>4 per hen egg</td><td>×1.25 in autumn, ×1.5 on Market Day, ×2 with the golden basket, +25% per Egg Cooler level. The first dozen eggs in a basket sell at full price; the rest at 60%.</td></tr>
+<tr><td>Selling ducks</td><td>Egg 8 · duckling/juvenile 25 · adult 40</td><td>× (1 + rarity/2) × (1 + 8% per pedigree point); ×1.5 on Market Day; nest eggs ×1.25 in autumn. An egg is priced on its <em>parents'</em> rarity and visible pedigree — its own genes stay secret.</td></tr>
+<tr><td>Buyer requests</td><td>2.5–3× sale price</td><td>A buyer asks after a pattern/colour/crest for two days; sell a matching duck from its card.</td></tr>
+<tr><td>Commissions</td><td>40 × (1 + rarity/2) × (3 + tier) × demands</td><td>Tier rises every three filled (pay stops scaling at tier 6). See the Board, below.</td></tr>
+<tr><td>Breed discovery</td><td>10 + 3 × rarity</td><td>First hatch of each of the 60 breeds.</td></tr>
+<tr><td>Awards</td><td>Pure 20 · Standard 40 · Master 80</td><td>× (1 + rarity/4). 180 awards in all.</td></tr>
+<tr><td>Goals</td><td>5–500</td><td>Forty-odd, from "feed a duck" to "fill the Breed Book".</td></tr>
+<tr><td>Races</td><td>Pond 15/6 · County 32/12 · National 65/25</td><td>Entry 5 / 10 / 20. One derby per duck per day.</td></tr>
+<tr><td>Festivals</td><td>Egg Show 40/20/10/5/5 · Grand Prix 75/25 · Winter Lights 15 + 2 premium + a wish</td><td>All × the festival's purse scale (+75% per tier). The "full purse" wish pays your best-ever sale, 60–400.</td></tr>
+<tr><td>Drills</td><td>3 × form, 15 a day</td><td>Pocket money for training.</td></tr>
+<tr><td>Pickups</td><td>1–3</td><td>See <a href="#day">forage</a>.</td></tr>
+<tr><td>Society Cup</td><td>300 × year</td><td>To the winner, on the last night of winter.</td></tr>
+</table></div>
+<div class="tablewrap"><table>
+<tr><th>Sink</th><th>Costs</th><th>Notes</th></tr>
+<tr><td>Supplies</td><td>Feed ×10: 5 · Premium ×10: 15 · Peas 8 · Worms 10 · Berries 10 · Medicine 20 · Adopt a duck 50</td><td>−20% on Market Day.</td></tr>
+<tr><td>Upgrades</td><td>Feeding Trough 40 · Nesting Box 60/150/300 · Incubator 200 · Pond Expansion 100/250/500 · Bog Filter 120 · Waterfall 250 · Floating Duck Toy 80 · Pedigree Scope 150 · Bachelor Pen 220/550 · Reed Beds 300/700/1500 · Feed Silo 400/900/1800 · Egg Cooler 500/1200/3000 · Brooder Lamp 600/1400 · Training Perch 800/2000/5000 · Vet Clinic 1500</td><td>About 31,500 to own everything.</td></tr>
+<tr><td>Decorations</td><td>Flower bed 25 · Lantern 30 · Bench 45 · Gnome 60 · String lights 80 · Champion statue 400 (Patron+)</td><td>Cheer the flock (a capped aura), help visitors land, and score in the Winter Lights parade.</td></tr>
+<tr><td>Society ranks</td><td>300 → 24,000 coins each, plus points</td><td>173,700 coins for all twenty.</td></tr>
+<tr><td>Festival sponsorship</td><td>1000 + 750 × wins</td><td>Raises the next edition a tier for the year. Spent when the festival runs — or packs up at 20:00.</td></tr>
+<tr><td>Stud service</td><td>120 + 35 × rarity, ×(1 + strength/2)</td><td>A rival's drake for one clutch.</td></tr>
+<tr><td>Commissioned stock</td><td>250 + 25 × rank</td><td>Society rank 8: order a duck with a chosen rare gene.</td></tr>
+</table></div>
+
+<h2 id="competition">5 · Competition</h2>
+<h3>The derby league</h3>
+<p>The Race button runs the daily derby: your duck against three wild racers, click on the meter's beat to paddle (precision matters — sloppy taps barely help). Speed = vigor × boldness × build (the sweet spot is slightly under medium size) × training × marks. Tiers: <strong>Pond Derby</strong> → <strong>County Derby</strong> → <strong>National Derby</strong> (show-standard ducks only, 60%+ match). Three net wins promote; three net losses relegate — second place is neutral only in the Pond Derby. Wins above Pond tier earn Society points equal to the tier.</p>
+<h3>The four festivals</h3>
+<p>Day 4 of each season. Every one can be won; a win raises next year's edition a tier — <em>County</em>, <em>Regional</em>, <em>National</em> — with +75% purse per tier and sharper opposition. A festival you don't finish packs up at 20:00.</p>
+<div class="recipe"><strong>Spring Egg Show.</strong> Enter one nest egg. Judges score <em>rarity × 4 + standard match × 0.5 + care / 4</em>, where care is the parents' average condition lifted by their poise. Against the three rival ponds' clutches and one local breeder. 1st/2nd earn 6/3 Society points × purse.</div>
+<div class="recipe"><strong>Summer Derby Grand Prix.</strong> A qualifying heat (fee 15; top two advance) and a final against the rival ponds' drilled racers — they get faster every year. Winning the final takes the tier.</div>
+<div class="recipe"><strong>Autumn Market Day.</strong> Three buyers, each smitten with one of your ducks, open 10–45% above (already ×1.5) list price. Haggle for +25% at a 55% risk of them walking; tap the pedestal to look the duck over first. Sell past the fair's target — 100 coins, +80 per tier — and the day is won (4 points × purse). Consumables are 20% off.</div>
+<div class="recipe"><strong>Winter Lights.</strong> Light five lanterns; the flock parades. Parade score = decorations (up to 6) × 8 + average poise × 0.3 + average happiness × 0.3, against a bar of 45 + 15 per tier. Then the fifth wish is yours: <em>a stranger on the wind</em> (the best wild visitor arrives tomorrow), <em>good standing</em> (+8 points), or <em>a full purse</em> (your biggest sale, 60–400). Happiness doesn't decay all day.</div>
+
+<h2 id="rivals">6 · The rival ponds</h2>
+<p>Three breeders keep ponds beside yours, each with a real flock of six genomes that breeds a generation on the first morning of every season and drills its birds. They start at 20% strength and gain 15% a year and 5% per win — so the world hardens with time, not just with your flock. Meet them in Shop → Society.</p>
+<div class="eli5">
+<div class="card"><strong>Marta of Millpond</strong><p>Breeds to the standard and drills poise. Her eggs win shows.</p></div>
+<div class="card"><strong>Old Wiggins</strong><p>A racing stable: bold, hardy lines and a lot of paddling.</p></div>
+<div class="card"><strong>The Reedy Sisters</strong><p>Collectors of blue, pink bills, and crests — and dear stud fees.</p></div>
+</div>
+<p>Where you'll meet them: the <strong>Egg Show</strong> field, the <strong>Grand Prix</strong> grid, the <strong>Commissions Board</strong> (a third of postings once you have a reputation), the <strong>stud service</strong> on the Board — hire a rival's best drake for one clutch with a hen of yours; his genes are on show (the Scope reads them), the courtship runs as usual, and the egg's lineage remembers him — and the <strong>Society Cup</strong>.</p>
+<h3>The Commissions Board</h3>
+<p>Three slots, a new posting each morning at 08:00, six days to fill. Every three you fill raises the tier: sex demands from tier 1, minimum generation (1 → 5), standard match (60% → 80% → 90%), and from tier 3 a growing chance of a pink-bill clause. Pay scales to tier 6, points 3 + 3 × tier. If nobody fits, the card names the pair most likely to hatch one and the odds per egg.</p>
+
+<h2 id="society">7 · The Society</h2>
+<p>The Duck Fanciers' Society is a twenty-rank ladder paid with coins <em>and</em> points. Points are never bought: breed discoveries (1 + rarity/3), awards (2 / 4 / 8), commissions, festival placings, derby wins above Pond tier and promotions (+4), honoured passings (2–5), and the Winter Lights wish.</p>
+<div class="tablewrap"><table>
+<tr><th>Rank</th><th>Name</th><th>Coins · points</th><th>Unlocks</th></tr>
+<tr><td>1</td><td>Fancier</td><td>300 · 3</td><td>Clear Spring Water; title <em>Fancier's Pick</em></td></tr>
+<tr><td>2</td><td>Keeper</td><td>500 · 6</td><td>Pink Lilies</td></tr>
+<tr><td>3</td><td>Steward</td><td>800 · 10</td><td>Lush Lawn</td></tr>
+<tr><td>4</td><td>Warden</td><td>1,200 · 14</td><td>Whitewashed Hutch</td></tr>
+<tr><td>5</td><td>Patron</td><td>1,600 · 18</td><td>Champion statue (decor); <strong>Society Cup</strong> opens</td></tr>
+<tr><td>6</td><td>Breeder</td><td>2,200 · 24</td><td>Title <em>Prize Breeder</em></td></tr>
+<tr><td>7</td><td>Fellow</td><td>2,800 · 30</td><td>Turquoise Water</td></tr>
+<tr><td>8</td><td>Agent</td><td>3,500 · 36</td><td>Commissioned stock</td></tr>
+<tr><td>9</td><td>Curator</td><td>4,300 · 44</td><td>White Lotus</td></tr>
+<tr><td>10</td><td>Pondmaster</td><td>5,200 · 52</td><td>+1 pond slot</td></tr>
+<tr><td>11</td><td>Laureate</td><td>6,200 · 60</td><td>Golden Meadow</td></tr>
+<tr><td>12</td><td>Artisan</td><td>7,400 · 70</td><td>Painted Hutch</td></tr>
+<tr><td>13</td><td>Master Breeder</td><td>8,800 · 80</td><td>Title <em>Master's Champion</em></td></tr>
+<tr><td>14</td><td>Regent</td><td>10,400 · 92</td><td>Deep Lake Blue</td></tr>
+<tr><td>15</td><td>Luminary</td><td>12,000 · 105</td><td>Golden Lilies</td></tr>
+<tr><td>16</td><td>Host</td><td>14,000 · 120</td><td>Wild visitors bring an extra rare gene</td></tr>
+<tr><td>17</td><td>Sage</td><td>16,000 · 135</td><td>Wildflower Meadow</td></tr>
+<tr><td>18</td><td>Gilder</td><td>18,000 · 150</td><td>Gilded Hutch</td></tr>
+<tr><td>19</td><td>Grand Fancier</td><td>20,000 · 170</td><td>Title <em>Grand Champion</em></td></tr>
+<tr><td>20</td><td>Golden Egg</td><td>24,000 · 200</td><td>Golden basket: hen eggs sell for double</td></tr>
+</table></div>
+<p>Titles go to the pond's top-pedigree adult. Styles can be switched or set back to natural any time.</p>
+<h3>The Society Cup</h3>
+<p>From rank 5, stake 40 points in any season to enter the year's Cup. From then on every point you earn counts against the rival ponds' seasonal tallies; on the last night of winter the highest takes it — 300 coins × the year for you, or a win on a rival's record. It is where points go once the ladder is climbed.</p>
+
+<h2 id="calendar">8 · The calendar</h2>
+<div class="calendar">
+<div class="card"><strong>Spring</strong>Rain 35%, wind 12%, fog 8%. Clutches +5% viability. Day 4: <em>Egg Show</em>.</div>
+<div class="card"><strong>Summer</strong>Mostly clear; rain 10%, wind 15%. Day 4: <em>Derby Grand Prix</em>.</div>
+<div class="card"><strong>Autumn</strong>Wind 25%, rain 20%, fog 15%. Eggs sell ×1.25. Day 4: <em>Market Day</em>.</div>
+<div class="card"><strong>Winter</strong>Snow 40%, fog 12%, wind 10%. Hunger falls 1.5× faster. Day 4: <em>Winter Lights</em>. Day 6, 21:00: the Cup is decided.</div>
+</div>
+<div class="tablewrap"><table>
+<tr><th>When</th><th>What</th></tr>
+<tr><td>06:00</td><td>Dawn: weather rolled, trained stats fade a point, commissions expire, the silo refills the trough, the dawn report. On a season's first day the rival ponds hatch a generation.</td></tr>
+<tr><td>07:00–17:00</td><td>Hens lay.</td></tr>
+<tr><td>08:00</td><td>A new commission is posted; festival announcements.</td></tr>
+<tr><td>09:00</td><td>A buyer may post a request; birthdays.</td></tr>
+<tr><td>10:00</td><td>A wild duck may land.</td></tr>
+<tr><td>11:00</td><td>A life event may need a decision.</td></tr>
+<tr><td>20:00</td><td>Unanswered life events settle; an unfinished festival packs up.</td></tr>
+<tr><td>21:00–06:00</td><td>Night. The flock sleeps ashore; fireflies come out.</td></tr>
+</table></div>
+<p><strong>Weather</strong> is what the sky shows: <em>rain</em> freshens the pond 1.5 an hour and chills eggs 20% faster (ducks love a swim in it); <em>snow</em> chills them 40% faster and adds 20% hunger; <em>wind</em> frays tempers 15%; <em>fog</em> keeps the bugs in.</p>
+
+<h2 id="long">9 · The long game</h2>
+<ul>
+<li><strong>The Breed Book</strong> — 60 breeds (colour × dilution × pattern × crest), each with a Pure / Standard / Master award: 180 awards. The Records tab tracks lifetime bests; the Chronicle writes the pond's history.</li>
+<li><strong>Festival tiers</strong> — carry each of the four to <em>National</em>; the rivals scale with you.</li>
+<li><strong>The Cup</strong> — the rival ponds get 15% stronger a year; a Cup win at year 3 is a different thing from one at year 1.</li>
+<li><strong>Heritage</strong> — once the Book has 10 breeds, retire the pond from the Save panel and refound it with one drake and one hen. Book, awards, Society, chronicle, records, rivals, and an open Cup carry over; the new pond starts with 50 + 100 × heritage coins and extra premium feed. Each retirement adds a pond slot and +1% mutation for the first five, then a quarter as much (to eight slots and +7.5%). Goals stay done and nothing re-locks.</li>
+<li><strong>Pedigree</strong> — generations bred on your pond (to 6) + fixed Book genes (to 4) + rare alleles carried (to 4) + purebred parents: 15 at most, 8% sale price a point. A gen-5 purebred with a family tree behind it is the thing this game is really about.</li>
+</ul>
+
+<h2 id="tools">10 · Companion, keyboard, settings</h2>
+<p><strong>Companion</strong> — Save → <em>Companion &amp; cloud sync</em> → <em>Link a device</em> mints an 8-character code (10 minutes). Open <span class="mono">/companion</span> on a phone, enter it, and the full sim runs behind a touch UI: care and treats, quick drills, the nest (pair, tuck, hatch, sell eggs), chores, the shop's upgrades, the Book and Chronicle, and the day's report. Only one device plays at a time; the other shows a takeover screen. It installs to the home screen.</p>
+<p><strong>Keyboard</strong> — <span class="kbd">Esc</span> closes the open window (or cancels placing a decoration) · <span class="kbd">1</span>–<span class="kbd">6</span> Breed, Shop, Flock, Book, Race, Save · <span class="kbd">C</span> duck cards · <span class="kbd">P</span> pause · <span class="kbd">+</span>/<span class="kbd">−</span> speed · <span class="kbd">Space</span> paddles in a race or drill · <span class="kbd">Ctrl/Cmd-click</span> a duck pins its card to compare · <span class="kbd">?</span> settings.</p>
+<p><strong>Settings</strong> (the ★ button) — volume and mute (everything is synthesised; nothing downloads), reduced motion (follows the OS unless you say otherwise), large text, and the keyboard sheet. Settings live in the browser, not the save. The sparkle button on any duck's card takes a <strong>portrait photo</strong> to save, copy, or share.</p>
+<p><strong>Saving</strong> — the game autosaves every 30 seconds and only runs while the tab is visible (no offline progress). Export and import a save as text from the Save panel; a save that can't be read is stashed, never overwritten.</p>
+
+<hr>
+<p class="note">Every number here is read from the simulation source (<span class="mono">src/sim/economy.ts</span>, <span class="mono">tuning.ts</span>, <span class="mono">society.ts</span>, <span class="mono">festivals.ts</span>, <span class="mono">rivals.ts</span>, <span class="mono">training.ts</span>, <span class="mono">marks.ts</span>, <span class="mono">lifeEvents.ts</span>, <span class="mono">weather.ts</span>). If the code changes, trust the code. For the loci, dominance, standards, and breeding recipes, see the <a href="/guide/">genetics guide</a>.</p>
+</main>
+</body>
+</html>

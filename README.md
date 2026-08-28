@@ -187,6 +187,13 @@ npm run dev        # open http://localhost:5173
 Open `http://localhost:5173/?lab` for a grid of random genomes — click two
 ducks, then "Breed selected" to inspect inheritance without playing the game.
 
+## The guides
+
+Two player guides ship with the site: **`/guide/game/`**, the pond guide —
+the daily loop, a duck's life, money, competition, the rival ponds, the
+Society, the calendar, and the long game — and **`/guide/`**, the genetics
+guide (below). Both are linked from the Book panel.
+
 ## How the genetics work
 
 The full player guide — every locus, dominance rule, standard, and breeding
