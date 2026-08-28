@@ -151,6 +151,30 @@ export function darknessAt(hour: number): number {
 
 // ---------------------------------------------------------------------------
 
+// --- Static backdrop cache --------------------------------------------------
+// The treeline, grass, tufts, flowers, and trees change only with world size,
+// season, and grass style — yet they were re-rasterized every frame (dozens
+// of paths and gradients). Render once to an offscreen bitmap at the canvas's
+// effective resolution and blit. The sky, sun/moon, stars, and clouds stay
+// live: they animate, and the sun must slip behind the cached treeline.
+let groundCache: { key: string; canvas: HTMLCanvasElement } | null = null;
+let vignetteCache: { key: string; canvas: HTMLCanvasElement } | null = null;
+
+function effectiveScale(ctx: CanvasRenderingContext2D): number {
+  const m = ctx.getTransform();
+  return Math.min(3, Math.max(0.5, Math.hypot(m.a, m.b)));
+}
+
+function renderLayer(q: number, paint: (c: CanvasRenderingContext2D) => void): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(WORLD_W * q);
+  canvas.height = Math.ceil(WORLD_H * q);
+  const c = canvas.getContext('2d')!;
+  c.scale(q, q);
+  paint(c);
+  return canvas;
+}
+
 export function drawScene(ctx: CanvasRenderingContext2D, state: GameState, timeMs: number): void {
   const hour = hourOf(state.clock);
   const season = seasonOf(state.clock);
@@ -160,10 +184,20 @@ export function drawScene(ctx: CanvasRenderingContext2D, state: GameState, timeM
   drawStars(ctx, dark, timeMs);
   drawSunMoon(ctx, hour);
   drawClouds(ctx, dark, timeMs);
-  drawTreeline(ctx, season);
-  drawGrass(ctx, season, state);
-  drawGroundDecor(ctx, season, state);
-  drawTrees(ctx, season);
+  const q = effectiveScale(ctx);
+  const groundKey = `${WORLD_W}x${WORLD_H}|${season}|${grassColor(season, state)}|${q.toFixed(2)}`;
+  if (!groundCache || groundCache.key !== groundKey) {
+    groundCache = {
+      key: groundKey,
+      canvas: renderLayer(q, (c) => {
+        drawTreeline(c, season);
+        drawGrass(c, season, state);
+        drawGroundDecor(c, season, state);
+        drawTrees(c, season);
+      }),
+    };
+  }
+  ctx.drawImage(groundCache.canvas, 0, 0, WORLD_W, WORLD_H);
   drawVetClinic(ctx, state);
   drawFeeder(ctx, state);
   drawNest(ctx, state);
@@ -1781,6 +1815,15 @@ function drawFestivalLights(ctx: CanvasRenderingContext2D, state: GameState, t: 
 }
 
 function drawVignette(ctx: CanvasRenderingContext2D): void {
+  const q = effectiveScale(ctx);
+  const key = `${WORLD_W}x${WORLD_H}|${q.toFixed(2)}`;
+  if (!vignetteCache || vignetteCache.key !== key) {
+    vignetteCache = { key, canvas: renderLayer(q, paintVignette) };
+  }
+  ctx.drawImage(vignetteCache.canvas, 0, 0, WORLD_W, WORLD_H);
+}
+
+function paintVignette(ctx: CanvasRenderingContext2D): void {
   const grad = ctx.createRadialGradient(
     WORLD_W / 2,
     WORLD_H / 2,
