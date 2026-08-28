@@ -13,18 +13,13 @@ import { pedigreeScore } from './pedigree';
 import { passingPoints } from './elders';
 import { events } from '../events';
 import { dayOf, DAYS_PER_SEASON, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
+import { ordinal } from '../text';
 
 const YEAR_DAYS = DAYS_PER_SEASON * 4;
 
 // Brooder Lamp: the young grow up faster.
 export function growthScale(state: GameState): number {
   return 1 + upgradeLevel(state, 'brooderLamp') * 0.2;
-}
-
-function ordinal(n: number): string {
-  const s = ['th', 'st', 'nd', 'rd'];
-  const v = n % 100;
-  return `${n}${s[(v - 20) % 10] ?? s[v] ?? s[0]}`;
 }
 
 export function eggIncubationTicks(state: GameState): number {

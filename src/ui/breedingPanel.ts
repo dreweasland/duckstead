@@ -1,6 +1,7 @@
 // The Breeding panel: pick a pair, read their genetics side by side, see the
 // odds for every trait the clutch could express, and nest them. Also hosts
 // the nest itself (courting pairs and incubating eggs).
+import { clamp } from '../types';
 import type { PanelCtx } from './ui';
 import { el } from './dom';
 import { icon, sexBadge } from './icons';
@@ -466,7 +467,7 @@ function nestSection(ctx: PanelCtx): HTMLElement {
       const mother = ducks.find((d) => d.id === clutch.motherId);
       const father = ducks.find((d) => d.id === clutch.fatherId);
       const mins = Math.ceil(clutch.ticksRemaining / TICKS_PER_MINUTE);
-      const pct = Math.max(0, Math.min(100, (1 - clutch.ticksRemaining / (60 * TICKS_PER_MINUTE)) * 100));
+      const pct = clamp((1 - clutch.ticksRemaining / (60 * TICKS_PER_MINUTE)) * 100, 0, 100);
       const odds = mother && father ? Math.round(pairViability(state, mother, father) * 100) : null;
       const fill = el('div', { class: 'bar-fill' });
       fill.style.width = `${pct}%`;

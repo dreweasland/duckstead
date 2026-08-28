@@ -1,5 +1,6 @@
 // The companion's three tabs plus the duck care sheet. Every button calls an
 // existing pure sim function — this file is UI only.
+import { clamp } from '../types';
 import type { Game } from '../game';
 import { el } from '../ui/dom';
 import { icon } from '../ui/icons';
@@ -30,7 +31,7 @@ const bar = (value: number, cls = ''): HTMLElement =>
   el(
     'div',
     { class: `comp-bar ${cls}` },
-    el('div', { class: 'comp-bar-fill', style: `width:${Math.max(0, Math.min(100, value))}%` }),
+    el('div', { class: 'comp-bar-fill', style: `width:${clamp(value, 0, 100)}%` }),
   );
 
 const needRow = (label: string, value: number): HTMLElement =>

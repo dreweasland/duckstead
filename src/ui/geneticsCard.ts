@@ -1,5 +1,6 @@
 // The duck panel's genetics card: color swatches, polygenic gauges, and
 // (with the Pedigree Scope) per-locus allele tiles plus carrier callouts.
+import { clamp } from '../types';
 import type { GameState } from '../state';
 import type { Duck } from '../sim/duck';
 import { expressedAlleles, type Allele, type LocusId } from '../sim/genetics';
@@ -78,7 +79,7 @@ function swatch(color: string, label: string): HTMLElement {
 
 function gauge(label: string, fraction: number, lo: string, hi: string): HTMLElement {
   const marker = el('span', { class: 'gene-marker' });
-  marker.style.left = `${Math.max(0, Math.min(1, fraction)) * 100}%`;
+  marker.style.left = `${clamp(fraction, 0, 1) * 100}%`;
   return el(
     'div',
     { class: 'gene-gauge-row' },

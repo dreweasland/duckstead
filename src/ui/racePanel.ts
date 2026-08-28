@@ -16,7 +16,7 @@ import { dayOf } from '../sim/time';
 import { events } from '../events';
 import { computeAnim } from '../render/animation';
 import { drawDuck } from '../render/duckPainter';
-import { el, statBar } from './dom';
+import { el, statBar, statTile } from './dom';
 import { icon } from './icons';
 import { duckPortrait } from './portrait';
 
@@ -132,16 +132,14 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
       ),
     );
     // The stakes at a glance, dawn-card style.
-    const tile = (ic: Parameters<typeof icon>[0], value: string, label: string) =>
-      el('div', { class: 'race-tile' }, icon(ic, 13), el('strong', {}, value), el('span', { class: 'race-tile-label' }, label));
     card.append(
       el(
         'div',
         { class: 'race-stats' },
-        tile('coin', String(fee), 'entry'),
-        tile('star', String(prizes[0]), '1st prize'),
-        tile('starOutline', String(prizes[1] ?? 0), '2nd prize'),
-        tile('duck', String(eligible.length), eligible.length === 1 ? 'racer ready' : 'racers ready'),
+        statTile('coin', String(fee), 'entry'),
+        statTile('star', String(prizes[0]), '1st prize'),
+        statTile('starOutline', String(prizes[1] ?? 0), '2nd prize'),
+        statTile('duck', String(eligible.length), eligible.length === 1 ? 'racer ready' : 'racers ready'),
       ),
       el(
         'div',
@@ -301,10 +299,8 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
 
       const player = racers.find((r) => r.isPlayer)!;
       if (doneAt === null && (finishCount === racers.length || (player.finishedAt !== null && elapsed > 3))) {
-        if (finishCount === racers.length || player.finishedAt !== null) {
-          // Give trailing AI a beat to finish for a complete scoreboard.
-          doneAt = now + 1200;
-        }
+        // Give trailing AI a beat to finish for a complete scoreboard.
+        doneAt = now + 1200;
       }
       if (doneAt !== null && now >= doneAt) {
         finishRace(racers);

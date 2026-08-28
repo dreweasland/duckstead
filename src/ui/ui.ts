@@ -40,7 +40,8 @@ import { DECOR_ITEMS, duckCapacity, pondOccupancy } from '../sim/economy';
 
 const WORLD_H_SAFE = WORLD_H - 15;
 const DECOR_PICK_RADIUS = 26;
-import { el } from './dom';
+import { ordinal } from '../text';
+import { el, statTile } from './dom';
 import { icon } from './icons';
 import { railSignature, renderCardRail } from './cardRail';
 import { renderDuckPanel } from './duckPanel';
@@ -61,11 +62,6 @@ const CARDS_PREF_KEY = 'ducksim:ui:cards';
 // Inner scrollable lists whose scroll position must survive the periodic
 // panel rebuild. Any new scroll region in a panel belongs in this list.
 const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .society-ladder, .chronicle, .nest-grid';
-
-// A labelled stat tile for event recap cards (matches the race picker's).
-function statTile(ic: Parameters<typeof icon>[0], value: string, label: string): HTMLElement {
-  return el('div', { class: 'race-tile' }, icon(ic, 13), el('strong', {}, value), el('span', { class: 'race-tile-label' }, label));
-}
 
 // A row of already-lit lanterns for Winter Lights recaps.
 function litLanternRow(): HTMLElement {
@@ -1581,6 +1577,9 @@ export class UI {
     if (document.querySelector('.race-overlay')) return;
     const state = this.game.state;
     const eggs = state.ducks.filter((d) => d.stage === 'egg');
+    // Judged entries render as a fresh egg still with a fixed seed.
+    const sampleEgg = (genome: Duck['genome']): Duck =>
+      createDuck(createRng(7), { genome, stage: 'egg', pos: { x: 0, y: 0 }, name: 'egg' });
     const overlay = el('div', { class: 'race-overlay' });
     const card = el('div', { class: 'race-card egg-show theme-egg' });
     const timers: number[] = [];
@@ -1600,13 +1599,7 @@ export class UI {
       timers.forEach((t) => clearTimeout(t));
       const list = el('div', { class: 'race-results' });
       result.entries.forEach((entry, i) => {
-        const rng = createRng(7);
-        const sample = createDuck(rng, {
-          genome: entry.genome,
-          stage: 'egg',
-          pos: { x: 0, y: 0 },
-          name: 'egg',
-        });
+        const sample = sampleEgg(entry.genome);
         list.append(
           el(
             'div',
@@ -1651,7 +1644,7 @@ export class UI {
           el('button', { class: 'action-btn primary', onclick: close }, 'Back to the pond'),
         ),
       );
-      if (result.prize > 0 && !replay) this.toast(`Placed ${result.playerPlace + 1}${['st', 'nd', 'rd'][result.playerPlace] ?? 'th'} — +${result.prize} coins!`);
+      if (result.prize > 0 && !replay) this.toast(`Placed ${ordinal(result.playerPlace + 1)} — +${result.prize} coins!`);
     };
 
     const runCeremony = (result: import('../sim/festivals').EggShowResult) => {
@@ -1670,13 +1663,7 @@ export class UI {
       order.forEach((entry, i) => {
         timers.push(
           window.setTimeout(() => {
-            const rng = createRng(7);
-            const sample = createDuck(rng, {
-              genome: entry.genome,
-              stage: 'egg',
-              pos: { x: 0, y: 0 },
-              name: 'egg',
-            });
+            const sample = sampleEgg(entry.genome);
             stage.replaceChildren(
               el('div', { class: 'muted small' }, `Now judging entry ${i + 1} of ${order.length}…`),
               el(

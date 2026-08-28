@@ -1,9 +1,12 @@
+import { clamp } from '../types';
+import { icon } from './icons';
+
 type Attrs = Record<string, string | number | boolean | ((e: Event) => void)>;
 type Child = Node | string | null | undefined;
 
 export function statBar(pct: number, color: string, thin = false): HTMLElement {
   const fill = el('div', { class: 'bar-fill' });
-  fill.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+  fill.style.width = `${clamp(pct, 0, 100)}%`;
   fill.style.background = color;
   return el('div', { class: thin ? 'bar thin' : 'bar' }, fill);
 }
@@ -28,4 +31,10 @@ export function el(tag: string, attrs: Attrs = {}, ...children: Child[]): HTMLEl
     node.append(child instanceof Node ? child : document.createTextNode(child));
   }
   return node;
+}
+
+// A labelled stat tile — the race picker, festival recaps, and market tally
+// all share this shape.
+export function statTile(ic: Parameters<typeof icon>[0], value: string, label: string): HTMLElement {
+  return el('div', { class: 'race-tile' }, icon(ic, 13), el('strong', {}, value), el('span', { class: 'race-tile-label' }, label));
 }
