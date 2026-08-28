@@ -17,6 +17,7 @@ import { events } from '../events';
 import { computeAnim } from '../render/animation';
 import { drawDuck } from '../render/duckPainter';
 import { el, statBar, statTile } from './dom';
+import { eventCard } from './eventCard';
 import { icon } from './icons';
 import { duckPortrait } from './portrait';
 
@@ -99,37 +100,27 @@ export function raceRested(game: Game, duck: Duck): boolean {
 }
 
 export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): void {
-  if (document.querySelector('.race-overlay')) return;
   const tierDef = opts.league ? currentTier(game.state) : null;
   const title = opts.title ?? tierDef?.name ?? 'Pond Derby';
   const entryFee = opts.entryFee ?? tierDef?.entryFee ?? BALANCE.raceEntryFee;
   const prizes = opts.prizes ?? tierDef?.prizes ?? BALANCE.racePrizes;
   const aiBoost = opts.aiBoost ?? tierDef?.aiBoost ?? 1;
-  const overlay = el('div', { class: 'race-overlay' });
-  const card = el('div', { class: 'race-card theme-derby' });
-  overlay.append(card);
-  document.getElementById('ui-root')!.append(overlay);
 
   let raf = 0;
   let keyHandler: ((e: KeyboardEvent) => void) | null = null;
-
-  const close = () => {
+  const ev = eventCard(document.getElementById('ui-root')!, 'derby', '', () => {
     cancelAnimationFrame(raf);
     if (keyHandler) window.removeEventListener('keydown', keyHandler);
-    overlay.remove();
-  };
+  });
+  if (!ev) return;
+  const { card, close, header } = ev;
 
   const showPicker = () => {
     card.classList.remove('win');
     const eligible = raceEligible(game);
     const fee = entryFee;
     card.replaceChildren(
-      el(
-        'div',
-        { class: 'race-header' },
-        el('strong', { class: 'with-icon' }, icon('flag', 16), title),
-        el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
-      ),
+      header('flag', title),
     );
     // The stakes at a glance, dawn-card style.
     card.append(
@@ -232,12 +223,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     const meter = el('div', { class: 'race-meter' }, meterFill);
     const hint = el('div', { class: 'muted small race-hint' }, 'Click the water (or press Space) when the marker is centered to paddle!');
     card.replaceChildren(
-      el(
-        'div',
-        { class: 'race-header' },
-        el('strong', { class: 'with-icon' }, icon('flag', 16), title),
-        el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
-      ),
+      header('flag', title),
       canvas,
       meter,
       hint,
@@ -396,12 +382,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     // A win turns the header band gold.
     card.classList.toggle('win', playerPlace === 0 && !next);
     card.replaceChildren(
-      el(
-        'div',
-        { class: 'race-header' },
-        el('strong', { class: 'with-icon' }, icon('flag', 16), headline),
-        el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
-      ),
+      header('flag', headline),
       list,
       actionRow,
     );

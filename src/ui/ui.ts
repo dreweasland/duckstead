@@ -44,6 +44,7 @@ import { ordinal } from '../text';
 import { el, statTile } from './dom';
 import { icon } from './icons';
 import { railSignature, renderCardRail } from './cardRail';
+import { backToPondRow, eventCard } from './eventCard';
 import { renderDuckPanel } from './duckPanel';
 import { pickMateFromPond, renderBreedingPanel } from './breedingPanel';
 import { renderShopPanel } from './shopPanel';
@@ -1221,10 +1222,9 @@ export class UI {
 
   // A finished Grand Prix, recapped from the festival chip.
   private showRaceRecap(race: { heatPlace: number; finalPlace?: number; prize: number }): void {
-    if (document.querySelector('.race-overlay')) return;
-    const overlay = el('div', { class: 'race-overlay' });
     const won = race.finalPlace === 0;
-    const card = el('div', { class: `race-card theme-derby${won ? ' win' : ''}` });
+    const ev = eventCard(this.root, 'derby', won ? 'win' : '');
+    if (!ev) return;
     const round = (label: string, placed: number, note: string, reward: number) =>
       el(
         'div',
@@ -1240,18 +1240,11 @@ export class UI {
       round('Qualifying Heat', race.heatPlace, race.heatPlace <= 1 ? 'advanced to the final' : 'eliminated', 0),
     );
     if (race.finalPlace !== undefined) rows.append(round('Final', race.finalPlace, won ? 'champion!' : 'finished', race.prize));
-    card.append(
-      el(
-        'div',
-        { class: 'race-header' },
-        el('strong', { class: 'with-icon' }, icon('flag', 16), won ? 'Grand Prix champions!' : festivalTitle(this.game.state, 'grandPrix')),
-        el('button', { class: 'close-btn', onclick: () => overlay.remove() }, icon('close', 13)),
-      ),
+    ev.card.append(
+      ev.header('flag', won ? 'Grand Prix champions!' : festivalTitle(this.game.state, 'grandPrix')),
       rows,
-      el('div', { class: 'actions race-actions' }, el('button', { class: 'action-btn primary', onclick: () => overlay.remove() }, 'Back to the pond')),
+      backToPondRow(ev.close),
     );
-    overlay.append(card);
-    this.root.append(overlay);
   }
 
   // Market Day: a queue of smitten buyers; accept, haggle, or send them off.
@@ -1276,15 +1269,10 @@ export class UI {
     const buyers = market.buyers;
     if (buyers.length === 0) {
       // Packed up: show the day's tally instead of a shrug.
-      const overlay0 = el('div', { class: 'race-overlay' });
-      const card0 = el('div', { class: 'race-card theme-market' });
-      card0.append(
-        el(
-          'div',
-          { class: 'race-header' },
-          el('strong', { class: 'with-icon' }, icon('cart', 16), 'Market Day — closed'),
-          el('button', { class: 'close-btn', onclick: () => overlay0.remove() }, icon('close', 13)),
-        ),
+      const ev0 = eventCard(this.root, 'market');
+      if (!ev0) return;
+      ev0.card.append(
+        ev0.header('cart', 'Market Day — closed'),
         el(
           'div',
           { class: 'race-stats fit' },
@@ -1296,19 +1284,14 @@ export class UI {
           { class: 'egg-comment' },
           market.sold > 0 ? 'The stalls have packed up until next autumn.' : 'The stalls have packed up — nothing sold this year.',
         ),
-        el('div', { class: 'actions race-actions' }, el('button', { class: 'action-btn primary', onclick: () => overlay0.remove() }, 'Back to the pond')),
+        backToPondRow(ev0.close),
       );
-      overlay0.append(card0);
-      this.root.append(overlay0);
       return;
     }
 
-    const overlay = el('div', { class: 'race-overlay' });
-    const card = el('div', { class: 'race-card theme-market' });
-    const close = () => {
-      overlay.remove();
-      this.floatHost.classList.remove('above-overlay');
-    };
+    const ev = eventCard(this.root, 'market', '', () => this.floatHost.classList.remove('above-overlay'));
+    if (!ev) return;
+    const { card, close, header } = ev;
     let index = 0;
     // A buyer leaves the queue when dealt with; the stall is "entered" once
     // the last one goes.
@@ -1321,12 +1304,7 @@ export class UI {
     const showBuyer = () => {
       if (index >= buyers.length) {
         card.replaceChildren(
-          el(
-            'div',
-            { class: 'race-header' },
-            el('strong', { class: 'with-icon' }, icon('cart', 16), 'Market Day'),
-            el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
-          ),
+          header('cart', 'Market Day'),
           el(
             'div',
             { class: 'race-stats fit' },
@@ -1399,12 +1377,7 @@ export class UI {
         ),
       );
       card.replaceChildren(
-        el(
-          'div',
-          { class: 'race-header' },
-          el('strong', { class: 'with-icon' }, icon('cart', 16), `Market Day — ${buyers.length} buyer${buyers.length === 1 ? '' : 's'} waiting`),
-          el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
-        ),
+        header('cart', `Market Day — ${buyers.length} buyer${buyers.length === 1 ? '' : 's'} waiting`),
         el(
           'div',
           { class: 'egg-stage market-stage' },
@@ -1431,8 +1404,6 @@ export class UI {
       );
     };
 
-    overlay.append(card);
-    this.root.append(overlay);
     showBuyer();
   }
 
@@ -1443,15 +1414,10 @@ export class UI {
     if (festivalEnteredToday(state, 'winterLights')) {
       const last = state.lastFestival;
       if (last?.kind === 'winterLights' && last.day === dayOf(state.clock) && last.winter) {
-        const overlay0 = el('div', { class: 'race-overlay' });
-        const card0 = el('div', { class: 'race-card theme-winter' });
-        card0.append(
-          el(
-            'div',
-            { class: 'race-header' },
-            el('strong', { class: 'with-icon' }, icon('sparkle', 16), 'The pond glows'),
-            el('button', { class: 'close-btn', onclick: () => overlay0.remove() }, icon('close', 13)),
-          ),
+        const ev0 = eventCard(this.root, 'winter');
+        if (!ev0) return;
+        ev0.card.append(
+          ev0.header('sparkle', 'The pond glows'),
           litLanternRow(),
           el(
             'div',
@@ -1460,22 +1426,17 @@ export class UI {
             statTile('wheat', `+${last.winter.premiumFeed}`, 'premium feed'),
           ),
           el('div', { class: 'egg-comment' }, last.winter.wishText),
-          el('div', { class: 'actions race-actions' }, el('button', { class: 'action-btn primary', onclick: () => overlay0.remove() }, 'Back to the pond')),
+          backToPondRow(ev0.close),
         );
-        overlay0.append(card0);
-        this.root.append(overlay0);
         return;
       }
       this.toast('The lanterns already burn bright — enjoy the glow.');
       return;
     }
-    const overlay = el('div', { class: 'race-overlay' });
-    const card = el('div', { class: 'race-card theme-winter' });
     let wishTimer = 0;
-    const close = () => {
-      window.clearTimeout(wishTimer);
-      overlay.remove();
-    };
+    const ev = eventCard(this.root, 'winter', '', () => window.clearTimeout(wishTimer));
+    if (!ev) return;
+    const { card, close, header } = ev;
     let lit = 0;
 
     const wishLine = el('div', { class: 'egg-comment' }, 'Light each lantern and make a wish…');
@@ -1505,12 +1466,7 @@ export class UI {
                   );
                 }
                 card.replaceChildren(
-                  el(
-                    'div',
-                    { class: 'race-header' },
-                    el('strong', { class: 'with-icon' }, icon('sparkle', 16), 'The last lantern is yours'),
-                    el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
-                  ),
+                  header('sparkle', 'The last lantern is yours'),
                   el('div', { class: 'egg-comment' }, 'Four wishes for the flock. The fifth is for the pond. Choose.'),
                   choices,
                 );
@@ -1519,12 +1475,7 @@ export class UI {
                 const finale = el(
                   'div',
                   {},
-                  el(
-                    'div',
-                    { class: 'race-header' },
-                    el('strong', { class: 'with-icon' }, icon('sparkle', 16), 'The pond glows'),
-                    el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
-                  ),
+                  header('sparkle', 'The pond glows'),
                   el(
                     'div',
                     { class: 'egg-comment' },
@@ -1559,18 +1510,7 @@ export class UI {
       lanternRow.append(lantern);
     });
 
-    card.append(
-      el(
-        'div',
-        { class: 'race-header' },
-        el('strong', { class: 'with-icon' }, icon('sparkle', 16), 'Winter Lights'),
-        el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
-      ),
-      wishLine,
-      lanternRow,
-    );
-    overlay.append(card);
-    this.root.append(overlay);
+    card.append(header('sparkle', 'Winter Lights'), wishLine, lanternRow);
   }
 
   private openEggShow(): void {
@@ -1580,20 +1520,11 @@ export class UI {
     // Judged entries render as a fresh egg still with a fixed seed.
     const sampleEgg = (genome: Duck['genome']): Duck =>
       createDuck(createRng(7), { genome, stage: 'egg', pos: { x: 0, y: 0 }, name: 'egg' });
-    const overlay = el('div', { class: 'race-overlay' });
-    const card = el('div', { class: 'race-card egg-show theme-egg' });
     const timers: number[] = [];
-    const close = () => {
-      timers.forEach((t) => clearTimeout(t));
-      overlay.remove();
-    };
-    const header = () =>
-      el(
-        'div',
-        { class: 'race-header' },
-        el('strong', { class: 'with-icon' }, icon('egg', 16), 'Spring Egg Show'),
-        el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
-      );
+    const ev = eventCard(this.root, 'egg', 'egg-show', () => timers.forEach((t) => clearTimeout(t)));
+    if (!ev) return;
+    const { card, close } = ev;
+    const header = (): HTMLElement => ev.header('egg', 'Spring Egg Show');
 
     const showStandings = (result: import('../sim/festivals').EggShowResult, replay = false) => {
       timers.forEach((t) => clearTimeout(t));
@@ -1621,17 +1552,7 @@ export class UI {
       });
       card.classList.toggle('win', result.playerPlace === 0);
       card.replaceChildren(
-        el(
-          'div',
-          { class: 'race-header' },
-          el(
-            'strong',
-            { class: 'with-icon' },
-            icon('egg', 16),
-            result.playerPlace === 0 ? 'Best in Show!' : 'Final standings',
-          ),
-          el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
-        ),
+        ev.header('egg', result.playerPlace === 0 ? 'Best in Show!' : 'Final standings'),
         el(
           'div',
           { class: 'muted small' },
@@ -1685,8 +1606,6 @@ export class UI {
     const last = state.lastFestival;
     if (festivalEnteredToday(state, 'eggShow') && last?.kind === 'eggShow' && last.day === dayOf(state.clock) && last.eggShow) {
       showStandings(last.eggShow, true);
-      overlay.append(card);
-      this.root.append(overlay);
       return;
     }
     if (festivalEnteredToday(state, 'eggShow')) {
@@ -1723,8 +1642,6 @@ export class UI {
       }
       card.append(grid);
     }
-    overlay.append(card);
-    this.root.append(overlay);
   }
 
   private showTakeoverOverlay(remote = false): void {
