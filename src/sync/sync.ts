@@ -4,7 +4,7 @@
 // game is exactly the offline localStorage game it always was.
 import { events } from '../events';
 import type { Game } from '../game';
-import { SAVE_KEY } from '../save/save';
+import { deserialize, SAVE_KEY } from '../save/save';
 import { claimSave, pullSave, pullMeta, pushSave } from './syncClient';
 import { isSyncConfigured, loadSyncMeta, saveSyncMeta } from './syncMeta';
 import { planBoot, planPoll, planPush } from './syncPlan';
@@ -16,6 +16,26 @@ const POLL_MS = 15_000;
 
 function setStatus(status: SyncStatus): void {
   events.emit('sync-status', status);
+}
+
+// A cloud blob must prove readable before it may replace the local save — a
+// truncated or foreign-version response would otherwise destroy local
+// progress and trip the corrupt-save path on the next load.
+export function isReadableSave(blob: string): boolean {
+  try {
+    deserialize(blob);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Write a validated cloud blob into localStorage. Returns false (writing
+// nothing) when the blob is missing or unreadable.
+function adoptBlob(blob: string | null): boolean {
+  if (!blob || !isReadableSave(blob)) return false;
+  localStorage.setItem(SAVE_KEY, blob);
+  return true;
 }
 
 // ---- boot ------------------------------------------------------------------
@@ -48,9 +68,16 @@ export async function prepareCloudBoot(): Promise<void> {
     localSavedAt,
   });
   const adoptCloud = (): void => {
-    if (cloud.blob) localStorage.setItem(SAVE_KEY, cloud.blob);
-    meta.lastSyncedSeq = cloud.seq;
-    meta.dirty = false;
+    if (adoptBlob(cloud.blob)) {
+      meta.lastSyncedSeq = cloud.seq;
+      meta.dirty = false;
+    } else {
+      // Unreadable (or empty) cloud blob: keep playing local, adopt the
+      // cloud head as our CAS base, and mark dirty so the next push replaces
+      // the bad blob with a good one (the DO keeps an undo copy).
+      meta.lastSyncedSeq = cloud.seq;
+      meta.dirty = true;
+    }
   };
   if (decision === 'use-cloud') {
     adoptCloud();
@@ -208,9 +235,10 @@ export async function claimAndReload(): Promise<void> {
   const meta = loadSyncMeta();
   if (!meta) return;
   const cloud = await claimSave(meta);
-  if (cloud.blob) localStorage.setItem(SAVE_KEY, cloud.blob);
+  // Same rule as boot: an unreadable cloud blob never replaces the local
+  // save — we keep local, stay dirty, and push a good blob over it.
+  meta.dirty = !adoptBlob(cloud.blob);
   meta.lastSyncedSeq = cloud.seq;
-  meta.dirty = false;
   saveSyncMeta(meta);
   location.reload();
 }

@@ -69,3 +69,18 @@ describe('planPush', () => {
     expect(planPush({ kind: 'offline' })).toBe('retry-offline');
   });
 });
+
+// Cloud blobs must prove readable before they may replace the local save.
+import { isReadableSave } from './sync';
+import { createNewGame } from '../state';
+import { serialize } from '../save/save';
+
+describe('cloud blob validation', () => {
+  it('accepts a genuine save blob and rejects garbage', () => {
+    const { state } = createNewGame(21);
+    expect(isReadableSave(serialize(state))).toBe(true);
+    expect(isReadableSave('{"version":1,"state":{"broken":true}}')).toBe(false);
+    expect(isReadableSave('not json at all')).toBe(false);
+    expect(isReadableSave('{"version":99,"state":{}}')).toBe(false);
+  });
+});
