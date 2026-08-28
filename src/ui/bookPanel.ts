@@ -67,7 +67,7 @@ function breedsTab(state: GameState, discovered: number, total: number): HTMLEle
       'div',
       { class: 'muted small book-legend' },
       el('a', { class: 'guide-link', href: '/guide/game/', target: '_blank', rel: 'noopener' }, 'The pond guide ↗'),
-      el('a', { class: 'guide-link', href: '/guide/', target: '_blank', rel: 'noopener' }, 'The genetics guide ↗'),
+      el('a', { class: 'guide-link', href: '/guide/genetics/', target: '_blank', rel: 'noopener' }, 'The genetics guide ↗'),
     ),
     el(
       'div',

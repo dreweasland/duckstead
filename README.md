@@ -191,13 +191,13 @@ ducks, then "Breed selected" to inspect inheritance without playing the game.
 
 Two player guides ship with the site: **`/guide/game/`**, the pond guide —
 the daily loop, a duck's life, money, competition, the rival ponds, the
-Society, the calendar, and the long game — and **`/guide/`**, the genetics
+Society, the calendar, and the long game — and **`/guide/genetics/`**, the genetics
 guide (below). Both are linked from the Book panel.
 
 ## How the genetics work
 
 The full player guide — every locus, dominance rule, standard, and breeding
-recipe — lives in [GENETICS.md](GENETICS.md), and ships with the site at `/guide/`. The short version:
+recipe — lives in [GENETICS.md](GENETICS.md), and ships with the site at `/guide/genetics/`. The short version:
 
 Each duck has a diploid genome across 15 loci:
 

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from 'vitest';
 import pondGuide from '../public/guide/game/index.html?raw';
-import geneticsGuide from '../public/guide/index.html?raw';
+import geneticsGuide from '../public/guide/genetics/index.html?raw';
 import bookPanelSource from './ui/bookPanel.ts?raw';
 import { FESTIVAL_NAMES } from './sim/festivals';
 import { RANKS } from './sim/society';
@@ -38,9 +38,9 @@ describe('the pond guide', () => {
   });
 
   it('links both guides to each other and the Book links to both', () => {
-    expect(guide).toContain('href="/guide/"');
+    expect(guide).toContain('href="/guide/genetics/"');
     expect(geneticsGuide).toContain('href="/guide/game/"');
     expect(bookPanelSource).toContain("'/guide/game/'");
-    expect(bookPanelSource).toContain("'/guide/'");
+    expect(bookPanelSource).toContain("'/guide/genetics/'");
   });
 });
