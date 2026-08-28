@@ -31,15 +31,20 @@ export class Game {
 
   constructor() {
     const loaded = loadFromStorage();
-    if (loaded) {
-      this.state = loaded;
-      this.rng = createRng(loaded.rngState);
+    if (loaded.kind === 'loaded') {
+      this.state = loaded.state;
+      this.rng = createRng(loaded.state.rngState);
       events.emit('toast', 'Welcome back to the pond!');
     } else {
       const fresh = createNewGame((Math.random() * 0xffffffff) >>> 0);
       this.state = fresh.state;
       this.rng = fresh.rng;
-      events.emit('toast', 'Welcome to your new pond!');
+      events.emit(
+        'toast',
+        loaded.kind === 'corrupt'
+          ? 'Your old save could not be read — a copy is kept safe in the browser. Starting a fresh pond.'
+          : 'Welcome to your new pond!',
+      );
     }
 
     // Claim save ownership; the storage event fires only in *other* tabs, so

@@ -7,6 +7,9 @@ import { clamp } from '../types';
 
 export const SAVE_KEY = 'ducksim:save:v1';
 export const SAVE_VERSION = 1;
+// Where an unreadable save blob is stashed before a fresh pond may begin —
+// a corrupt save must never be silently autosaved over.
+export const CORRUPT_KEY = 'ducksim:save:corrupt';
 // Which browser tab currently owns the save. Only the owner may write —
 // otherwise two open tabs silently clobber each other's autosaves.
 export const OWNER_KEY = 'ducksim:owner';
@@ -48,6 +51,13 @@ export function deserialize(json: string): GameState {
     duck.prevPos = { ...duck.pos };
   }
   // Saves from before the feeder/goals/bugs existed lack those fields.
+  // Container objects first — the member backfills below dereference them.
+  state.upgrades ??= {};
+  state.inventory ??= { feed: 0, premiumFeed: 0, peas: 0, worms: 0, berries: 0, medicine: 0, eggs: 0 };
+  state.foodPellets ??= [];
+  state.memorial ??= [];
+  state.pendingClutches ??= [];
+  state.pond ??= { cleanliness: 100 };
   state.feeder ??= { food: 0 };
   // The trough became a purchasable upgrade; players who were already using
   // one keep it rather than having it repossessed.
@@ -135,11 +145,17 @@ export function deserialize(json: string): GameState {
 }
 
 function migrate(envelope: SaveEnvelope): GameState {
-  switch (envelope.version) {
+  const state = envelope?.state;
+  switch (envelope?.version) {
     case 1:
-      return envelope.state;
+      // Minimal shape guard: without a flock and a clock this isn't a save,
+      // and the backfills below would half-mutate it before crashing.
+      if (!state || !Array.isArray(state.ducks) || typeof state.clock?.totalTicks !== 'number') {
+        throw new Error('Save blob is not a recognizable game state');
+      }
+      return state;
     default:
-      throw new Error(`Unknown save version ${envelope.version}`);
+      throw new Error(`Unknown save version ${envelope?.version}`);
   }
 }
 
@@ -151,13 +167,31 @@ export function saveToStorage(state: GameState): void {
   }
 }
 
-export function loadFromStorage(): GameState | null {
+export type LoadedSave =
+  | { kind: 'loaded'; state: GameState }
+  | { kind: 'empty' }
+  // Unreadable: the raw blob has been copied to CORRUPT_KEY, so the fresh
+  // pond that replaces it can autosave without destroying the original.
+  | { kind: 'corrupt' };
+
+export function loadFromStorage(): LoadedSave {
+  let json: string | null = null;
   try {
-    const json = localStorage.getItem(SAVE_KEY);
-    if (!json) return null;
-    return deserialize(json);
+    json = localStorage.getItem(SAVE_KEY);
   } catch {
-    return null;
+    return { kind: 'empty' }; // storage unavailable: writes would fail too
+  }
+  if (!json) return { kind: 'empty' };
+  try {
+    return { kind: 'loaded', state: deserialize(json) };
+  } catch {
+    try {
+      localStorage.setItem(CORRUPT_KEY, json);
+    } catch {
+      // Quota exhausted: the stash failed — but then the autosave that would
+      // clobber SAVE_KEY will fail for the same reason, so the blob survives.
+    }
+    return { kind: 'corrupt' };
   }
 }
 

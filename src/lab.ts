@@ -31,7 +31,7 @@ export function runLab(): void {
   const status = el('span', { class: 'muted small' });
   const loadPond = () => {
     const save = loadFromStorage();
-    const flock = save?.ducks.filter((d) => d.stage !== 'egg') ?? [];
+    const flock = save.kind === 'loaded' ? save.state.ducks.filter((d) => d.stage !== 'egg') : [];
     if (flock.length === 0) {
       status.textContent = save ? 'The pond has no hatched ducks yet.' : 'No pond save found in this browser.';
       return;
