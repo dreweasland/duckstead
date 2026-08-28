@@ -80,7 +80,6 @@ export function tickBreeding(state: GameState, rng: Rng): void {
       egg.nestOffset = offset;
       state.ducks.push(egg);
       state.stats.ducksBred += 1;
-      events.emit('egg-laid', egg);
       events.emit('toast', `${mother.name} laid an egg!`);
     } else {
       events.emit(

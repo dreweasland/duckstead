@@ -11,6 +11,7 @@ import {
 import { createDuck } from '../sim/duck';
 import { createRng } from '../rng';
 import type { GameState, DuckSummary } from '../state';
+import { flock } from '../state';
 import type { Duck } from '../sim/duck';
 import { chronicleDate, type ChronicleKind } from '../sim/chronicle';
 import { pedigreeScore } from '../sim/pedigree';
@@ -174,7 +175,7 @@ function chronicleTab(state: GameState): HTMLElement {
 
 function recordsTab(state: GameState): HTMLElement {
   const s = state.stats;
-  const living = state.ducks.filter((d) => d.stage !== 'egg');
+  const living = flock(state);
   const oldestLiving = living.reduce<Duck | null>((best, d) => {
     const age = d.bornDay !== undefined ? dayOf(state.clock) - d.bornDay : 0;
     const bestAge = best && best.bornDay !== undefined ? dayOf(state.clock) - best.bornDay : -1;

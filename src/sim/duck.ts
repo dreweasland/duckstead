@@ -169,10 +169,6 @@ export function layEgg(rng: Rng, mother: Duck, father: Duck, pos: Vec2, mutation
   return egg;
 }
 
-export function isWaterfowlActive(duck: Duck): boolean {
-  return duck.stage !== 'egg';
-}
-
 // Visual radius in world units, used for click-picking and separation.
 export function duckRadius(duck: Duck): number {
   const stageScale = duck.stage === 'duckling' ? 0.45 : duck.stage === 'juvenile' ? 0.75 : 1;

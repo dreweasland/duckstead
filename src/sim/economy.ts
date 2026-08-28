@@ -244,11 +244,6 @@ export const DECOR_ITEMS: DecorDef[] = [
   },
 ];
 
-// Decorations make the pond nicer to live at (and lure wild visitors).
-export function decorCount(state: GameState): number {
-  return state.decorations.length;
-}
-
 export function upgradeLevel(state: GameState, id: UpgradeId): number {
   return state.upgrades[id] ?? 0;
 }

@@ -1,4 +1,5 @@
 import type { GameState } from '../state';
+import { flock } from '../state';
 import { WORLD_W } from '../state';
 import type { Vec2 } from '../types';
 import { clamp } from '../types';
@@ -49,7 +50,7 @@ export function isAshore(state: GameState, p: Vec2): boolean {
 // Pond dirtiness accumulates with flock size; the bog filter halves it and
 // the waterfall's aeration slows it further.
 export function tickPond(state: GameState): void {
-  const activeDucks = state.ducks.filter((d) => d.stage !== 'egg').length;
+  const activeDucks = flock(state).length;
   const filterScale = upgradeLevel(state, 'pondFilter') > 0 ? 0.5 : 1;
   const aerationScale = upgradeLevel(state, 'waterfall') > 0 ? 0.7 : 1;
   // A crowded pond fouls faster than the headcount alone suggests.

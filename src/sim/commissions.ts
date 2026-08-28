@@ -4,6 +4,7 @@
 // within a generation or two, so there is always a next target. Pays many
 // times market price plus Society points.
 import type { GameState } from '../state';
+import { flock } from '../state';
 import type { Rng } from '../rng';
 import type { Duck } from './duck';
 import { createDuck } from './duck';
@@ -89,11 +90,11 @@ function tierFor(state: GameState): number {
 }
 
 function candidateKeys(state: GameState): string[] {
-  const flock = state.ducks.filter((d) => d.stage !== 'egg');
+  const hatched = flock(state);
   const keys = new Set<string>();
-  for (const d of flock) keys.add(breedKey(d.genome));
-  const males = flock.filter((d) => d.sex === 'M');
-  const females = flock.filter((d) => d.sex === 'F');
+  for (const d of hatched) keys.add(breedKey(d.genome));
+  const males = hatched.filter((d) => d.sex === 'M');
+  const females = hatched.filter((d) => d.sex === 'F');
   for (const m of males) for (const f of females) for (const k of childBreedKeys(m.genome, f.genome)) keys.add(k);
   return [...keys];
 }

@@ -24,7 +24,7 @@ import {
 import { createStarterDuck, DUCK_NAMES, freshName } from '../sim/duck';
 import { recordBreed } from '../sim/breedBook';
 import { dayOf } from '../sim/time';
-import { WORLD_W } from '../state';
+import { flock,  WORLD_W } from '../state';
 import { events } from '../events';
 import { FOODS, type FoodKind } from '../sim/food';
 import type { GameState } from '../state';
@@ -203,7 +203,7 @@ function suppliesTab(ctx: PanelCtx): HTMLElement {
       card({
         badge,
         name: item.name.replace(' ×10', ''),
-        sub: stock !== null ? `have ${stock}` : item.id === 'starterDuck' ? `${state.ducks.filter((d) => d.stage !== 'egg').length} on the pond` : undefined,
+        sub: stock !== null ? `have ${stock}` : item.id === 'starterDuck' ? `${flock(state).length} on the pond` : undefined,
         chips: [...meta.chips, ...(item.id !== 'medicine' && item.id !== 'starterDuck' ? ['×10'] : [])],
         blurb: meta.blurb,
         button: priceButton('Buy', cost, state.money >= cost && !full, () => {

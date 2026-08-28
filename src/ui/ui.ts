@@ -1441,7 +1441,7 @@ export class UI {
 
     const wishLine = el('div', { class: 'egg-comment' }, 'Light each lantern and make a wish…');
     const lanternRow = el('div', { class: 'lantern-row' });
-    LANTERN_WISHES.forEach((wish, i) => {
+    LANTERN_WISHES.forEach((wish) => {
       const lantern = el(
         'button',
         {
@@ -1506,7 +1506,6 @@ export class UI {
         },
         el('span', { class: 'lantern-flame' }),
       );
-      void i;
       lanternRow.append(lantern);
     });
 

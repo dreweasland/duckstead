@@ -198,7 +198,3 @@ export function loadFromStorage(): LoadedSave {
     return { kind: 'corrupt' };
   }
 }
-
-export function clearStorage(): void {
-  localStorage.removeItem(SAVE_KEY);
-}

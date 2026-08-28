@@ -1,4 +1,5 @@
 import type { GameState } from '../state';
+import { flock } from '../state';
 import { GROUND_TOP, WORLD_H, WORLD_W } from '../state';
 import type { Rng } from '../rng';
 import type { Vec2 } from '../types';
@@ -63,7 +64,7 @@ const FRIEND_STREAK_NEEDED = 5;
 
 function tickFriendships(state: GameState): void {
   if (state.clock.totalTicks % FRIEND_SAMPLE_TICKS !== 0) return;
-  const active = state.ducks.filter((d) => d.stage !== 'egg');
+  const active = flock(state);
   for (const duck of active) {
     let nearest: Duck | null = null;
     let nearestDist = FRIEND_RANGE;
@@ -96,7 +97,7 @@ export function tickBehavior(state: GameState, rng: Rng): void {
   const night = isNight(state.clock);
 
   // Flock centroid, used by sociable ducks as a gentle wander bias.
-  const active = state.ducks.filter((d) => d.stage !== 'egg');
+  const active = flock(state);
   const centroid = { x: 0, y: 0 };
   for (const d of active) {
     centroid.x += d.pos.x / active.length;

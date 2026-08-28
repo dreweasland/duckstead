@@ -3,6 +3,7 @@
 // with the current flock, which alleles would leave the pond forever if it
 // were sold, and is it genetically redundant?
 import type { GameState } from '../state';
+import { flock } from '../state';
 import type { Duck } from './duck';
 import { breedKey, breedLabel, representativeGenome } from './breedBook';
 import { standardMatch } from './standards';
@@ -104,18 +105,18 @@ function flockSignature(state: GameState): string {
 }
 
 function computeFlockValues(state: GameState): Map<string, BreedingValue> {
-  const flock = state.ducks.filter((d) => d.stage !== 'egg');
+  const hatched = flock(state);
   // Elders are past breeding: they reach no new breeds, their genes can't be
   // passed on (so they neither hold nor lose "key" status), and they don't
   // cover anyone. They still compete for best-of-breed — genes are genes.
-  const breeders = flock.filter((d) => d.stage !== 'elder');
+  const breeders = hatched.filter((d) => d.stage !== 'elder');
   const discovered = new Set(Object.keys(state.breedBook));
   const males = breeders.filter((d) => d.sex === 'M');
   const females = breeders.filter((d) => d.sex === 'F');
 
   // Undiscovered reach per duck (elders keep an empty set).
   const reach = new Map<string, Set<string>>();
-  for (const d of flock) reach.set(d.id, new Set());
+  for (const d of hatched) reach.set(d.id, new Set());
   for (const m of males) {
     for (const f of females) {
       for (const key of pairKeys(m, f)) {
@@ -129,7 +130,7 @@ function computeFlockValues(state: GameState): Map<string, BreedingValue> {
   // Best-of-breed per breed key.
   const bestPct = new Map<string, number>();
   const myKeyOf = new Map<string, string>();
-  for (const d of flock) {
+  for (const d of hatched) {
     const key = breedKey(d.genome);
     myKeyOf.set(d.id, key);
     const pct = standardPctOf(d, key);
@@ -138,14 +139,14 @@ function computeFlockValues(state: GameState): Map<string, BreedingValue> {
 
   const signature = (d: Duck) => BOOK_LOCI.map((id) => [...d.genome[id]].sort().join('')).join('|');
   const sigDucks = new Map<string, Array<{ id: string; name: string }>>();
-  for (const d of flock) {
+  for (const d of hatched) {
     const sig = signature(d);
     if (!sigDucks.has(sig)) sigDucks.set(sig, []);
     sigDucks.get(sig)!.push({ id: d.id, name: d.name });
   }
 
   const out = new Map<string, BreedingValue>();
-  for (const duck of flock) {
+  for (const duck of hatched) {
     const mine = reach.get(duck.id)!;
     const sameSex = breeders.filter((d) => d.sex === duck.sex && d.id !== duck.id);
     const others = new Set<string>();
@@ -163,7 +164,7 @@ function computeFlockValues(state: GameState): Map<string, BreedingValue> {
     // Best of breed: strictly the top (ties don't count, so twins aren't both "best").
     // Genes are genes: a duckling with the best match is best of breed even
     // before its colours show.
-    const tiedOrBetter = flock.filter((d) => d.id !== duck.id && myKeyOf.get(d.id) === myKey && standardPctOf(d, myKey) >= standardPct).length;
+    const tiedOrBetter = hatched.filter((d) => d.id !== duck.id && myKeyOf.get(d.id) === myKey && standardPctOf(d, myKey) >= standardPct).length;
     const bestOfBreed = tiedOrBetter === 0;
 
     const uniqueAlleles: string[] = [];
@@ -230,5 +231,5 @@ export function verdictReason(value: BreedingValue): string {
     const shown = value.coveredBy.slice(0, 3).join(', ') + (value.coveredBy.length > 3 ? ` and ${value.coveredBy.length - 3} more` : '');
     return `${shown} can reach everything this one can.`;
   }
-  return 'No undiscovered breeds in reach with the current flock.';
+  return 'No undiscovered breeds in reach with the current hatched.';
 }

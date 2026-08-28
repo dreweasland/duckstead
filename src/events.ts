@@ -4,8 +4,6 @@ export type GameEvent =
   | 'toast'
   | 'dawn' // 06:00 — the day's briefing
   | 'favourite-found' // a duck ate its favourite treat for the first time
-  | 'unlock' // a panel became available
-  | 'egg-laid'
   | 'egg-hatched'
   | 'duck-grew' // a duck moved up a life stage; payload { duck, to: 'juvenile' | 'adult' | 'elder' }
   | 'duck-died' // payload { duck, descendants, honoured, ageDays } for the farewell banner

@@ -5,6 +5,7 @@
 //   Autumn  — Market Day (sale prices ×1.5, shop consumables −20%)
 //   Winter  — Winter Lights (lights over the pond, happiness decay paused)
 import type { GameState } from '../state';
+import { flock } from '../state';
 import type { GameClock } from './time';
 import { dayOf, dayOfSeason, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 import { chronicle } from './chronicle';
@@ -216,7 +217,7 @@ export const HAGGLE_SUCCESS = 0.55;
 // Up to three buyers, each smitten with a specific duck from the flock.
 export function generateMarketBuyers(state: GameState, rng: Rng): MarketBuyer[] {
   if (festivalToday(state.clock) !== 'marketDay') return [];
-  const candidates = state.ducks.filter((d) => d.stage !== 'egg');
+  const candidates = flock(state);
   const buyers: MarketBuyer[] = [];
   const names = [...MARKET_BUYERS];
   const pool = [...candidates];

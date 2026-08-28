@@ -2,6 +2,7 @@
 // premium, and (2) rare wild ducks drawn to a well-kept pond, recruitable
 // with premium-feed treats — the non-grind faucet for rare alleles.
 import type { GameState } from '../state';
+import { flock } from '../state';
 import type { Rng } from '../rng';
 import type { Duck } from './duck';
 import { createDuck, DUCK_NAMES, freshName } from './duck';
@@ -86,7 +87,7 @@ export function tickVisitors(state: GameState, rng: Rng): void {
 
   // 10:00 — a wild duck may drop by if the pond is inviting.
   if (state.clock.totalTicks % TICKS_PER_DAY === 10 * TICKS_PER_HOUR) {
-    const active = state.ducks.filter((d) => d.stage !== 'egg');
+    const active = flock(state);
     const avgHappy =
       active.length > 0 ? active.reduce((sum, d) => sum + d.needs.happiness, 0) / active.length : 0;
     // Decorations make the pond easier to fall for.
@@ -121,7 +122,7 @@ export function makeRequest(rng: Rng, day: number, state?: GameState): BuyerRequ
 }
 
 function flockHasAllRare(state: GameState): boolean {
-  const g = state.ducks.filter((d) => d.stage !== 'egg').map((d) => d.genome);
+  const g = flock(state).map((d) => d.genome);
   return g.some((x) => x.baseColor.includes('B')) && g.some((x) => x.billColor.includes('P')) && g.some((x) => x.crest[0] === 'R' && x.crest[1] === 'R');
 }
 

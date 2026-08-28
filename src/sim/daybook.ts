@@ -2,6 +2,7 @@
 // opportunities (buyers, visitors, eggs, festivals) are legible in one place
 // instead of scattered across toasts.
 import type { GameState } from '../state';
+import { flock } from '../state';
 import type { Duck } from './duck';
 import { breedReadiness, eggWarmth } from './needs';
 import { duckCapacity, henEggPrice, overcrowding, pondHasRoom, pondOccupancy } from './economy';
@@ -53,7 +54,7 @@ function plural(n: number, word: string, suffix = 's'): string {
 export function dawnReport(state: GameState): DawnReport {
   const season = seasonOf(state.clock);
   const seasonName = season.charAt(0).toUpperCase() + season.slice(1);
-  const active = state.ducks.filter((d) => d.stage !== 'egg');
+  const active = flock(state);
   const eggs = state.ducks.filter((d) => d.stage === 'egg');
 
   // Festival chip.

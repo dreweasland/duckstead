@@ -21,6 +21,12 @@ export let WORLD_W = 960;
 // and cloud push (each entry carries a full genome; at 16x ducks die
 // continuously). Keep the newest MEMORIAL_CAP, but never evict the record
 // holders the Book celebrates.
+// The hatched flock — the predicate everyone was inlining (a dead helper,
+// isWaterfowlActive, once documented the same idea in duck.ts).
+export function flock(state: GameState): Duck[] {
+  return state.ducks.filter((d) => d.stage !== 'egg');
+}
+
 export const MEMORIAL_CAP = 80;
 
 export function trimMemorial(memorial: DuckSummary[]): DuckSummary[] {
