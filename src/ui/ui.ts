@@ -388,8 +388,11 @@ export class UI {
       const rect = host.getBoundingClientRect();
       drag = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
       host.classList.add('dragging');
-      // Bring the dragged card to the front.
-      host.style.zIndex = String(30 + (this.zTop += 1));
+      // Bring the dragged card to the front — unless it's been lifted above
+      // an event overlay (Market Day's pedestal), where the class sets the
+      // stacking and an inline value would drop it back under the overlay.
+      if (host.classList.contains('above-overlay')) host.style.zIndex = '';
+      else host.style.zIndex = String(30 + (this.zTop += 1));
       e.preventDefault();
     });
     const onMove = (e: PointerEvent): void => {

@@ -285,6 +285,9 @@ export function openMarketStall(host: FestivalHost): void {
             onclick: () => {
               // The duck card normally sits under the stall overlay; lift
               // it above and it steps aside so both stay readable.
+              // A card that was ever dragged carries an inline z-index that
+              // would beat the lifting class; clear it first.
+              host.floatHost.style.zIndex = '';
               host.floatHost.classList.add('above-overlay');
               host.selectDuck(duck.id);
             },
