@@ -47,7 +47,7 @@ import { renderDuckPanel } from './duckPanel';
 import { pickMateFromPond, renderBreedingPanel } from './breedingPanel';
 import { renderShopPanel } from './shopPanel';
 import { renderRosterPanel } from './rosterPanel';
-import { renderSavePanel } from './savePanel';
+import { renderSavePanel, resetSavePanelState } from './savePanel';
 import { claimAndReload } from '../sync/sync';
 import { isSyncConfigured } from '../sync/syncMeta';
 import { renderBookPanel } from './bookPanel';
@@ -109,7 +109,7 @@ export class UI {
   // Where the floating duck card sits; remembered across opens this session.
   private floatPos: { x: number; y: number } | null = null;
   // Pinned duck cards: extra floating copies kept open for comparison.
-  private pinned: Array<{ id: string; host: HTMLElement; pos: { x: number; y: number } }> = [];
+  private pinned: Array<{ id: string; host: HTMLElement; pos: { x: number; y: number }; dispose: () => void }> = [];
   private showCards = localStorage.getItem(CARDS_PREF_KEY) === '1';
 
   constructor(
@@ -598,14 +598,10 @@ export class UI {
   // Drag the floating duck card by its header. Delegated so it survives the
   // panel's periodic rebuilds.
   private bindFloatDrag(): void {
-    this.bindDrag(
-      this.floatHost,
-      () => this.floatPos,
-      (p) => {
-        this.floatPos = p;
-        this.applyFloatPos();
-      },
-    );
+    this.bindDrag(this.floatHost, (p) => {
+      this.floatPos = p;
+      this.applyFloatPos();
+    });
     window.addEventListener('resize', () => {
       if (this.floatPos) {
         this.floatPos = this.clampFloatPos(this.floatPos.x, this.floatPos.y);
@@ -620,7 +616,9 @@ export class UI {
   }
 
   // Drag a floating host by its header. Delegated so it survives rebuilds.
-  private bindDrag(host: HTMLElement, get: () => { x: number; y: number } | null, set: (p: { x: number; y: number }) => void): void {
+  // Returns a disposer: the window-level listeners must die with the host,
+  // or every pin/unpin cycle leaks two permanent handlers.
+  private bindDrag(host: HTMLElement, set: (p: { x: number; y: number }) => void): () => void {
     let drag: { dx: number; dy: number } | null = null;
     host.addEventListener('pointerdown', (e) => {
       const header = (e.target as HTMLElement).closest('.panel-header');
@@ -632,7 +630,7 @@ export class UI {
       host.style.zIndex = String(30 + (this.zTop += 1));
       e.preventDefault();
     });
-    window.addEventListener('pointermove', (e) => {
+    const onMove = (e: PointerEvent): void => {
       if (!drag) return;
       const p = this.clampFloatPos(e.clientX - drag.dx, e.clientY - drag.dy, host);
       set(p);
@@ -640,12 +638,17 @@ export class UI {
         host.style.left = `${p.x}px`;
         host.style.top = `${p.y}px`;
       }
-    });
-    window.addEventListener('pointerup', () => {
+    };
+    const onUp = (): void => {
       drag = null;
       host.classList.remove('dragging');
-    });
-    void get;
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
   }
 
   private zTop = 0;
@@ -764,6 +767,7 @@ export class UI {
     this.openModalKind = null;
     this.panelHost.replaceChildren();
     this.modalHost.replaceChildren();
+    resetSavePanelState();
   }
 
   // Close everything (used by the takeover overlay).
@@ -791,9 +795,9 @@ export class UI {
     host.style.top = `${pos.y}px`;
     host.style.transform = 'none';
     this.root.append(host);
-    const entry = { id, host, pos };
+    const entry = { id, host, pos, dispose: () => {} };
     this.pinned.push(entry);
-    this.bindDrag(host, () => entry.pos, (p) => { entry.pos = p; });
+    entry.dispose = this.bindDrag(host, (p) => { entry.pos = p; });
     host.addEventListener('pointerdown', () => { this.pointerDownInPanel = true; });
     this.refreshPinned();
   }
@@ -801,6 +805,7 @@ export class UI {
   unpinDuck(id: string): void {
     const i = this.pinned.findIndex((p) => p.id === id);
     if (i < 0) return;
+    this.pinned[i].dispose();
     this.pinned[i].host.remove();
     this.pinned.splice(i, 1);
   }
@@ -1463,7 +1468,11 @@ export class UI {
     }
     const overlay = el('div', { class: 'race-overlay' });
     const card = el('div', { class: 'race-card theme-winter' });
-    const close = () => overlay.remove();
+    let wishTimer = 0;
+    const close = () => {
+      window.clearTimeout(wishTimer);
+      overlay.remove();
+    };
     let lit = 0;
 
     const wishLine = el('div', { class: 'egg-comment' }, 'Light each lantern and make a wish…');
@@ -1480,7 +1489,7 @@ export class UI {
             wishLine.textContent = wish;
             if (lit === LANTERN_WISHES.length) {
               // The fifth lantern is the player's own wish.
-              window.setTimeout(() => {
+              wishTimer = window.setTimeout(() => {
                 const choices = el('div', { class: 'wish-choices' });
                 for (const w of WINTER_WISHES) {
                   choices.append(
@@ -1726,6 +1735,8 @@ export class UI {
 
   private showTakeoverOverlay(remote = false): void {
     this.closePanel();
+    // Both the cross-tab and cross-device paths can fire — never stack two.
+    this.root.querySelector('.takeover-overlay')?.remove();
     this.root.append(
       el(
         'div',

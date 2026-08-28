@@ -10,6 +10,18 @@ import { claimSave, pairStart } from '../sync/syncClient';
 import { isSyncConfigured, loadSyncMeta, newDeviceId, saveSyncMeta, unlinkSync } from '../sync/syncMeta';
 
 let confirmingNewGame = false;
+// The exported JSON survives the 500ms panel rebuild (the rebuild guard only
+// protects a *focused* textarea, and you must unfocus it to hit Copy).
+let exportedJson = '';
+
+// Armed destructive confirmations must not survive closing the panel —
+// otherwise reopening presents "Really abandon this flock?" one click deep.
+export function resetSavePanelState(): void {
+  confirmingNewGame = false;
+  confirmingUnlink = false;
+  confirmingRetire = false;
+  exportedJson = '';
+}
 
 export function renderSavePanel(ctx: PanelCtx): HTMLElement {
   const { game } = ctx;
@@ -24,6 +36,7 @@ export function renderSavePanel(ctx: PanelCtx): HTMLElement {
   );
 
   const textarea = el('textarea', { class: 'save-textarea', rows: 6 }) as HTMLTextAreaElement;
+  textarea.value = exportedJson;
 
   panel.append(
     el(
@@ -93,7 +106,8 @@ export function renderSavePanel(ctx: PanelCtx): HTMLElement {
           {
             class: 'action-btn',
             onclick: () => {
-              textarea.value = serialize(game.snapshotState());
+              exportedJson = serialize(game.snapshotState());
+              textarea.value = exportedJson;
               textarea.select();
             },
           },
