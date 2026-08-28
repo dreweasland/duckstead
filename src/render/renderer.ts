@@ -99,6 +99,11 @@ export class Renderer {
     for (const d of state.ducks) this.sortScratch.push(d);
     this.sortScratch.sort((a, b) => a.pos.y - b.pos.y);
     const eggTicks = eggIncubationTicks(state);
+    const courting = new Set<string>();
+    for (const c of state.pendingClutches) {
+      courting.add(c.motherId);
+      courting.add(c.fatherId);
+    }
     for (const duck of this.sortScratch) {
       const x = lerp(duck.prevPos.x, duck.pos.x, alpha);
       const y = lerp(duck.prevPos.y, duck.pos.y, alpha);
@@ -108,6 +113,15 @@ export class Renderer {
 
       ctx.save();
       ctx.translate(x, y);
+      // A soft ground shadow under every duck ashore; the water gets a wake
+      // instead (drawn by the painter).
+      if (duck.stage !== 'egg' && !inWater) {
+        const r = duckRadius(duck);
+        ctx.fillStyle = 'rgba(20, 40, 16, 0.16)';
+        ctx.beginPath();
+        ctx.ellipse(0, r * 0.55 + 2, r * 1.05, r * 0.32, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
       drawDuck(ctx, duck, {
         inWater,
         selected: duck.id === this.game.selectedDuckId,
@@ -120,6 +134,24 @@ export class Renderer {
         timeMs,
       });
 
+      // Courting pairs wear their hearts above their heads.
+      if (courting.has(duck.id)) {
+        const s = 3.2 + Math.sin(timeMs / 260) * 0.6;
+        ctx.save();
+        ctx.translate(0, -30 - Math.sin(timeMs / 500) * 3);
+        ctx.fillStyle = `rgba(227, 123, 163, ${0.75 + Math.sin(timeMs / 300) * 0.2})`;
+        ctx.beginPath();
+        ctx.arc(-s / 2, -s / 3, s / 2, 0, Math.PI * 2);
+        ctx.arc(s / 2, -s / 3, s / 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(-s, -s / 6);
+        ctx.lineTo(0, s);
+        ctx.lineTo(s, -s / 6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
       // Sleeping "z" drift.
       if (duck.activity === 'sleep') {
         const t = (timeMs / 1000) % 2;
@@ -373,6 +405,56 @@ export class Renderer {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.beginPath();
         ctx.ellipse(-2, -3, 1.8, 2.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (bug.kind === 'frog') {
+        ctx.scale(Math.cos(bug.heading) < 0 ? -1 : 1, 1);
+        ctx.fillStyle = 'rgba(20, 40, 16, 0.18)';
+        ctx.beginPath();
+        ctx.ellipse(0, 4, 8, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        const throat = 1 + Math.max(0, Math.sin(t * 3 + bug.id)) * 1.5;
+        ctx.fillStyle = '#5d9a3c';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 7, 4.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#cfe08a';
+        ctx.beginPath();
+        ctx.ellipse(3, 2, 3.5, throat, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#5d9a3c';
+        for (const lx of [-6, 6]) {
+          ctx.beginPath();
+          ctx.ellipse(lx, 3, 3, 1.6, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.fillStyle = '#1d1a16';
+        ctx.beginPath();
+        ctx.arc(4, -3, 1.3, 0, Math.PI * 2);
+        ctx.arc(1, -3.5, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (bug.kind === 'dragonfly') {
+        ctx.rotate(bug.heading);
+        ctx.translate(0, Math.sin(t * 6 + bug.id) * 1.5);
+        const beat = Math.sin(t * 40 + bug.id) * 0.5;
+        ctx.strokeStyle = 'rgba(200, 230, 255, 0.75)';
+        ctx.lineWidth = 1;
+        for (const side of [-1, 1]) {
+          ctx.beginPath();
+          ctx.ellipse(-1, side * (3 + beat), 6, 2, side * 0.3, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.ellipse(-5, side * (2.5 + beat), 5, 1.6, side * 0.5, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.strokeStyle = '#2f8fb5';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(-10, 0);
+        ctx.lineTo(3, 0);
+        ctx.stroke();
+        ctx.fillStyle = '#3aa5c8';
+        ctx.beginPath();
+        ctx.arc(4, 0, 1.8, 0, Math.PI * 2);
         ctx.fill();
       } else if (bug.kind === 'duckweed') {
         // A clump of tiny floating leaves at the rim.

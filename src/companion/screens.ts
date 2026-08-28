@@ -26,6 +26,17 @@ import { dawnReport } from '../sim/daybook';
 import { goalProgress, pendingGoals } from '../sim/goals';
 import { describeCommission } from '../sim/commissions';
 import { events } from '../events';
+import { canBreedPair, breedReadiness } from '../sim/needs';
+import { clutchFather, nestPair, pairViability } from '../sim/breeding';
+import { buyUpgrade, nestCapacity, UPGRADES, upgradeLevel, sellDuck, sellPrice } from '../sim/economy';
+import { ALL_BREED_KEYS } from '../sim/breedBook';
+import { representativeGenome } from '../sim/breedBook';
+import { createDuck } from '../sim/duck';
+import { createRng } from '../rng';
+import { TICKS_PER_MINUTE } from '../sim/time';
+import { canDrill, drillsLeft, train, TRAIN_STATS, trainingOf } from '../sim/training';
+import { MARKS } from '../sim/marks';
+import { personalityLabels } from '../sim/behavior';
 
 const bar = (value: number, cls = ''): HTMLElement =>
   el(
@@ -132,12 +143,33 @@ export function duckScreen(game: Game, duckId: string, back: () => void): HTMLEl
     return box;
   }
 
+  const tags = el('div', { class: 'comp-tags' });
+  for (const label of personalityLabels(duck)) tags.append(el('span', { class: 'comp-tag' }, label));
+  for (const m of duck.marks ?? []) tags.append(el('span', { class: 'comp-tag mark', title: MARKS[m].blurb }, MARKS[m].label));
   box.append(
+    tags,
     needRow('Hunger', duck.needs.hunger),
     needRow('Clean', duck.needs.cleanliness),
     needRow('Happy', duck.needs.happiness),
     needRow('Health', duck.needs.health),
   );
+  if (duck.stage !== 'duckling') {
+    const t = trainingOf(duck);
+    const gate = canDrill(state, duck);
+    const drills = el('div', { class: 'comp-actions' });
+    for (const stat of TRAIN_STATS) {
+      drills.append(
+        el(
+          'button',
+          { class: 'comp-btn', disabled: !gate.ok, title: gate.reason ?? '', onclick: () => { train(state, duck.id, stat, 0.6); } },
+          `Drill ${stat} (${Math.round(t[stat])})`,
+        ),
+      );
+    }
+    box.append(
+      el('section', { class: 'comp-section' }, el('h2', {}, `Training · ${drillsLeft(state, duck)} drill${drillsLeft(state, duck) === 1 ? '' : 's'} left today`), el('div', { class: 'comp-muted small' }, 'Pocket drills run at steady form; the desktop minigames can do better.'), drills),
+    );
+  }
 
   const inv = state.inventory;
   const iconAct = (
@@ -181,6 +213,132 @@ export function duckScreen(game: Game, duckId: string, back: () => void): HTMLEl
   return box;
 }
 
+// ---- Nest (breeding) -------------------------------------------------------
+
+export function nestScreen(game: Game, pick: string | null, setPick: (id: string | null) => void): HTMLElement {
+  const state = game.state;
+  const box = el('div', { class: 'comp-pond' });
+  const adults = state.ducks.filter((d) => d.stage === 'adult' && !d.penned);
+  const first = pick ? adults.find((d) => d.id === pick) : undefined;
+  const eggs = state.ducks.filter((d) => d.stage === 'egg');
+  const clutches = state.pendingClutches;
+
+  const pairing = el('section', { class: 'comp-section' }, el('h2', {}, first ? `Pair ${first.name} with…` : 'Pair two adults'));
+  pairing.append(el('div', { class: 'comp-muted small' }, `Nest: ${eggs.length + clutches.length}/${nestCapacity(state)}. ${first ? 'Tap a mate.' : 'Tap the first of the pair.'}`));
+  const grid = el('div', { class: 'comp-grid' });
+  for (const duck of adults) {
+    const ready = breedReadiness(duck);
+    const pairOk = first && first.id !== duck.id ? canBreedPair(first, duck) : null;
+    const odds = first && pairOk?.ok ? Math.round(pairViability(state, first, duck) * 100) : null;
+    grid.append(
+      el(
+        'button',
+        {
+          class: `comp-card${first?.id === duck.id ? ' needs-care' : ''}`,
+          disabled: first ? first.id === duck.id ? false : !pairOk?.ok : !ready.ok,
+          title: first && pairOk && !pairOk.ok ? pairOk.reason ?? '' : ready.reason ?? '',
+          onclick: () => {
+            if (!first) return setPick(duck.id);
+            if (first.id === duck.id) return setPick(null);
+            const res = nestPair(state, first.id, duck.id);
+            if (!res.ok && res.reason) events.emit('toast', res.reason);
+            setPick(null);
+          },
+        },
+        duckPortrait(duck, 56),
+        el('div', { class: 'comp-card-name' }, duck.name),
+        el('div', { class: 'comp-muted small' }, odds !== null ? `${odds}% odds` : ready.ok ? `${duck.sex === 'M' ? '♂' : '♀'} ready` : ready.reason ?? ''),
+      ),
+    );
+  }
+  pairing.append(grid);
+  box.append(pairing);
+
+  if (clutches.length > 0) {
+    const sec = el('section', { class: 'comp-section' }, el('h2', {}, 'Courting'));
+    for (const c of clutches) {
+      const m = state.ducks.find((d) => d.id === c.motherId);
+      const f = clutchFather(state, c);
+      sec.append(el('div', { class: 'comp-line' }, `${m?.name ?? '?'} & ${f?.name ?? '?'} — egg in ${Math.ceil(c.ticksRemaining / TICKS_PER_MINUTE)}m`));
+    }
+    box.append(sec);
+  }
+  if (eggs.length > 0) {
+    const sec = el('section', { class: 'comp-section' }, el('h2', {}, `Incubating · ${eggs.length}`));
+    const list = el('div', { class: 'comp-actions' });
+    for (const egg of eggs) {
+      const pct = Math.min(100, Math.round((egg.incubationTicks / eggIncubationTicks(state)) * 100));
+      list.append(
+        egg.readyToHatch
+          ? el('button', { class: 'comp-btn', onclick: () => claimHatch(state, game.rng, egg.id) }, `Hatch! (${egg.name === 'Egg' ? 'egg' : egg.name})`)
+          : el('button', { class: 'comp-btn', disabled: egg.petCooldownTicks > 0, onclick: () => tuckEgg(state, egg.id) }, `Tuck in · ${pct}% · warmth ${Math.round(eggWarmth(egg))}%`),
+        el('button', { class: 'comp-btn ghost', onclick: () => { sellDuck(state, egg.id); events.emit('purchase'); } }, `Sell egg · ${sellPrice(state, egg)}`),
+      );
+    }
+    sec.append(list);
+    box.append(sec);
+  }
+  return box;
+}
+
+// ---- Shop (upgrades) --------------------------------------------------------
+
+export function shopScreen(game: Game): HTMLElement {
+  const state = game.state;
+  const box = el('div', { class: 'comp-pond' });
+  const sec = el('section', { class: 'comp-section' }, el('h2', {}, `Upgrades · ${state.money} coins`));
+  const list = el('div', { class: 'comp-actions comp-upgrades' });
+  for (const def of UPGRADES) {
+    const level = upgradeLevel(state, def.id);
+    const maxed = level >= def.maxLevel;
+    const cost = maxed ? 0 : def.costs[level];
+    list.append(
+      el(
+        'button',
+        { class: 'comp-btn comp-upgrade', disabled: maxed || state.money < cost, title: def.description, onclick: () => { buyUpgrade(state, def.id); } },
+        el('strong', {}, def.name + (def.maxLevel > 1 ? ` ${level}/${def.maxLevel}` : '')),
+        el('span', { class: 'comp-muted small' }, maxed ? 'owned' : `${cost} coins`),
+        el('span', { class: 'comp-muted small' }, def.description),
+      ),
+    );
+  }
+  sec.append(list);
+  box.append(sec);
+  return box;
+}
+
+// ---- Book ------------------------------------------------------------------
+
+export function bookScreen(game: Game): HTMLElement {
+  const state = game.state;
+  const box = el('div', { class: 'comp-pond' });
+  const found = Object.keys(state.breedBook).length;
+  const sec = el('section', { class: 'comp-section' }, el('h2', {}, `Breed Book · ${found}/${ALL_BREED_KEYS.length}`));
+  const grid = el('div', { class: 'comp-grid' });
+  for (const key of ALL_BREED_KEYS) {
+    const entry = state.breedBook[key];
+    const sample = createDuck(createRng(7), { genome: representativeGenome(key), stage: 'adult', pos: { x: 0, y: 0 }, sex: 'F', name: key });
+    sample.id = `book:${key}`;
+    grid.append(
+      el(
+        'div',
+        { class: `comp-card${entry ? '' : ' comp-locked'}` },
+        duckPortrait(sample, 56),
+        el('div', { class: 'comp-card-name' }, entry ? breedLabel(key) : '?'),
+        el('div', { class: 'comp-muted small' }, entry ? `first: ${entry.firstName} · ${entry.count} hatched` : 'undiscovered'),
+      ),
+    );
+  }
+  sec.append(grid);
+  box.append(sec);
+  if (state.chronicle.length > 0) {
+    const chron = el('section', { class: 'comp-section' }, el('h2', {}, 'Chronicle'));
+    for (const e of [...state.chronicle].reverse().slice(0, 20)) chron.append(el('div', { class: 'comp-line' }, e.text));
+    box.append(chron);
+  }
+  return box;
+}
+
 // ---- Pond (homestead chores) ----------------------------------------------
 
 const PICKUPS: Record<string, { icon: Parameters<typeof icon>[0]; label: string }> = {
@@ -190,6 +348,8 @@ const PICKUPS: Record<string, { icon: Parameters<typeof icon>[0]; label: string 
   feather: { icon: 'feather', label: 'Feather' },
   duckweed: { icon: 'leaf', label: 'Duckweed' },
   henEgg: { icon: 'egg', label: 'Hen egg' },
+  frog: { icon: 'leaf', label: 'Frog' },
+  dragonfly: { icon: 'sparkle', label: 'Dragonfly' },
 };
 
 export function pondScreen(game: Game): HTMLElement {

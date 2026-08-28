@@ -1,8 +1,8 @@
 # Duck Homestead — The Genetics Guide
 
-Every duck carries a **diploid genome**: thirteen loci, two alleles each, one
+Every duck carries a **diploid genome**: fifteen loci, two alleles each, one
 inherited from each parent. Nothing about a duck's looks is hand-painted —
-plumage, pattern, build, bill, crest, and constitution are all computed from
+plumage, pattern, build, bill, crest, constitution, and temperament are all computed from
 these genes, so what you see on the pond is exactly what you can breed for.
 
 This guide covers the whole system: the loci, how inheritance works, what
@@ -11,7 +11,7 @@ breeding recipes.
 
 ---
 
-## 1. The thirteen loci
+## 1. The fifteen loci
 
 ### Mendelian loci (dominance decides what shows)
 
@@ -35,6 +35,7 @@ copies meet — which is why surprises hatch.
 | **Size** | `size1–3` | 0–6 `+` | Body scale 75% (0) → 130% (6). Extremes (0 or 6) score rarity. |
 | **Bill shape** | `bill1–2` | 0–4 `+` | 0 = stubby & wide, 4 = long & narrow. Extremes score rarity. |
 | **Vigor** | `vigor1–2` | 0–4 `+` | Constitution: lifespan, sickness resistance, race speed. More is always better. |
+| **Temperament** | `temper1–2` | 0–4 `+` | 0 = timid, 2 = steady, 4 = bold. Bold ducks are busier, race harder, lay through a worse mood, and take to sprint drills; timid ducks settle into poise. Every breed standard asks for one of the three. |
 
 Additive traits don't have dominance — every `+` counts, so they respond to
 steady selection rather than lucky pairings.
@@ -78,13 +79,13 @@ colours incl. Blue-Mallard) × dilution × pattern × crest = **60 breeds**.
 Discovering one pays coins and Society points; each breed also has a
 **Pure / Standard / Master** award ladder.
 
-### Show standards (all 13 loci)
+### Show standards (all 15 loci)
 Every breed has a deterministic **show standard**: the exact target genotype —
 the four Book loci homozygous (Blue-Mallard excepted: it wants the `B/M`
 pair), plus a per-breed build: a size target, a bill-length target, a bill
-colour (about a third of breeds want the rare pink), a markings colour, and
-always **4/4 vigor**. The duck card shows your % match, judged over nine
-slots; ≥90% earns the breed's *Standard* award. Egg Show judges score
+colour (about a third of breeds want the rare pink), a markings colour, a
+temperament (timid, steady, or bold), and always **4/4 vigor**. The duck card
+shows your % match, judged over ten slots; ≥90% earns the breed's *Standard* award. Egg Show judges score
 standard match as heavily as rarity, and National-tier derby races admit only
 ducks at 60%+.
 
@@ -104,17 +105,42 @@ by up to −50%, and a slot of every show standard. The one stat with no
 downside — fix `++/++` into every line you keep.
 
 ### Racing build
-Speed = vigor × temperament × build. The build sweet spot is **slightly under
-medium** (sizeScale ≈ 0.95 ≈ 2/6 size alleles) — note this *conflicts* with
-rarity's love of extremes. Temperament (energetic/mellow) is personality, not
-genetics: it rerolls every duck and can't be bred for.
+Speed = vigor × temperament × build × training × marks. The build sweet spot
+is **slightly under medium** (sizeScale ≈ 0.95 ≈ 2/6 size alleles) — note
+this *conflicts* with rarity's love of extremes. Temperament is the `temper`
+loci: a 4/4 bold duck starts ~10% quicker than a 0/4 timid one, and it
+breeds true like any additive trait. Sociability (social/loner) is the one
+quirk that is still personality, not genes.
+
+### A life beyond the genes
+Genes set the ceiling; the life sets where a duck lands under it.
+
+- **Training** — three drilled stats, 0–100, on every juvenile or older duck:
+  *paddle* (+15% race speed at 100), *stamina* (+5% speed, boosts fade 35%
+  slower), *poise* (Egg Show judges rate a parent's eggs up to +50% on care).
+  Drills are short timing minigames on the duck's card; one per duck per day,
+  +1 per Training Perch level. Every stat fades a point a day. Bold ducks gain
+  paddle 20% faster and poise 20% slower; timid ducks the reverse.
+- **Upbringing marks** — permanent, earned once, from how the duck was raised:
+  *hardy* (egg kept ≥70% warm: −20% sickness), *scrappy* (egg under 35% and it
+  lived: −10% sickness, +2% speed), *steady* (a quarter of its youth beside an
+  elder: happiness fades 10% slower), *keen* (raced or drilled as a juvenile:
+  +3% speed), *spoiled* (three treats while young: treats cheer 50% more, but
+  it sulks 10% faster), *proud* (won a rivalry: +2% speed, shrugs off drake
+  squabbles). Marks show as chips on the card and lines in the Chronicle.
+- **Life events** — once in a while (30% a day at 11:00, one at a time) a
+  hen goes broody or two drakes fall out; a *Decide* chip appears in the HUD.
+  Let a broody hen sit and nest eggs lose warmth half as fast that day (she
+  skips laying); shoo her and she lays but sulks. Let rival drakes settle it
+  and the bolder one usually wins (and turns proud); treats or the Bachelor
+  Pen keep the peace. An unanswered event settles itself at 20:00.
 
 ---
 
 ## 4. Reading genes
 
 - **Phenotype clues** are free: swatches, pattern, crest, gauges for
-  size/bill/vigor on every card.
+  size/bill/vigor/temper on every card.
 - The **Pedigree Scope** (shop, 150) shows the exact allele pairs — expressed
   bright, masked dim — plus "carries" chips for hidden recessives.
 - The **Breeding Advisor** on each card tells you whether a duck is a *key
@@ -163,5 +189,6 @@ genetics: it rerolls every duck and can't be bred for.
 ---
 
 *All numbers in this guide are read from the simulation source
-(`src/sim/genetics.ts`, `standards.ts`, `pedigree.ts`, `breeding.ts`) — if
+(`src/sim/genetics.ts`, `standards.ts`, `pedigree.ts`, `breeding.ts`,
+`training.ts`, `marks.ts`, `lifeEvents.ts`) — if
 the code changes, trust the code.*

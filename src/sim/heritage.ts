@@ -14,15 +14,25 @@ import { recordBreed } from './breedBook';
 import { WORLD_W } from '../state';
 
 export const HERITAGE_MUTATION_BONUS = 0.01; // +1% mutation per retirement (base 2%)
+// Full value for the first five retirements; a quarter as much after that,
+// up to a hard ceiling — the loop keeps paying, just less steeply.
 export const HERITAGE_MAX = 5;
+export const HERITAGE_LATE_SCALE = 0.25;
+export const HERITAGE_MUTATION_CEILING = 0.075; // +7.5% over base, ever
+export const HERITAGE_POND_CEILING = 8;
 
 export function heritageMutationRate(heritage: number, base: number): number {
-  return base + Math.min(HERITAGE_MAX, heritage) * HERITAGE_MUTATION_BONUS;
+  const early = Math.min(HERITAGE_MAX, heritage);
+  const late = Math.max(0, heritage - HERITAGE_MAX);
+  return base + Math.min(HERITAGE_MUTATION_CEILING, (early + late * HERITAGE_LATE_SCALE) * HERITAGE_MUTATION_BONUS);
 }
 
-// Extra pond capacity earned by retiring: +1 duck slot per heritage, up to 5.
+// Extra pond capacity earned by retiring: +1 duck slot per heritage to five,
+// then one per four retirements, to eight.
 export function heritagePondBonus(state: GameState): number {
-  return Math.min(HERITAGE_MAX, state.heritage);
+  const early = Math.min(HERITAGE_MAX, state.heritage);
+  const late = Math.max(0, state.heritage - HERITAGE_MAX);
+  return Math.min(HERITAGE_POND_CEILING, early + Math.floor(late * HERITAGE_LATE_SCALE));
 }
 
 export function canRetire(state: GameState): { ok: boolean; reason?: string } {
@@ -66,7 +76,13 @@ export function retirePond(old: GameState, drakeId: string, henId: string, seed:
     wildRecruited: old.stats.wildRecruited,
     racesWon: old.stats.racesWon,
     favouritesFound: old.stats.favouritesFound,
+    cupWins: old.stats.cupWins,
+    cupEntries: old.stats.cupEntries,
+    studsUsed: old.stats.studsUsed,
   };
+  // The rival ponds carry on regardless; so does an open Cup.
+  s.rivals = old.rivals;
+  s.cup = old.cup;
   // Goals and unlocks: a heritage pond knows the ropes.
   s.goals = old.goals;
   s.money = 50 + heritage * 100;

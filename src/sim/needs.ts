@@ -11,22 +11,29 @@ import { isPondDirty } from './pond';
 import { eatFood, takeStock, type EatResult, type FoodKind } from './food';
 import { drakePressure } from './flockBalance';
 import { isNight, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
+import { happinessDecayScale, hasMark, sicknessScale, upbringingOf } from './marks';
+import { broodyHenToday, BROODY_WARMTH_SCALE } from './lifeEvents';
+import { weatherHappyScale, weatherHungerScale, weatherSwimCheer, weatherWarmthScale } from './weather';
 
-// Decay rates per game-hour.
-const HUNGER_DECAY = 6;
-const CLEAN_DECAY = 3;
-const HAPPY_DECAY = 2;
-const STARVING_HEALTH_DRAIN = 3;
-const STARVING_HAPPY_DRAIN = 2;
-const SICK_HAPPY_DRAIN = 5;
-const SICK_HEALTH_DRAIN = 4;
-const OVERCROWD_HAPPY_DRAIN = 0.6; // per excess duck per hour, capped at 6 excess
-const HARRIED_HEN_DRAIN = 0.7; // per surplus drake per hour
-const SQUABBLE_DRAIN = 0.3;
-export const PRESSURE_VIABILITY_PENALTY = 0.06; // per surplus drake
-const HEALTH_REGEN = 1;
-const SICKNESS_BASE_CHANCE = 0.02; // per hour when cleanliness < 30
-const CONTAGION_CHANCE = 0.01; // per sick pond-mate per hour
+import { TUNING } from './tuning';
+
+// Decay rates per game-hour (numbers live in tuning.ts).
+const {
+  hungerDecay: HUNGER_DECAY,
+  cleanDecay: CLEAN_DECAY,
+  happyDecay: HAPPY_DECAY,
+  starvingHealthDrain: STARVING_HEALTH_DRAIN,
+  starvingHappyDrain: STARVING_HAPPY_DRAIN,
+  sickHappyDrain: SICK_HAPPY_DRAIN,
+  sickHealthDrain: SICK_HEALTH_DRAIN,
+  overcrowdHappyDrain: OVERCROWD_HAPPY_DRAIN,
+  harriedHenDrain: HARRIED_HEN_DRAIN,
+  squabbleDrain: SQUABBLE_DRAIN,
+  healthRegen: HEALTH_REGEN,
+  sicknessBaseChance: SICKNESS_BASE_CHANCE,
+  contagionChance: CONTAGION_CHANCE,
+} = TUNING.needs;
+export const PRESSURE_VIABILITY_PENALTY = TUNING.needs.pressureViabilityPenalty;
 
 export function tickNeeds(state: GameState, rng: Rng): void {
   const night = isNight(state.clock);
@@ -35,12 +42,16 @@ export function tickNeeds(state: GameState, rng: Rng): void {
   const pondDirty = isPondDirty(state);
   const hasToy = upgradeLevel(state, 'duckToy') > 0;
   const perTick = 1 / TICKS_PER_HOUR;
-  const nightScale = night ? 0.3 : 1;
+  const nightScale = night ? TUNING.needs.nightScale : 1;
   const sickCount = state.ducks.filter((d) => d.stage !== 'egg' && d.sick).length;
 
   const incubator = upgradeLevel(state, 'incubator') > 0;
   const vet = upgradeLevel(state, 'vetClinic') > 0;
-  const warmthScale = eggWarmthDecayScale(state) * broodyWarmthScale(state);
+  // A broody hen (life event) sits the nest today: warmth holds far better.
+  const warmthScale = eggWarmthDecayScale(state) * broodyWarmthScale(state) * (broodyHenToday(state) ? BROODY_WARMTH_SCALE : 1) * weatherWarmthScale(state);
+  const wHunger = weatherHungerScale(state);
+  const wHappy = weatherHappyScale(state);
+  const wSwim = weatherSwimCheer(state);
   const crowd = overcrowding(state);
   const pressure = drakePressure(state);
   for (const duck of state.ducks) {
@@ -50,12 +61,13 @@ export function tickNeeds(state: GameState, rng: Rng): void {
     }
     const n = duck.needs;
 
-    let hungerRate = HUNGER_DECAY * (winter ? 1.5 : 1);
-    let cleanRate = CLEAN_DECAY * (pondDirty ? 2 : 1);
-    let happyRate = HAPPY_DECAY * (hasToy ? 0.75 : 1);
-    // Too many drakes: hens are harried, drakes squabble.
+    const hungerRate = HUNGER_DECAY * (winter ? TUNING.needs.winterHungerScale : 1) * wHunger;
+    const cleanRate = CLEAN_DECAY * (pondDirty ? 2 : 1);
+    let happyRate = HAPPY_DECAY * (hasToy ? 0.75 : 1) * happinessDecayScale(duck) * wHappy;
+    // Too many drakes: hens are harried, drakes squabble (a proud drake less so).
     if (pressure > 0 && (duck.stage === 'adult' || duck.stage === 'elder')) {
-      happyRate += (duck.sex === 'F' ? HARRIED_HEN_DRAIN : SQUABBLE_DRAIN) * pressure;
+      const squabble = hasMark(duck, 'proud') ? SQUABBLE_DRAIN * 0.5 : SQUABBLE_DRAIN;
+      happyRate += (duck.sex === 'F' ? HARRIED_HEN_DRAIN : squabble) * pressure;
     }
     // Winter Lights festival: nobody's mood dims under the lights.
     if (winterLights) happyRate = 0;
@@ -67,13 +79,23 @@ export function tickNeeds(state: GameState, rng: Rng): void {
     n.cleanliness = clamp(n.cleanliness - cleanRate * perTick * nightScale, 0, 100);
     if (duck.activity === 'swim') {
       n.cleanliness = clamp(n.cleanliness + 2 * perTick, 0, 100);
+      // Ducks love a swim in the rain.
+      if (wSwim > 0) n.happiness = clamp(n.happiness + wSwim * perTick, 0, 100);
       // Ducks love swimming near moving water.
       if (upgradeLevel(state, 'waterfall') > 0) {
         n.happiness = clamp(n.happiness + 1 * perTick, 0, 100);
       }
     }
-    // A young duck in an elder's company holds its cheer better.
-    if (mentorNearby(state, duck)) happyRate *= MENTOR_HAPPY_SCALE;
+    // A young duck in an elder's company holds its cheer better — and the
+    // time spent there is tallied toward a 'steady' upbringing.
+    if (duck.stage === 'duckling' || duck.stage === 'juvenile') {
+      const u = upbringingOf(duck);
+      u.youngTicks += 1;
+      if (mentorNearby(state, duck)) {
+        u.mentorTicks += 1;
+        happyRate *= MENTOR_HAPPY_SCALE;
+      }
+    }
     n.happiness = clamp(n.happiness - happyRate * perTick * nightScale, 0, 100);
     // Best friends nearby are good company.
     if (duck.friendId) {
@@ -97,10 +119,11 @@ export function tickNeeds(state: GameState, rng: Rng): void {
     // Sickness rolls, expressed per-hour, scaled down to per-tick probability.
     if (!duck.sick) {
       const elderScale = duck.stage === 'elder' ? 2 : 1;
-      const vigorScale = 1 - duck.phenotype.vigor * 0.5;
+      const vigorScale = (1 - duck.phenotype.vigor * 0.5) * sicknessScale(duck);
       let chancePerHour = 0;
       if (n.cleanliness < 30) chancePerHour += SICKNESS_BASE_CHANCE * vigorScale * elderScale;
-      chancePerHour += CONTAGION_CHANCE * (sickCount - (duck.sick ? 1 : 0)) * vigorScale;
+      // Every sick pond-mate is a contagion source (this duck isn't sick).
+      chancePerHour += CONTAGION_CHANCE * sickCount * vigorScale;
       if (vet) chancePerHour *= 0.5;
       if (chancePerHour > 0 && rng.chance(chancePerHour * perTick)) {
         duck.sick = true;

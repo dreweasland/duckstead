@@ -8,6 +8,15 @@ import { tickNeeds } from './needs';
 import { tickPond } from './pond';
 import { dropFood } from './needs';
 import { tickVisitors } from './visitors';
+import { tickBugs } from './bugs';
+import { tickLaying } from './laying';
+import { tickGoals } from './goals';
+import { tickAwards } from './awards';
+import { tickCommissions } from './commissions';
+import { tickFestivals } from './festivals';
+import { tickTraining, train } from './training';
+import { resolveLifeEvent, tickLifeEvents } from './lifeEvents';
+import { tickWeather } from './weather';
 import { seasonOf, TICKS_PER_YEAR } from './time';
 import { isOvercrowded, sellDuck } from './economy';
 
@@ -22,12 +31,21 @@ describe('soak', () => {
     for (let i = 0; i < totalTicks; i += 1) {
       state.clock.totalTicks += 1;
       state.seasonCache = seasonOf(state.clock);
+      tickWeather(state, rng);
       tickNeeds(state, rng);
       tickLifecycle(state, rng);
       tickBreeding(state, rng);
       tickBehavior(state, rng);
       tickPond(state);
+      tickBugs(state, rng);
+      tickLaying(state, rng);
       tickVisitors(state, rng);
+      tickFestivals(state);
+      tickGoals(state);
+      tickAwards(state);
+      tickCommissions(state, rng);
+      tickTraining(state);
+      tickLifeEvents(state, rng);
 
       // Caretaker bot: every game-hour, feed hungry ducks and clean the pond.
       if (i % 600 === 0) {
@@ -41,6 +59,10 @@ describe('soak', () => {
           }
         }
         state.pond.cleanliness = 100;
+        // Drill the first adult that can, and answer any life event.
+        const trainee = state.ducks.find((d) => d.stage === 'adult');
+        if (trainee) train(state, trainee.id, 'paddle', 0.7);
+        if (state.lifeEvent) resolveLifeEvent(state, rng, state.lifeEvent.kind === 'broody' ? 'sit' : 'settle');
         // The pond has a capacity: like a sensible keeper, sell the youngest
         // duck of whichever sex is in surplus to make room, and let elders
         // retire naturally so the memorial fills.
@@ -75,6 +97,19 @@ describe('soak', () => {
       }
     }
     expect(Number.isFinite(state.pond.cleanliness)).toBe(true);
+    expect(Number.isFinite(state.money)).toBe(true);
+    expect(state.money).toBeGreaterThanOrEqual(0);
+    for (const v of Object.values(state.inventory)) {
+      expect(Number.isFinite(v)).toBe(true);
+      expect(v).toBeGreaterThanOrEqual(0);
+    }
+    for (const duck of state.ducks) {
+      for (const v of Object.values(duck.training ?? {})) expect(Number.isFinite(v)).toBe(true);
+      expect(Number.isFinite(duck.phenotype.boldness)).toBe(true);
+    }
+    expect(state.stats.drills).toBeGreaterThan(0);
+    expect(state.stats.marksEarned).toBeGreaterThan(0);
+    expect(state.lifeEvent).toBeNull();
     // Generations turned over: ducks hatched and elders died.
     expect(state.stats.ducksHatched).toBeGreaterThan(0);
     expect(state.memorial.length).toBeGreaterThan(0);

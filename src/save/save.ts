@@ -1,12 +1,16 @@
 import type { GameState, GameStats } from '../state';
-import { GROUND_TOP, trimMemorial, WORLD_H, WORLD_W } from '../state';
-import { computePhenotype } from '../sim/genetics';
+import { defaultStats, GROUND_TOP, STATE_VERSION, trimMemorial, WORLD_H, WORLD_W } from '../state';
+import { completeGenome, computePhenotype, type Genome } from '../sim/genetics';
+import { createRng } from '../rng';
+import { createRivals } from '../sim/rivals';
 import { recordBreed } from '../sim/breedBook';
 import { nestPos } from '../sim/pond';
 import { clamp } from '../types';
 
+// The storage key is frozen at v1 — renaming it would orphan every save.
+// The envelope's `version` is what advances; see MIGRATIONS below.
 export const SAVE_KEY = 'ducksim:save:v1';
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = STATE_VERSION;
 // Where an unreadable save blob is stashed before a fresh pond may begin —
 // a corrupt save must never be silently autosaved over.
 export const CORRUPT_KEY = 'ducksim:save:corrupt';
@@ -103,31 +107,15 @@ export function deserialize(json: string): GameState {
       if (duck.stage !== 'egg') recordBreed(state, duck, true);
     }
   }
-  const statDefaults: GameStats = {
-    eggsSold: 0,
-    ducksSold: 0,
-    ducksBred: 0,
-    ducksHatched: 0,
-    pets: 0,
-    clutchesStarted: 0,
-    juvenilesRaised: 0,
-    bugsCaught: 0,
-    racesWon: 0,
-    wildVisits: 0,
-    eggsTucked: 0,
-    feathersCollected: 0,
-    duckweedGathered: 0,
-    henEggsGathered: 0,
-    henEggsSold: 0,
-    feeds: 0,
-    favouritesFound: 0,
-    wildRecruited: 0,
-    biggestSale: 0,
-    bestPedigree: 0,
-    deepestGen: 0,
-    festivalWins: 0,
-  };
-  state.stats = { ...statDefaults, ...(state.stats as Partial<GameStats>) };
+  state.stats = { ...defaultStats(), ...(state.stats as Partial<GameStats>) };
+  state.lifeEvent ??= null;
+  state.nextLifeEventId ??= 1;
+  // Rival ponds arrived after the flock did: an old save meets them fresh.
+  state.rivals ??= createRivals(createRng((state.rngState ^ 0x9e3779b9) >>> 0));
+  for (const r of state.rivals) for (const g of r.flock) completeGenome(g);
+  state.cup ??= null;
+  state.drillPurse ??= { day: -1, earned: 0 };
+  state.weather ??= { kind: 'clear', day: -1 };
   state.request ??= null;
   state.visitor ??= null;
   state.festivalDone ??= {};
@@ -145,19 +133,53 @@ export function deserialize(json: string): GameState {
   return state;
 }
 
+// One step per format version: MIGRATIONS[n] lifts a version-n state to
+// n+1. A save is walked from its own version up to SAVE_VERSION, so a save
+// from any older build loads. Shape healing that predates the chain (the
+// `??=` backfills in deserialize) still runs afterwards for every save.
+const MIGRATIONS: Record<number, (state: GameState) => void> = {
+  // v1 → v2: temperament loci joined the genome. Every stored genome — the
+  // flock's, ancestors', the memorial's, the visitor's, judged eggs' — gets
+  // the two new loci. Living ducks draw a random pair from a per-duck seed
+  // so an old flock isn't uniformly middling; ancestors and the dead get a
+  // neutral pair (their genes only ever feed a family tree or a portrait).
+  1: (state) => {
+    const seedFrom = (id: string): number => {
+      let h = 2166136261;
+      for (let i = 0; i < id.length; i += 1) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+      return h >>> 0;
+    };
+    const healAncestor = (a: { genome: Genome } | null | undefined) => {
+      if (a?.genome) completeGenome(a.genome);
+    };
+    for (const duck of state.ducks) {
+      completeGenome(duck.genome, createRng(seedFrom(duck.id)));
+      if (duck.lineage) {
+        healAncestor(duck.lineage.sire);
+        healAncestor(duck.lineage.dam);
+        for (const g of duck.lineage.grand ?? []) healAncestor(g);
+      }
+    }
+    for (const m of state.memorial ?? []) if (m.genome) completeGenome(m.genome);
+    if (state.visitor?.duck) completeGenome(state.visitor.duck.genome, createRng(seedFrom(state.visitor.duck.id)));
+    for (const e of state.lastFestival?.eggShow?.entries ?? []) completeGenome(e.genome);
+  },
+};
+
 function migrate(envelope: SaveEnvelope): GameState {
   const state = envelope?.state;
-  switch (envelope?.version) {
-    case 1:
-      // Minimal shape guard: without a flock and a clock this isn't a save,
-      // and the backfills below would half-mutate it before crashing.
-      if (!state || !Array.isArray(state.ducks) || typeof state.clock?.totalTicks !== 'number') {
-        throw new Error('Save blob is not a recognizable game state');
-      }
-      return state;
-    default:
-      throw new Error(`Unknown save version ${envelope?.version}`);
+  const version = envelope?.version;
+  if (!Number.isInteger(version) || version < 1 || version > SAVE_VERSION) {
+    throw new Error(`Unknown save version ${version}`);
   }
+  // Minimal shape guard: without a flock and a clock this isn't a save,
+  // and the migrations and backfills would half-mutate it before crashing.
+  if (!state || !Array.isArray(state.ducks) || typeof state.clock?.totalTicks !== 'number') {
+    throw new Error('Save blob is not a recognizable game state');
+  }
+  for (let v = version; v < SAVE_VERSION; v += 1) MIGRATIONS[v](state);
+  state.version = SAVE_VERSION;
+  return state;
 }
 
 // Returns false when the write failed (storage full, private mode) so the

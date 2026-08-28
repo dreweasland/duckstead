@@ -10,7 +10,7 @@ import type { Duck } from '../sim/duck';
 import { createDuck } from '../sim/duck';
 import type { Allele, Genome, LocusId } from '../sim/genetics';
 import { computePhenotype, expressedAlleles, LOCI } from '../sim/genetics';
-import { eggsIncubating, nestPair, pairViability } from '../sim/breeding';
+import { eggsIncubating, nestPair, pairViability, clutchFather } from '../sim/breeding';
 import { TICKS_PER_MINUTE } from '../sim/time';
 import { breedReadiness, canBreedPair, eggSpeedFor, eggWarmth, tuckEgg } from '../sim/needs';
 import { breedingValue, keepVerdict } from '../sim/advisor';
@@ -463,7 +463,7 @@ function nestSection(ctx: PanelCtx): HTMLElement {
     const grid = el('div', { class: 'nest-grid' });
     for (const clutch of clutches) {
       const mother = ducks.find((d) => d.id === clutch.motherId);
-      const father = ducks.find((d) => d.id === clutch.fatherId);
+      const father = clutchFather(state, clutch);
       const mins = Math.ceil(clutch.ticksRemaining / TICKS_PER_MINUTE);
       const pct = clamp((1 - clutch.ticksRemaining / (60 * TICKS_PER_MINUTE)) * 100, 0, 100);
       const odds = mother && father ? Math.round(pairViability(state, mother, father) * 100) : null;
@@ -481,7 +481,7 @@ function nestSection(ctx: PanelCtx): HTMLElement {
             el('span', { class: 'br-heart' }, icon('heart', 14)),
             father ? duckPortrait(father, 40) : icon('heartOutline', 16),
           ),
-          el('div', { class: 'nest-card-title' }, `${mother?.name ?? '?'} & ${father?.name ?? '?'}`),
+          el('div', { class: 'nest-card-title' }, `${mother?.name ?? '?'} & ${father?.name ?? '?'}${clutch.stud ? ' (stud)' : ''}`),
           el('div', { class: 'bar bar-thin', title: 'Courtship' }, fill),
           el(
             'div',

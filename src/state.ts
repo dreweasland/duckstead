@@ -7,6 +7,7 @@ import { BALANCE } from './sim/economy';
 import type { GameClock } from './sim/time';
 import type { PendingClutch } from './sim/breeding';
 import { createRng, type Rng } from './rng';
+import { createRivals } from './sim/rivals';
 
 // The world height is fixed; the width adapts to the window's aspect ratio so
 // the scene fills the screen with no letterboxing. ES-module live bindings let
@@ -51,7 +52,7 @@ export interface FoodPellet {
   age?: number; // ticks since dropped; spoils when old (absent in old saves)
 }
 
-export type BugKind = 'beetle' | 'snail' | 'firefly' | 'feather' | 'duckweed' | 'henEgg';
+export type BugKind = 'beetle' | 'snail' | 'firefly' | 'feather' | 'duckweed' | 'henEgg' | 'frog' | 'dragonfly';
 
 export interface Bug {
   id: number;
@@ -86,7 +87,52 @@ export interface GameStats {
   bestPedigree: number;
   deepestGen: number;
   festivalWins: number;
+  drills: number; // training drills run
+  marksEarned: number; // upbringing marks granted
+  lifeEventsSettled: number; // life events the player answered
+  studsUsed: number; // rival drakes hired
+  cupEntries: number;
+  cupWins: number;
 }
+
+// One place for the zero stats: a fresh game and a save missing a counter
+// both read from here.
+export function defaultStats(): GameStats {
+  return {
+    eggsSold: 0,
+    ducksSold: 0,
+    ducksBred: 0,
+    ducksHatched: 0,
+    pets: 0,
+    clutchesStarted: 0,
+    juvenilesRaised: 0,
+    bugsCaught: 0,
+    racesWon: 0,
+    wildVisits: 0,
+    eggsTucked: 0,
+    feathersCollected: 0,
+    duckweedGathered: 0,
+    henEggsGathered: 0,
+    henEggsSold: 0,
+    feeds: 0,
+    favouritesFound: 0,
+    wildRecruited: 0,
+    biggestSale: 0,
+    bestPedigree: 0,
+    deepestGen: 0,
+    festivalWins: 0,
+    drills: 0,
+    marksEarned: 0,
+    lifeEventsSettled: 0,
+    studsUsed: 0,
+    cupEntries: 0,
+    cupWins: 0,
+  };
+}
+
+// The save format version this state shape corresponds to (save.ts owns the
+// migration chain; it reads this so the two can't drift).
+export const STATE_VERSION = 2;
 
 export interface DuckSummary {
   name: string;
@@ -164,6 +210,16 @@ export interface GameState {
   festivalDone: Record<string, number>;
   decorations: Array<{ kind: import('./sim/economy').DecorKind; pos: Vec2 }>;
   stats: GameStats;
+  // The one open life event (a broody hen, a drake rivalry), if any.
+  lifeEvent: import('./sim/lifeEvents').LifeEvent | null;
+  nextLifeEventId: number;
+  // The rival ponds and the year's Society Cup (see rivals.ts, cup.ts).
+  rivals: import('./sim/rivals').Rival[];
+  cup: import('./sim/cup').CupState | null;
+  // Coins drills have paid today (capped — see BALANCE.drillCoinsDailyCap).
+  drillPurse: { day: number; earned: number };
+  // Today's weather (see weather.ts); rolled at dawn.
+  weather: import('./sim/weather').Weather;
 }
 
 // The RNG is re-created from serialized state each tick boundary; Game owns a
@@ -171,7 +227,7 @@ export interface GameState {
 export function createNewGame(seed: number): { state: GameState; rng: Rng } {
   const rng = createRng(seed);
   const state: GameState = {
-    version: 1,
+    version: STATE_VERSION,
     rngState: seed,
     clock: { totalTicks: 7 * 600 }, // start at 07:00, day 1 of spring
     seasonCache: 'spring',
@@ -207,30 +263,13 @@ export function createNewGame(seed: number): { state: GameState; rng: Rng } {
     visitor: null,
     festivalDone: {},
     decorations: [],
-    stats: {
-      eggsSold: 0,
-      ducksSold: 0,
-      ducksBred: 0,
-      ducksHatched: 0,
-      pets: 0,
-      clutchesStarted: 0,
-      juvenilesRaised: 0,
-      bugsCaught: 0,
-      racesWon: 0,
-      wildVisits: 0,
-      eggsTucked: 0,
-      feathersCollected: 0,
-      duckweedGathered: 0,
-      henEggsGathered: 0,
-      henEggsSold: 0,
-      feeds: 0,
-      favouritesFound: 0,
-      wildRecruited: 0,
-      biggestSale: 0,
-      bestPedigree: 0,
-      deepestGen: 0,
-      festivalWins: 0,
-    },
+    stats: defaultStats(),
+    lifeEvent: null,
+    nextLifeEventId: 1,
+    rivals: createRivals(rng),
+    cup: null,
+    drillPurse: { day: -1, earned: 0 },
+    weather: { kind: 'clear', day: 0 },
   };
 
   // Starter flock: two pairs so breeding is possible from minute one.

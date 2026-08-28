@@ -4,16 +4,14 @@
 import type { Game } from '../game';
 import type { Duck } from '../sim/duck';
 import { createDuck, freshName } from '../sim/duck';
-import { personality } from '../sim/behavior';
-import { BALANCE, upgradeLevel } from '../sim/economy';
-import { chronicle } from '../sim/chronicle';
-import { addSocietyPoints } from '../sim/society';
-import { currentTier, leagueStanding, recordLeagueResult } from '../sim/league';
+import { BALANCE } from '../sim/economy';
+import { currentTier, leagueStanding } from '../sim/league';
 import { randomCommonGenome } from '../sim/genetics';
 import { createRng, type Rng } from '../rng';
-import { clamp } from '../types';
-import { dayOf } from '../sim/time';
-import { events } from '../events';
+import { boostPower, enterRace, raceEligible, raceRested, raceSpeed, settleRace } from '../sim/race';
+import { staminaHold } from '../sim/training';
+import { TUNING } from '../sim/tuning';
+import { play } from '../audio/audio';
 import { computeAnim } from '../render/animation';
 import { drawDuck } from '../render/duckPainter';
 import { el, statBar, statTile } from './dom';
@@ -25,16 +23,17 @@ const TRACK_LEN = 700;
 const LANES = 4;
 const CANVAS_W = 860;
 const CANVAS_H = 300;
-const BOOST_COOLDOWN_MS = 550;
 // Player paddle: full power only near the meter's sweet spot; mashing with
-// sloppy timing pays a fraction. Squared so precision matters.
-const PLAYER_BOOST = 55;
-// Wild racers paddle like a competent player: ~1.6 hits/s at decent timing,
-// each with their own knack (skill) so the field has a favourite and a dud.
-const AI_HITS_PER_SEC = 1.6;
-const AI_BOOST_MIN = 30;
-const AI_BOOST_VAR = 18;
-const METER_PERIOD_MS = 210;
+// sloppy timing pays a fraction. Wild racers paddle like a competent player,
+// each with their own knack (skill). Numbers live in tuning.ts.
+const {
+  boostCooldownMs: BOOST_COOLDOWN_MS,
+  playerBoost: PLAYER_BOOST,
+  aiHitsPerSec: AI_HITS_PER_SEC,
+  aiBoostMin: AI_BOOST_MIN,
+  aiBoostVar: AI_BOOST_VAR,
+  meterPeriodMs: METER_PERIOD_MS,
+} = TUNING.race;
 
 const WILD_NAMES = ['Torrent', 'Squall', 'Cypress', 'Marigold', 'Nimbus', 'Bramble', 'Zephyr', 'Puddlejumper'];
 
@@ -66,37 +65,8 @@ export interface RaceOpts {
   nextRace?(place: number): RaceOpts | null;
   // Festival tournaments run outside the one-race-per-duck-per-day limit.
   ignoreDailyLimit?: boolean;
-}
-
-// Paddle power for a meter position in [0, 1]; sweet spot is 0.5.
-export function boostPower(meterVal: number): number {
-  const closeness = Math.max(0, 1 - Math.abs(meterVal - 0.5) * 2);
-  return Math.max(0.1, closeness * closeness);
-}
-
-// Each duck races the daily derby once: racing is tiring, and it keeps the
-// derby a payoff for a well-bred flock rather than a coin tap.
-export function racedToday(duck: Duck, day: number): boolean {
-  return duck.lastRaceDay === day;
-}
-
-// Base speed from the duck itself: vigorous, energetic, trim ducks are fast.
-export function raceSpeed(duck: Duck): number {
-  const p = personality(duck);
-  const vigorScale = 0.85 + duck.phenotype.vigor * 0.3;
-  const energyScale = 1 + (p.energy - 1) * 0.5;
-  const sizePenalty = 1.06 - Math.abs(duck.phenotype.sizeScale - 0.95) * 0.25;
-  return 52 * vigorScale * energyScale * sizePenalty;
-}
-
-export function raceEligible(game: Game): Duck[] {
-  return game.state.ducks.filter(
-    (d) => (d.stage === 'adult' || d.stage === 'juvenile') && !d.sick && d.needs.health > 40,
-  );
-}
-
-export function raceRested(game: Game, duck: Duck): boolean {
-  return !racedToday(duck, dayOf(game.state.clock));
+  // A named field (the rival ponds' racers) instead of wild ducks.
+  field?: Array<{ duck: Duck; skill: number }>;
 }
 
 export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): void {
@@ -117,7 +87,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
 
   const showPicker = () => {
     card.classList.remove('win');
-    const eligible = raceEligible(game);
+    const eligible = raceEligible(game.state);
     const fee = entryFee;
     card.replaceChildren(
       header('flag', title),
@@ -135,7 +105,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
       el(
         'div',
         { class: 'muted small race-blurb' },
-        'Speed comes from vigor, energy, and a trim build.',
+        'Speed comes from vigor, boldness, a trim build — and paddle drills.',
         opts.ignoreDailyLimit ? '' : ' Each duck races once a day.',
       ),
     );
@@ -155,7 +125,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     const maxSpeed = raceSpeed(field[0]);
     const grid = el('div', { class: 'race-picker' });
     field.forEach((duck, i) => {
-      const rested = opts.ignoreDailyLimit || raceRested(game, duck);
+      const rested = opts.ignoreDailyLimit || raceRested(game.state, duck);
       const allowed = !tierDef?.eligible || tierDef.eligible(duck);
       const spd = raceSpeed(duck);
       const favourite = i === 0 && field.length > 1 && allowed && rested;
@@ -170,9 +140,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
             disabled: game.state.money < fee || !rested || !allowed,
             title: !allowed ? `${duck.name} doesn't meet the ${tierDef!.name} rule` : rested ? '' : `${duck.name} already raced today`,
             onclick: () => {
-              game.state.money -= fee;
-              events.emit('purchase'); // persist the fee like any spend
-              startRace(duck);
+              if (enterRace(game.state, duck.id, fee, opts.ignoreDailyLimit)) startRace(duck);
             },
           },
           duckPortrait(duck, 52),
@@ -190,27 +158,27 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     // paddling — is reproducible, so tests can pin difficulty. (Drawing the
     // seed also makes each race a real event in the sim's random stream.)
     const rng = createRng(game.rng.int(0xffffffff) >>> 0);
-    if (!opts.ignoreDailyLimit) {
-      const live = game.state.ducks.find((d) => d.id === playerDuck.id);
-      if (live) live.lastRaceDay = dayOf(game.state.clock);
-    }
     const taken = [playerDuck.name];
     const racers: Racer[] = [
       makeRacer(playerDuck, true, rng),
     ];
-    racers[0].baseSpeed *= 1 + upgradeLevel(game.state, 'trainingPerch') * 0.04;
+    // Stamina: a trained duck's boosts fade more slowly.
+    const playerHold = staminaHold(playerDuck);
     for (let i = 0; i < LANES - 1; i += 1) {
-      const wild = createDuck(rng, {
-        genome: randomCommonGenome(rng),
-        stage: 'adult',
-        pos: { x: 0, y: 0 },
-      });
-      wild.name = freshName(rng, taken, WILD_NAMES);
+      const named = opts.field?.[i];
+      const wild = named
+        ? { ...named.duck }
+        : createDuck(rng, {
+            genome: randomCommonGenome(rng),
+            stage: 'adult',
+            pos: { x: 0, y: 0 },
+          });
+      if (!named) wild.name = freshName(rng, taken, WILD_NAMES);
       taken.push(wild.name);
       wild.activity = 'swim';
       const racer = makeRacer(wild, false, rng);
       racer.baseSpeed *= aiBoost;
-      racer.skill = rng.range(0.8, 1.2);
+      racer.skill = named ? named.skill : rng.range(0.8, 1.2);
       racers.push(racer);
     }
     // Shuffle lanes so the player isn't always lane 1.
@@ -251,6 +219,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
       meter.classList.remove('hit-good', 'hit-weak');
       void meter.offsetWidth; // restart the flash animation
       meter.classList.add(power > 0.7 ? 'hit-good' : 'hit-weak');
+      play(power > 0.7 ? 'hit' : 'miss');
     };
     canvas.addEventListener('pointerdown', tryBoost);
     keyHandler = (e) => {
@@ -270,11 +239,11 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
         if (racer.finishedAt !== null) continue;
         if (elapsed < 1) continue; // "Ready…" moment before the start
         const wobble = 1 + Math.sin(now / 400 + racer.phase) * 0.12;
-        let v = racer.baseSpeed * wobble + racer.boost;
+        const v = racer.baseSpeed * wobble + racer.boost;
         if (!racer.isPlayer && rng.chance(dt * AI_HITS_PER_SEC * racer.skill)) {
           racer.boost += AI_BOOST_MIN + rng.next() * AI_BOOST_VAR;
         }
-        racer.boost *= Math.pow(0.15, dt);
+        racer.boost *= Math.pow(racer.isPlayer ? 0.15 + playerHold * 0.15 : 0.15, dt);
         racer.x += v * dt;
         if (racer.x >= TRACK_LEN) {
           racer.x = TRACK_LEN;
@@ -311,30 +280,18 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
       return b.x - a.x;
     });
     const playerPlace = ranked.findIndex((r) => r.isPlayer);
-    const prize = prizes[playerPlace] ?? 0;
-    game.state.money += prize;
-    if (opts.league) {
-      const notice = recordLeagueResult(game.state, playerPlace);
-      if (notice) ui.toast(notice);
-    }
-    if (playerPlace === 0) {
-      game.state.stats.racesWon += 1;
-      if (opts.title && !opts.title.includes('Derby —') && opts.title !== 'Pond Derby' && !opts.title.includes('Heat')) {
-        addSocietyPoints(game.state, 6);
-        chronicle(game.state, 'race', `${racers.find((r) => r.isPlayer)!.duck.name} won the ${opts.title}.`);
-      } else if (game.state.stats.racesWon === 1 || game.state.stats.racesWon % 10 === 0) {
-        chronicle(game.state, 'race', `${racers.find((r) => r.isPlayer)!.duck.name} took the pond's ${game.state.stats.racesWon === 1 ? 'first' : `${game.state.stats.racesWon}th`} derby win.`);
-      }
-    }
+    const playerId = racers.find((r) => r.isPlayer)!.duck.id;
+    const { prize, notice } = settleRace(game.state, {
+      duckId: playerId,
+      place: playerPlace,
+      prizes,
+      league: Boolean(opts.league),
+      title,
+    });
+    if (notice) ui.toast(notice);
+    if (playerPlace === 0) play('cheer');
     opts.onFinish?.(playerPlace);
-    const playerDuck = game.state.ducks.find((d) => d.id === racers.find((r) => r.isPlayer)!.duck.id);
-    if (playerDuck) {
-      playerDuck.needs.happiness = clamp(playerDuck.needs.happiness + BALANCE.raceHappiness, 0, 100);
-      playerDuck.needs.hunger = clamp(playerDuck.needs.hunger - BALANCE.raceHunger, 0, 100);
-    }
-    // Winnings, league standing, and racesWon are real progress: save them
-    // like a shop transaction — on mobile, beforeunload often never fires.
-    events.emit('purchase');
+    const playerDuck = game.state.ducks.find((d) => d.id === playerId);
 
     const list = el('div', { class: 'race-results' });
     ranked.forEach((racer, i) => {
@@ -392,9 +349,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     if (prize > 0) ui.toast(`${playerPlace === 0 ? 'Won' : 'Placed'} — +${prize} coins!`);
   };
 
-  if (opts.racer && game.state.money >= entryFee) {
-    game.state.money -= entryFee;
-    events.emit('purchase');
+  if (opts.racer && enterRace(game.state, opts.racer.id, entryFee, opts.ignoreDailyLimit)) {
     startRace(opts.racer);
   } else {
     showPicker();

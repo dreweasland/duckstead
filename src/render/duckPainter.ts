@@ -58,6 +58,7 @@ export function drawDuck(ctx: CanvasRenderingContext2D, duck: Duck, opts: DrawOp
   if (duck.activity === 'shake') drawShakeDroplets(ctx);
   if (duck.activity === 'forage' && !opts.inWater) drawForageBits(ctx, opts.anim);
   if (opts.inWater) drawWaterline(ctx);
+  if (opts.inWater && duck.activity === 'swim') drawWake(ctx, opts.timeMs ?? 0);
   if (duck.activity === 'dabble') drawDabbleRipple(ctx);
   ctx.restore();
 }
@@ -411,6 +412,22 @@ function drawWaterline(ctx: CanvasRenderingContext2D): void {
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
   ctx.lineWidth = 1.5;
   ctx.stroke();
+}
+
+// A V-wake trailing a swimming duck, fading with distance.
+function drawWake(ctx: CanvasRenderingContext2D, timeMs: number): void {
+  const t = timeMs / 1000;
+  ctx.lineWidth = 1.2;
+  for (const side of [-1, 1]) {
+    const grad = ctx.createLinearGradient(-22, 0, -70, 0);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.32)');
+    grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.strokeStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(-22, 9 + side * 2);
+    ctx.quadraticCurveTo(-45, 9 + side * 9 + Math.sin(t * 3 + side) * 1.5, -70, 9 + side * 15);
+    ctx.stroke();
+  }
 }
 
 // Splash rings where the head plunges in while dabbling.

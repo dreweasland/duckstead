@@ -9,6 +9,8 @@ import { events } from '../events';
 import { canBreedPair, eggViability } from './needs';
 import { nestPos } from './pond';
 import { seasonOf, TICKS_PER_MINUTE } from './time';
+import { studFather } from './rivals';
+import type { Genome } from './genetics';
 
 // Long enough that feeding and petting the pair mid-courtship can swing the
 // viability roll made when the egg is laid.
@@ -19,6 +21,14 @@ export interface PendingClutch {
   motherId: string;
   fatherId: string;
   ticksRemaining: number;
+  // A hired sire from a rival pond (see rivals.ts): not on the pond, so his
+  // genome rides along with the clutch.
+  stud?: { rivalId: string; name: string; genome: Genome };
+}
+
+// The sire of a clutch: a duck on the pond, or a rebuilt stud.
+export function clutchFather(state: GameState, clutch: PendingClutch): Duck | undefined {
+  return clutch.stud ? studFather(state, clutch) : state.ducks.find((d) => d.id === clutch.fatherId);
 }
 
 // The viability the pair would roll right now, for the Breed panel.
@@ -61,7 +71,7 @@ export function tickBreeding(state: GameState, rng: Rng): void {
     state.pendingClutches.splice(i, 1);
 
     const mother = state.ducks.find((d) => d.id === clutch.motherId);
-    const father = state.ducks.find((d) => d.id === clutch.fatherId);
+    const father = clutchFather(state, clutch);
     if (!mother || !father) continue; // a parent was sold or died mid-courtship
 
     const spring = seasonOf(state.clock) === 'spring';

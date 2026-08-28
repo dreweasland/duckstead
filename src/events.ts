@@ -7,6 +7,7 @@ export type GameEvent =
   | 'egg-hatched'
   | 'duck-grew' // a duck moved up a life stage; payload { duck, to: 'juvenile' | 'adult' | 'elder' }
   | 'duck-died' // payload { duck, descendants, honoured, ageDays } for the farewell banner
+  | 'life-event' // a life event needs a decision; payload LifeEvent
   | 'purchase'
   | 'duck-selected'
   | 'saved' // a local save just landed in localStorage (cloud sync pushes on it)

@@ -11,6 +11,7 @@ import { checkHatchAwards } from './awards';
 import { generationOf, livingDescendants } from './lineage';
 import { pedigreeScore } from './pedigree';
 import { passingPoints } from './elders';
+import { assignAdultMarks, assignJuvenileMarks, upbringingOf } from './marks';
 import { events } from '../events';
 import { dayOf, DAYS_PER_SEASON, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 import { ordinal } from '../text';
@@ -88,6 +89,7 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
           duck.stage = 'juvenile';
           duck.ageTicks = 0;
           state.stats.juvenilesRaised += 1;
+          assignJuvenileMarks(state, duck);
           events.emit('duck-grew', { duck, to: 'juvenile' });
           events.emit('toast', `${duck.name} is finding ${duck.sex === 'F' ? 'her' : 'his'} feathers — a juvenile now!`);
         }
@@ -97,6 +99,7 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
           duck.stage = 'adult';
           duck.ageTicks = 0;
           chronicle(state, 'ofAge', `${duck.name} came of age.`);
+          assignAdultMarks(state, duck);
           // The UI turns this into a banner; the companion into a toast.
           events.emit('duck-grew', { duck, to: 'adult' });
         }
@@ -204,6 +207,8 @@ function hatch(state: GameState, rng: Rng, egg: Duck): void {
     happiness: Math.min(100, Math.round(45 + 55 * tended) + lamp),
     health: Math.min(100, Math.round(70 + 30 * tended) + lamp),
   };
+  upbringingOf(egg).tended = tended;
+  delete egg.parentRarity;
   delete egg.warmth;
   delete egg.warmthSum;
   delete egg.readyToHatch;

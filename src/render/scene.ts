@@ -18,6 +18,7 @@ import { FEEDER_POS, nestPos, pondGeometry } from '../sim/pond';
 import { feederCapacity } from '../sim/needs';
 import { festivalToday } from '../sim/festivals';
 import { hourOf, seasonOf } from '../sim/time';
+import { weatherOf } from '../sim/weather';
 
 interface SkyStop {
   hour: number;
@@ -1849,15 +1850,31 @@ export function drawNightOverlay(ctx: CanvasRenderingContext2D, state: GameState
   ctx.restore();
 }
 
+// What's in the sky is what's in state (weather.ts rolls it at dawn): rain
+// streaks, drifting snow, a fog bank over the water, or leaves on the wind.
 export function drawWeather(ctx: CanvasRenderingContext2D, state: GameState, timeMs: number): void {
-  const season = seasonOf(state.clock);
-  if (season !== 'spring' && season !== 'winter') return;
+  const kind = weatherOf(state);
+  if (kind === 'clear') return;
   const t = timeMs / 1000;
-  for (let i = 0; i < 40; i += 1) {
+  if (kind === 'fog') {
+    // Two slow bands of mist over the pond, breathing.
+    for (let band = 0; band < 2; band += 1) {
+      const y = 300 + band * 120 + Math.sin(t * 0.3 + band) * 12;
+      const grad = ctx.createLinearGradient(0, y - 70, 0, y + 70);
+      grad.addColorStop(0, 'rgba(220, 228, 236, 0)');
+      grad.addColorStop(0.5, `rgba(220, 228, 236, ${0.22 + 0.06 * Math.sin(t * 0.5 + band * 2)})`);
+      grad.addColorStop(1, 'rgba(220, 228, 236, 0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, y - 70, WORLD_W, 140);
+    }
+    return;
+  }
+  const count = kind === 'wind' ? 18 : 40;
+  for (let i = 0; i < count; i += 1) {
     const seed = i * 127.31;
-    const x = ((seed * 7.13 + t * (season === 'spring' ? 60 : 18)) % (WORLD_W + 40)) - 20;
-    const y = ((seed * 13.7 + t * (season === 'spring' ? 240 : 45)) % (WORLD_H + 40)) - 20;
-    if (season === 'spring') {
+    if (kind === 'rain') {
+      const x = ((seed * 7.13 + t * 60) % (WORLD_W + 40)) - 20;
+      const y = ((seed * 13.7 + t * 240) % (WORLD_H + 40)) - 20;
       if (Math.sin(t * 0.05 + i) < 0.4) continue;
       ctx.strokeStyle = 'rgba(180, 210, 240, 0.35)';
       ctx.lineWidth = 1;
@@ -1865,11 +1882,25 @@ export function drawWeather(ctx: CanvasRenderingContext2D, state: GameState, tim
       ctx.moveTo(x, y);
       ctx.lineTo(x - 2, y + 9);
       ctx.stroke();
-    } else {
+    } else if (kind === 'snow') {
+      const x = ((seed * 7.13 + t * 18) % (WORLD_W + 40)) - 20;
+      const y = ((seed * 13.7 + t * 45) % (WORLD_H + 40)) - 20;
       ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
       ctx.beginPath();
       ctx.arc(x + Math.sin(t + i) * 8, y, 2, 0, Math.PI * 2);
       ctx.fill();
+    } else {
+      // Wind: leaves and seed-fluff streaming across, tumbling.
+      const x = ((seed * 9.1 + t * 180) % (WORLD_W + 80)) - 40;
+      const y = 200 + ((seed * 3.7) % 340) + Math.sin(t * 2 + i) * 14;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(t * 3 + i);
+      ctx.fillStyle = i % 3 === 0 ? 'rgba(200, 170, 80, 0.7)' : 'rgba(160, 190, 90, 0.6)';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 4, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
   }
 }

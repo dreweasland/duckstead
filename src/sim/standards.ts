@@ -1,8 +1,8 @@
 // Breed Standards: for every Breed Book entry, a "show standard" genotype
-// across all 13 loci. The four Book loci come from the key; the other nine
-// (size, bill length, bill colour, markings, vigor) are derived from a hash
-// of the key so each breed has its own build to chase — and a 13/13 match
-// takes generations of selection, not luck.
+// across all 15 loci. The four Book loci come from the key; the other eleven
+// (size, bill length, bill colour, markings, vigor, temperament) are derived
+// from a hash of the key so each breed has its own build to chase — and a
+// full match takes generations of selection, not luck.
 import type { Duck } from './duck';
 import type { Allele, Genome, LocusId } from './genetics';
 import { breedKey, representativeGenome } from './breedBook';
@@ -12,6 +12,7 @@ export interface StandardTargets {
   bill: number; // 0..4 across bill1-2
   billColor: Allele; // 'O' | 'y' | 'P'
   markings: Allele; // 'A' | 'a'
+  temper: number; // 0..4 '+' alleles across temper1-2: timid, steady, bold
 }
 
 function hashKey(key: string): number {
@@ -31,7 +32,8 @@ export function standardTargets(key: string): StandardTargets {
   const billRoll = (h >>> 8) % 9;
   const billColor: Allele = billRoll < 3 ? 'P' : billRoll < 6 ? 'y' : 'O';
   const markings: Allele = (h >>> 12) % 2 === 0 ? 'A' : 'a';
-  return { size, bill, billColor, markings };
+  const temper = [0, 2, 4][(h >>> 16) % 3];
+  return { size, bill, billColor, markings, temper };
 }
 
 // The full target genome. Additive loci are filled left to right with '+'.
@@ -51,6 +53,7 @@ export function breedStandard(key: string): Genome {
   fill(['size1', 'size2', 'size3'], t.size);
   fill(['bill1', 'bill2'], t.bill);
   fill(['vigor1', 'vigor2'], 4);
+  fill(['temper1', 'temper2'], t.temper);
   g.billColor = [t.billColor, t.billColor];
   g.patternColor = [t.markings, t.markings];
   return g;
@@ -59,7 +62,7 @@ export function breedStandard(key: string): Genome {
 export interface StandardMatch {
   key: string;
   pct: number; // 0..100
-  slots: Array<{ label: string; score: number; want: string; have: string }>; // 9 judged slots, score 0..1
+  slots: Array<{ label: string; score: number; want: string; have: string }>; // 10 judged slots, score 0..1
 }
 
 const BOOK: Array<{ id: LocusId; label: string }> = [
@@ -99,6 +102,9 @@ export function standardMatch(duck: Duck, key = breedKey(duck.genome)): Standard
   slots.push({ label: 'bill', score: 1 - Math.abs(billWant - billHave) / 4, want: `${billWant}/4`, have: `${billHave}/4` });
   const vig = plusCount(g, ['vigor1', 'vigor2']);
   slots.push({ label: 'vigor', score: vig / 4, want: '4/4', have: `${vig}/4` });
+  const temperWant = plusCount(std, ['temper1', 'temper2']);
+  const temperHave = plusCount(g, ['temper1', 'temper2']);
+  slots.push({ label: 'temper', score: 1 - Math.abs(temperWant - temperHave) / 4, want: `${temperWant}/4`, have: `${temperHave}/4` });
   slots.push({ label: 'bill colour', score: pairScore(g.billColor, std.billColor), want: std.billColor.join(''), have: g.billColor.join('') });
   slots.push({ label: 'markings', score: pairScore(g.patternColor, std.patternColor), want: std.patternColor.join(''), have: g.patternColor.join('') });
   const pct = Math.round((slots.reduce((s, x) => s + x.score, 0) / slots.length) * 100);
@@ -116,5 +122,6 @@ export function describeStandard(key: string): string {
   parts.push(t.billColor === 'P' ? 'pink bill' : t.billColor === 'y' ? 'yellow bill' : 'orange bill');
   parts.push(t.markings === 'a' ? 'pale markings' : 'dark markings');
   parts.push('hardy');
+  parts.push(t.temper === 0 ? 'timid' : t.temper === 4 ? 'bold' : 'steady');
   return parts.join(', ');
 }

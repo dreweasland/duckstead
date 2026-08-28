@@ -6,7 +6,6 @@
 <title>The Duck Genetics Guide — Duck Homestead</title>
 <meta name="description" content="Every locus, dominance rule, show standard, and breeding recipe in Duck Homestead's genetics system.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%234a90c2'/%3E%3Ccircle cx='15.5' cy='7.5' r='3.6' fill='%23f2ede2'/%3E%3Cpath d='M18.6 6.4l3.4-.8v2.4l-3.4.3z' fill='%23e8912d'/%3E%3Cpath d='M3.5 13.5c0 4 3.2 6.5 7.5 6.5h3.5c3.4 0 5.9-2 5.9-4.9 0-.5-.1-1-.2-1.4l-3.4.8c-2.1.5-4.1-1.1-4.1-3.2v-1c-.9-.5-2.1-.8-3.4-.8-3.4 0-5.8 1.6-5.8 4z' fill='%23f2ede2'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700&family=Nunito+Sans:ital,wght@0,400;0,600;0,800;1,400&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
 :root {
   --paper: #eef2ee; --ink: #26333b; --muted: #5c6d76; --line: #d3dcd4;
@@ -67,13 +66,13 @@ li { margin: 0.35rem 0; }
 <main>
 <p class="eyebrow"><a href="/" style="color:inherit;text-decoration:none">← Back to the pond</a> · Field Reference</p>
 <h1>The Duck Genetics Guide</h1>
-<p class="lede">Every duck carries a diploid genome: thirteen loci, two alleles each, one from each parent. Nothing is hand-painted — plumage, build, bill, crest, and constitution are computed from these genes, so what you see on the pond is exactly what you can breed for.</p>
+<p class="lede">Every duck carries a diploid genome: fifteen loci, two alleles each, one from each parent. Nothing is hand-painted — plumage, build, bill, crest, constitution, and temperament are computed from these genes, so what you see on the pond is exactly what you can breed for.</p>
 
 <h2>0 · The five-minute version</h2>
 <p>Ignore the science words for a second. Every trait is just a <strong>pair of letter cards</strong>, and breeding is a tiny card game:</p>
 <div class="eli5">
 <div class="card"><strong>1 · Every duck holds two cards per trait</strong>
-<p>For crest, a duck might hold <span class="hand"><span class="tile">n</span><span class="tile">R</span></span> — one card came from its mother, one from its father. It holds a pair like this for all thirteen traits.</p></div>
+<p>For crest, a duck might hold <span class="hand"><span class="tile">n</span><span class="tile">R</span></span> — one card came from its mother, one from its father. It holds a pair like this for all fifteen traits.</p></div>
 <div class="card"><strong>2 · The stronger card is the one you see</strong>
 <p>When the two cards differ, only the stronger one shows (the tables below rank them). The weaker card doesn't vanish — it <em>hides</em>, and the duck carries it invisibly its whole life.</p></div>
 <div class="card"><strong>3 · Breeding: each parent hands over ONE card, at random</strong>
@@ -83,7 +82,7 @@ li { margin: 0.35rem 0; }
 <div class="card"><strong>5 · Typos make the rare letters</strong>
 <p>Each handed-over card has a 2% chance of being miscopied into a different letter. That's the only way <span class="tile rare">B</span> blue and <span class="tile rare">P</span> pink bills appear out of nowhere.</p></div>
 <div class="card"><strong>6 · Some traits just count cards</strong>
-<p>Size, bill, and vigor have no strong or weak — you simply count the <span class="tile">+</span> cards across the pair(s). More <span class="tile">+</span> from the parents means more to hand down.</p></div>
+<p>Size, bill, vigor, and temperament have no strong or weak — you simply count the <span class="tile">+</span> cards across the pair(s). More <span class="tile">+</span> from the parents means more to hand down.</p></div>
 </div>
 <p>Worked through once: mum holds <span class="hand"><span class="tile">D</span><span class="tile">d</span></span>, dad holds <span class="hand"><span class="tile">D</span><span class="tile">d</span></span>. Each hands over one card at random, so the duckling is equally likely to be:</p>
 <div class="combo-row">
@@ -94,7 +93,7 @@ li { margin: 0.35rem 0; }
 </div>
 <p>So two full-colour carriers throw a pastel duckling once per four eggs, on average. Every recipe in this guide is this one trick applied to a different pair of letters.</p>
 
-<h2>1 · The thirteen loci</h2>
+<h2>1 · The fifteen loci</h2>
 <h3>Mendelian loci — dominance decides what shows</h3>
 <div class="tablewrap"><table>
 <tr><th>Locus</th><th>Alleles, dominant → recessive</th><th>What it does</th></tr>
@@ -113,6 +112,7 @@ li { margin: 0.35rem 0; }
 <tr><td><strong>Size</strong></td><td class="mono">size1–3</td><td>0–6</td><td>Body scale 75% → 130%. Extremes (0 or 6) score rarity.</td></tr>
 <tr><td><strong>Bill shape</strong></td><td class="mono">bill1–2</td><td>0–4</td><td>0 = stubby &amp; wide, 4 = long &amp; narrow. Extremes score rarity.</td></tr>
 <tr><td><strong>Vigor</strong></td><td class="mono">vigor1–2</td><td>0–4</td><td>Lifespan, sickness resistance, race speed. More is always better.</td></tr>
+<tr><td><strong>Temperament</strong></td><td class="mono">temper1–2</td><td>0–4</td><td>0 timid · 2 steady · 4 bold. Bold ducks are busier, race harder, lay through a worse mood, and take to sprint drills; timid ducks settle into poise. Every standard asks for one of the three.</td></tr>
 </table></div>
 <p>No dominance here — every <span class="tile">+</span> counts, so these respond to steady selection rather than lucky pairings.</p>
 
@@ -138,16 +138,18 @@ li { margin: 0.35rem 0; }
 <h2>3 · What the genes feed into</h2>
 <h3>The Breed Book — 60 entries</h3>
 <p>A duck's <strong>breed</strong> is defined by four loci: base colour (five expressed colours, Blue-Mallard included) × dilution × pattern × crest. Discovery pays coins and Society points; each breed carries a Pure / Standard / Master award ladder.</p>
-<h3>Show standards — all thirteen loci</h3>
-<p>Every breed has a deterministic <strong>show standard</strong>: the Book loci homozygous (Blue-Mallard excepted — it wants the B/M pair), plus a per-breed build: size and bill-length targets, a bill colour (about a third want pink), a markings colour, and always 4/4 vigor. The card shows your % match over nine judged slots; ≥90% earns the Standard award. Egg Show judges weigh standard match as heavily as rarity; National derby races admit only ducks at 60%+.</p>
+<h3>Show standards — all fifteen loci</h3>
+<p>Every breed has a deterministic <strong>show standard</strong>: the Book loci homozygous (Blue-Mallard excepted — it wants the B/M pair), plus a per-breed build: size and bill-length targets, a bill colour (about a third want pink), a markings colour, a temperament, and always 4/4 vigor. The card shows your % match over ten judged slots; ≥90% earns the Standard award. Egg Show judges weigh standard match as heavily as rarity; National derby races admit only ducks at 60%+.</p>
 <h3>Rarity (0–9) and pedigree (0–15)</h3>
 <p>Rarity: +2 each for expressed blue, pink bill, and crest; +1 each for size extreme, bill extreme, dilute. Pedigree: generations bred on your pond (≤6) + homozygous Book loci (≤4) + rare alleles carried (≤4) + 1 for purebred parents. Sale price scales with both — every pedigree point adds 8%.</p>
 <h3>Vigor in play</h3>
-<p>Race speed ×0.85–1.15, adult lifespan 11.2–16.8 days, up to −50% sickness chance, and a slot in every standard. The one stat with no downside — fix <span class="tile">+</span><span class="tile">+</span>/<span class="tile">+</span><span class="tile">+</span> into every line you keep. For racers, the build sweet spot is <em>slightly under medium</em> size — which conflicts with rarity's love of extremes. Temperament (energetic/mellow) is personality, not genetics: it can't be bred for.</p>
+<p>Race speed ×0.85–1.15, adult lifespan 11.2–16.8 days, up to −50% sickness chance, and a slot in every standard. The one stat with no downside — fix <span class="tile">+</span><span class="tile">+</span>/<span class="tile">+</span><span class="tile">+</span> into every line you keep. For racers, the build sweet spot is <em>slightly under medium</em> size — which conflicts with rarity's love of extremes. Temperament is the <span class="mono">temper</span> loci and breeds true; a 4/4 bold duck starts ~10% quicker than a timid one. Sociability (social/loner) is the one quirk still left to personality.</p>
+<h3>A life beyond the genes</h3>
+<p>Genes set the ceiling; the life sets where a duck lands under it. <strong>Training</strong>: three drilled stats (paddle +15% race speed at 100; stamina +5% and boosts fade slower; poise lifts a parent's Egg Show score) built through short timing drills on the card — one a day per duck, +1 per Training Perch level, fading a point a day. Bold ducks gain paddle faster, timid ducks poise. <strong>Upbringing marks</strong> are earned once from how a duck was raised — <em>hardy</em> (warm egg), <em>scrappy</em> (cold egg, survived), <em>steady</em> (raised beside an elder), <em>keen</em> (raced young), <em>spoiled</em> (treats while young), <em>proud</em> (won a rivalry) — each a small permanent bonus or trade-off. <strong>Life events</strong> (a broody hen, rival drakes) turn up a few times a week with a <em>Decide</em> chip in the HUD; each choice trades something for something.</p>
 
 <h2>4 · Reading genes</h2>
 <ul>
-<li><strong>Free clues:</strong> swatches, pattern and crest chips, size/bill/vigor gauges on every card.</li>
+<li><strong>Free clues:</strong> swatches, pattern and crest chips, size/bill/vigor/temper gauges on every card.</li>
 <li><strong>Pedigree Scope</strong> (shop, 150) shows exact allele pairs — expressed bright <span class="tile">M</span>, masked dim <span class="tile dim">k</span> — plus "carries" chips for hidden recessives.</li>
 <li><strong>Breeding Advisor:</strong> <em>key breeder</em> (sole carrier of a rare gene), <em>worth keeping</em> (reaches Book entries nobody else can), <em>best of breed</em> (closest to its standard), or <em>covered — safe to sell</em>.</li>
 <li><strong>Breed panel:</strong> exact per-trait odds for any pairing, close-kin warnings, and how many undiscovered breeds a pairing could unlock.</li>

@@ -35,6 +35,15 @@ import { advanceRank, canAdvance, hasPerk, nextRank, RANKS, rewardLabel, STYLES,
 import { createDuck } from '../sim/duck';
 import { randomCommonGenome, type Genome } from '../sim/genetics';
 import { FESTIVAL_NAMES, festivalTier, festivalToday, upcomingFestival } from '../sim/festivals';
+import { hireStud, rivalDef, rivalDuck, rivalStrength, studOffers } from '../sim/rivals';
+import { canEnterCup, cupOpen, cupPrize, cupStandings, enterCup } from '../sim/cup';
+import { TUNING } from '../sim/tuning';
+import { canBreedPair } from '../sim/needs';
+import { buildGeneStrip } from './geneticsCard';
+import { yearOf } from '../sim/time';
+
+// Which hen the stud picker has selected, per rival; survives rebuilds.
+let studHen: Record<string, string> = {};
 
 type Tab = 'supplies' | 'upgrades' | 'decor' | 'sell' | 'board' | 'society';
 const TABS: Array<{ id: Tab; label: string; icon: IconName }> = [
@@ -72,7 +81,7 @@ const UPGRADE_META: Record<UpgradeId, { icon: IconName; blurb: string; chips: st
   feedSilo: { icon: 'wheat', blurb: 'A bigger trough that refills itself at dawn.', chips: ['+20 capacity', 'auto-pour'] },
   eggCooler: { icon: 'egg', blurb: 'Basket eggs keep — and fetch more.', chips: ['+25% egg price'] },
   brooderLamp: { icon: 'sparkle', blurb: 'Warm light for the young.', chips: ['+20% growth', 'happier hatch'] },
-  trainingPerch: { icon: 'flag', blurb: 'Daily drills for the stable.', chips: ['+4% race speed'] },
+  trainingPerch: { icon: 'flag', blurb: 'Room for more drills: every duck trains once more a day per level.', chips: ['+1 drill/day'] },
   vetClinic: { icon: 'pill', blurb: 'A resident vet keeps the flock on its feet.', chips: ['½ sickness', '2× medicine'] },
   bachelorPen: { icon: 'duck', blurb: 'Surplus drakes sit out of breeding — no pressure on the hens, no selling.', chips: ['+3 places', 'no drake pressure'] },
 };
@@ -364,7 +373,6 @@ function boardTab(ctx: PanelCtx): HTMLElement {
   );
   if (state.commissions.length === 0) {
     box.append(el('div', { class: 'muted small roster-empty' }, 'No open commissions — a new one is posted each morning.'));
-    return box;
   }
   const grid = el('div', { class: 'shop-grid' });
   for (const c of state.commissions) {
@@ -388,6 +396,121 @@ function boardTab(ctx: PanelCtx): HTMLElement {
     );
   }
   box.append(grid);
+  box.append(studSection(ctx));
+  return box;
+}
+
+// Stud service: hire a rival pond's best drake for one clutch with a hen of
+// yours. His genes are on show (the Scope reads them), the courtship runs
+// like any other, and the egg's lineage remembers him.
+function studSection(ctx: PanelCtx): HTMLElement {
+  const state = ctx.game.state;
+  const box = el('div', {}, el('div', { class: 'br-section-title' }, 'Stud service'));
+  box.append(el('div', { class: 'muted small shop-tab-hint' }, 'The rival ponds will lend a drake for one clutch — a way in to genes your flock lacks. The hen courts as usual; the egg is yours.'));
+  const hens = state.ducks.filter((d) => d.sex === 'F' && d.stage === 'adult' && !d.penned);
+  const grid = el('div', { class: 'shop-grid stud-grid' });
+  for (const offer of studOffers(state)) {
+    const rival = state.rivals.find((r) => r.id === offer.rivalId)!;
+    const henId = studHen[offer.rivalId] ?? hens[0]?.id;
+    const hen = hens.find((h) => h.id === henId);
+    const gate = hen ? canBreedPair(hen, offer.drake) : { ok: false, reason: 'No adult hen free to court' };
+    const picker = el('select', { class: 'stud-hen-pick', onchange: (e) => { studHen = { ...studHen, [offer.rivalId]: (e.target as HTMLSelectElement).value }; ctx.ui.refreshPanel(); } });
+    for (const h of hens) {
+      const opt = el('option', { value: h.id }, h.name) as HTMLOptionElement;
+      if (h.id === henId) opt.selected = true;
+      picker.append(opt);
+    }
+    const body = el(
+      'div',
+      { class: 'stud-card' },
+      el('div', { class: 'stud-head' }, duckPortrait(offer.drake, 56), el('div', {}, el('strong', {}, offer.drake.name), el('div', { class: 'muted small' }, `${rival.name} · ${rivalDef(rival.id).blurb}`))),
+      buildGeneStrip(state, offer.drake),
+      el('label', { class: 'muted small stud-hen-row' }, 'With hen: ', picker),
+      el(
+        'button',
+        {
+          class: 'action-btn primary shop-buy',
+          disabled: !gate.ok || state.money < offer.cost || !hen,
+          title: !hen ? 'No adult hen free to court' : gate.ok ? '' : gate.reason ?? '',
+          onclick: () => {
+            if (!hen) return;
+            const res = hireStud(state, offer.rivalId, hen.id);
+            if (!res.ok && res.reason) ctx.ui.toast(res.reason);
+            ctx.ui.refreshPanel();
+          },
+        },
+        'Hire for ',
+        icon('coin', 11),
+        ` ${offer.cost}`,
+      ),
+      !gate.ok && hen ? el('div', { class: 'muted small warn-text' }, gate.reason ?? '') : null,
+    );
+    grid.append(body);
+  }
+  box.append(grid);
+  return box;
+}
+
+// The rival ponds and the Society Cup.
+function rivalsSection(ctx: PanelCtx): HTMLElement {
+  const state = ctx.game.state;
+  const box = el('div', {}, el('div', { class: 'br-section-title' }, 'The rival ponds'));
+  box.append(el('div', { class: 'muted small shop-tab-hint' }, 'Three ponds breed alongside yours, a generation a season, and turn up at every show, race, and the Board. They get better every year.'));
+  const grid = el('div', { class: 'shop-grid rivals-grid' });
+  for (const rival of state.rivals) {
+    const def = rivalDef(rival.id);
+    const strength = rivalStrength(state, rival);
+    const portraits = el('div', { class: 'rival-flock' });
+    rival.flock.slice(0, 6).forEach((g, i) => portraits.append(duckPortrait(rivalDuck(rival, i, g), 34)));
+    grid.append(
+      el(
+        'div',
+        { class: 'rival-card' },
+        el('div', {}, el('strong', {}, rival.name), el('div', { class: 'muted small' }, def.blurb)),
+        portraits,
+        el(
+          'div',
+          { class: 'gene-badges' },
+          el('span', { class: 'chip chip-trait', title: 'How formidable they are this year' }, `strength ${Math.round(strength * 100)}%`),
+          el('span', { class: 'chip chip-trait', title: 'Their drilled stats' }, `training ${Math.round(rival.training)}`),
+          el('span', { class: 'chip chip-trait' }, `${rival.wins} win${rival.wins === 1 ? '' : 's'}`),
+          el('span', { class: 'chip chip-trait', title: 'Their Society Cup tally this year' }, `${rival.yearPoints} pts this year`),
+        ),
+      ),
+    );
+  }
+  box.append(grid);
+
+  // The Cup.
+  box.append(el('div', { class: 'br-section-title' }, `Society Cup — year ${yearOf(state.clock)}`));
+  const gate = canEnterCup(state);
+  if (cupOpen(state)) {
+    const rows = el('div', { class: 'race-results' });
+    cupStandings(state).forEach((s, i) => {
+      rows.append(
+        el(
+          'div',
+          { class: `race-result-row${s.isPlayer ? ' mine' : ''}` },
+          el('span', { class: `race-place p${i + 1}` }, String(i + 1)),
+          el('span', { class: 'race-result-name' }, s.name),
+          el('span', { class: 'muted small' }, `${s.score} pts`),
+        ),
+      );
+    });
+    box.append(
+      el('div', { class: 'muted small shop-tab-hint' }, `Entered. Every Society point you earn until the last night of winter counts; the winner takes ${cupPrize(state)} coins.`),
+      rows,
+    );
+  } else {
+    box.append(
+      el('div', { class: 'muted small shop-tab-hint' }, `Stake ${TUNING.cup.entryPoints} Society points to enter the year's Cup against the rival ponds — the points you earn from then to the last night of winter decide it. The winner takes ${cupPrize(state)} coins; open from Society rank ${TUNING.cup.minRank}.`),
+      el(
+        'button',
+        { class: 'action-btn primary shop-buy', disabled: !gate.ok, title: gate.reason ?? '', onclick: () => { enterCup(state); ctx.ui.refreshPanel(); } },
+        gate.ok ? `Enter the Cup (${TUNING.cup.entryPoints} points)` : gate.reason ?? '',
+      ),
+    );
+  }
   return box;
 }
 
@@ -470,6 +593,8 @@ function societyTab(ctx: PanelCtx): HTMLElement {
     }
     box.append(grid);
   }
+
+  box.append(rivalsSection(ctx));
 
   // The ladder, for the curious.
   const ladder = el('div', { class: 'society-ladder' });

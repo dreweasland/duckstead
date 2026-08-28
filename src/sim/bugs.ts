@@ -6,6 +6,8 @@
 //   feather        — molted by your own ducks; coins plus a Feather Album entry.
 //   duckweed       — grows on the pond rim; gather it for free feed.
 //   henEgg         — laid daily by content hens (see laying.ts); basket → shop.
+//   frog           — sits on the rim by day, pocket change; a duck may snap it up.
+//   dragonfly      — skims the water by day, pocket change; ducks snap at it.
 // Feathers and duckweed never expire, so a player returning from 16× still
 // finds a handful to collect.
 import type { Bug, BugKind, GameState } from '../state';
@@ -13,24 +15,26 @@ import { WORLD_H, WORLD_W } from '../state';
 import type { Rng } from '../rng';
 import { clamp, dist } from '../types';
 import { isInPond, pondGeometry } from './pond';
-import { isNight, TICKS_PER_HOUR, TICKS_PER_MINUTE } from './time';
+import { isNight, TICKS_PER_MINUTE } from './time';
 import { upgradeLevel } from './economy';
+import { TUNING } from './tuning';
+import { weatherBugScale } from './weather';
 
-const MAX_CRITTERS = 3; // beetles + snails
-const MAX_FIREFLIES = 3;
-const MAX_FEATHERS = 4;
-const MAX_DUCKWEED = 3;
-const CRITTER_LIFETIME = 2 * TICKS_PER_HOUR;
-// Aim for roughly one spawn every ~20 game-minutes while below the cap.
-const CRITTER_SPAWN_CHANCE = 1 / (20 * TICKS_PER_MINUTE);
-const FIREFLY_SPAWN_CHANCE = 1 / (15 * TICKS_PER_MINUTE);
-// A flock molts a feather every ~2 game-hours, and weed sprouts every ~3.
-const FEATHER_SPAWN_CHANCE = 1 / (2 * TICKS_PER_HOUR);
-const DUCKWEED_SPAWN_CHANCE = 1 / (3 * TICKS_PER_HOUR);
-const DUCK_EAT_DISTANCE = 16;
-export const BUG_CATCH_RADIUS = 18;
+const {
+  maxCritters: MAX_CRITTERS,
+  maxFireflies: MAX_FIREFLIES,
+  maxFeathers: MAX_FEATHERS,
+  maxDuckweed: MAX_DUCKWEED,
+  critterLifetime: CRITTER_LIFETIME,
+  critterSpawnChance: CRITTER_SPAWN_CHANCE,
+  fireflySpawnChance: FIREFLY_SPAWN_CHANCE,
+  featherSpawnChance: FEATHER_SPAWN_CHANCE,
+  duckweedSpawnChance: DUCKWEED_SPAWN_CHANCE,
+  duckEatDistance: DUCK_EAT_DISTANCE,
+} = TUNING.bugs;
+export const BUG_CATCH_RADIUS = TUNING.bugs.catchRadius;
 
-const SPEED: Partial<Record<BugKind, number>> = { beetle: 0.22, snail: 0.05, firefly: 0.35 };
+const SPEED: Partial<Record<BugKind, number>> = { beetle: 0.22, snail: 0.05, firefly: 0.35, dragonfly: 0.55, frog: 0 };
 export const BUG_REWARD: Record<BugKind, number> = {
   beetle: 3,
   snail: 2,
@@ -38,23 +42,32 @@ export const BUG_REWARD: Record<BugKind, number> = {
   feather: 2,
   duckweed: 0, // pays in feed instead
   henEgg: 0, // goes into the egg basket
+  frog: 2,
+  dragonfly: 3,
 };
 export const DUCKWEED_FEED = 1;
 
-const CRITTER = new Set<BugKind>(['beetle', 'snail']);
+const CRITTER = new Set<BugKind>(['beetle', 'snail', 'dragonfly', 'frog']);
+// Things that live on or over the water rather than the grass.
+const POND_LIFE = new Set<BugKind>(['frog', 'dragonfly']);
 
 export function tickBugs(state: GameState, rng: Rng): void {
   const night = isNight(state.clock);
   const count = (kind: BugKind) => state.bugs.filter((b) => b.kind === kind).length;
   // Reed Beds: richer ground, more of everything, and it sprouts a bit faster.
   const reeds = upgradeLevel(state, 'reedBeds');
-  const boost = 1 + reeds * 0.25;
+  // Rain, fog, and snow keep the small creatures in.
+  const boost = (1 + reeds * 0.25) * weatherBugScale(state);
 
   if (!night && count('beetle') + count('snail') < MAX_CRITTERS + reeds && rng.chance(CRITTER_SPAWN_CHANCE * boost)) {
     spawnOnGrass(state, rng, rng.chance(0.55) ? 'beetle' : 'snail');
   }
   if (night && count('firefly') < MAX_FIREFLIES + reeds && rng.chance(FIREFLY_SPAWN_CHANCE * boost)) {
     spawnOnGrass(state, rng, 'firefly');
+  }
+  if (!night && count('frog') + count('dragonfly') < TUNING.bugs.maxPondLife && rng.chance(TUNING.bugs.pondLifeSpawnChance * boost)) {
+    if (rng.chance(0.5)) spawnFrog(state, rng);
+    else spawnDragonfly(state, rng);
   }
   if (count('feather') < MAX_FEATHERS + reeds && rng.chance(FEATHER_SPAWN_CHANCE * boost)) {
     spawnFeather(state, rng);
@@ -71,25 +84,39 @@ export function tickBugs(state: GameState, rng: Rng): void {
       state.bugs.splice(i, 1);
       continue;
     }
-    // Fireflies fade out at sunrise.
-    if (bug.kind === 'firefly' && !night) {
+    // Fireflies fade out at sunrise; pond life turns in at dusk.
+    if ((bug.kind === 'firefly' && !night) || (POND_LIFE.has(bug.kind) && night)) {
       state.bugs.splice(i, 1);
       continue;
     }
     if (mobile === undefined) continue;
+    if (mobile === 0) {
+      // A frog: sits, and hops a little now and then.
+      if (rng.chance(1 / (3 * TICKS_PER_MINUTE))) {
+        bug.heading = rng.range(0, Math.PI * 2);
+        bug.pos.x = clamp(bug.pos.x + Math.cos(bug.heading) * 6, 20, WORLD_W - 20);
+        bug.pos.y = clamp(bug.pos.y + Math.sin(bug.heading) * 3, 215, WORLD_H - 95);
+      }
+      // (eaten below like any critter)
+    } else {
 
     // Crawl with a wander jitter; bounce off the pond and the world edges.
     // The lower bound keeps pickups above the card rail's screen strip so
     // they always stay clickable.
-    bug.heading += rng.range(-0.2, 0.2) * (bug.kind === 'firefly' ? 2 : 1);
+    bug.heading += rng.range(-0.2, 0.2) * (bug.kind === 'firefly' || bug.kind === 'dragonfly' ? 2 : 1);
     const nx = bug.pos.x + Math.cos(bug.heading) * mobile;
     const ny = bug.pos.y + Math.sin(bug.heading) * mobile;
-    const overWater = bug.kind !== 'firefly' && isInPond(state, { x: nx, y: ny });
-    if (overWater || nx < 20 || nx > WORLD_W - 20 || ny < 215 || ny > WORLD_H - 95) {
+    const flier = bug.kind === 'firefly' || bug.kind === 'dragonfly';
+    // Dragonflies keep to the water; crawlers keep off it.
+    const wrongGround = flier
+      ? bug.kind === 'dragonfly' && !isInPond(state, { x: nx, y: ny })
+      : isInPond(state, { x: nx, y: ny });
+    if (wrongGround || nx < 20 || nx > WORLD_W - 20 || ny < 215 || ny > WORLD_H - 95) {
       bug.heading += Math.PI;
     } else {
       bug.pos.x = nx;
       bug.pos.y = ny;
+    }
     }
 
     // A duck close by eats a critter — a free happiness treat.
@@ -137,6 +164,26 @@ function spawnFeather(state: GameState, rng: Rng): void {
     color: duck.phenotype.bodyColor,
     source: duck.name,
   });
+}
+
+// A frog on the rim, where the duckweed grows.
+function spawnFrog(state: GameState, rng: Rng): void {
+  const g = pondGeometry(state);
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const a = rng.range(0, Math.PI * 2);
+    const pos = { x: g.cx + Math.cos(a) * (g.rx + 26), y: g.cy + Math.sin(a) * (g.ry + 18) };
+    if (pos.y < 225 || pos.y > WORLD_H - 100) continue;
+    push(state, { kind: 'frog', pos, heading: rng.chance(0.5) ? 0 : Math.PI });
+    return;
+  }
+}
+
+// A dragonfly somewhere over the water.
+function spawnDragonfly(state: GameState, rng: Rng): void {
+  const g = pondGeometry(state);
+  const a = rng.range(0, Math.PI * 2);
+  const r = rng.range(0.2, 0.8);
+  push(state, { kind: 'dragonfly', pos: { x: g.cx + Math.cos(a) * g.rx * r, y: g.cy + Math.sin(a) * g.ry * r }, heading: rng.range(0, Math.PI * 2) });
 }
 
 // Duckweed clumps sprout just outside the pond's rim.

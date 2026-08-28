@@ -2,10 +2,16 @@ import type { GameState } from '../state';
 import type { Duck } from './duck';
 import { events } from '../events';
 import { festivalToday } from './festivals';
-import { pedigreeScore } from './pedigree';
+import { isPureBred, pedigreeScore } from './pedigree';
+import { generationOf } from './lineage';
 import { chronicle } from './chronicle';
 import { hasPerk } from './society';
 import { heritagePondBonus } from './heritage';
+import { TUNING } from './tuning';
+
+// Rates, chances and thresholds live in tuning.ts; re-exported here so the
+// two tables are found together.
+export { TUNING };
 
 export const BALANCE = {
   startingMoney: 50,
@@ -16,9 +22,9 @@ export const BALANCE = {
   rarityMultiplier: 0.5, // price *= 1 + rarity * this
   pedigreeMultiplier: 0.08, // price *= 1 + pedigree * this
   autumnEggBonus: 1.25,
-  feedRestore: 40,
-  premiumFeedRestore: 60,
-  premiumFeedHappiness: 5,
+  feedRestore: TUNING.food.feedRestore,
+  premiumFeedRestore: TUNING.food.premiumFeedRestore,
+  premiumFeedHappiness: TUNING.food.premiumFeedHappiness,
   cleanRestore: 50,
   petHappiness: 15,
   petCooldownTicks: 600, // 1 game-hour
@@ -35,6 +41,20 @@ export const BALANCE = {
   racePrizes: [15, 6, 0, 0],
   raceHappiness: 6, // racing is fun
   raceHunger: 12, // ...and tiring
+  // Drills pay pocket money, capped per day so they stay training, not a job.
+  drillCoins: 3, // × drill quality
+  drillCoinsDailyCap: 15,
+  // The Winter Lights "full purse" wish pays the pond's best sale — to a point.
+  winterFortuneCap: 400,
+  // Basket eggs: the first dozen a day sell at full price, the rest cheaper.
+  basketFullPriceEggs: 12,
+  basketTaper: 0.6,
+  // Stud service: a rival's drake for one clutch.
+  studBase: 120,
+  studPerRarity: 35,
+  // Market Day's target: sell this much (by tier) to win the festival.
+  marketTargetBase: 100,
+  marketTargetPerTier: 80,
 } as const;
 
 export type UpgradeId =
@@ -158,7 +178,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'trainingPerch',
     name: 'Training Perch',
-    description: 'Your racers run 4% faster per level.',
+    description: '+1 training drill per duck per day, per level.',
     maxLevel: 3,
     costs: [800, 2000, 5000],
   },
@@ -288,16 +308,21 @@ export function eggWarmthDecayScale(state: GameState): number {
 }
 
 export function sellPrice(state: GameState, duck: Duck): number {
-  // Pedigree (generations, fixed genes, rare alleles, pure breeding) is
-  // worth money: a gen-4 purebred sells for far more than a founder.
-  const rarity = (1 + duck.phenotype.rarityScore * BALANCE.rarityMultiplier) * (1 + BALANCE.pedigreeMultiplier * pedigreeScore(duck));
   // Market Day festival: everything sells at a premium.
   const festival = festivalToday(state.clock) === 'marketDay' ? 1.5 : 1;
   if (duck.stage === 'egg') {
-    // Egg rarity is unknown to the player; price on the average of the
-    // parents' phenotype isn't stored, so use the egg's own hidden genes.
-    return Math.round(BALANCE.eggBasePrice * rarity * festival);
+    // An egg's own genes are secret until it hatches, so its price reads
+    // only what the player can see: the parents' rarity (stamped at lay)
+    // and the visible pedigree (generation, purebred parents). Eggs laid
+    // before the stamp existed fall back to their own genes.
+    const parentRarity = duck.parentRarity ?? duck.phenotype.rarityScore;
+    const visiblePedigree = Math.min(6, generationOf(duck)) + (isPureBred(duck) ? 1 : 0);
+    const eggRarity = (1 + parentRarity * BALANCE.rarityMultiplier) * (1 + BALANCE.pedigreeMultiplier * visiblePedigree);
+    return Math.round(BALANCE.eggBasePrice * eggRarity * festival);
   }
+  // Pedigree (generations, fixed genes, rare alleles, pure breeding) is
+  // worth money: a gen-4 purebred sells for far more than a founder.
+  const rarity = (1 + duck.phenotype.rarityScore * BALANCE.rarityMultiplier) * (1 + BALANCE.pedigreeMultiplier * pedigreeScore(duck));
   if (duck.stage === 'duckling' || duck.stage === 'juvenile') {
     return Math.round(BALANCE.ducklingBasePrice * rarity * festival);
   }
@@ -320,10 +345,18 @@ export function henEggPrice(state: GameState): number {
 }
 
 // Sell the whole basket. Returns coins earned (0 if empty).
+// What a basket of n eggs fetches: full price up to a dozen, tapered beyond.
+export function basketValue(state: GameState, n: number): number {
+  const price = henEggPrice(state);
+  const full = Math.min(n, BALANCE.basketFullPriceEggs);
+  const rest = Math.max(0, n - full);
+  return Math.round(full * price + rest * price * BALANCE.basketTaper);
+}
+
 export function sellEggBasket(state: GameState): number {
   const n = state.inventory.eggs;
   if (n <= 0) return 0;
-  const earned = n * henEggPrice(state);
+  const earned = basketValue(state, n);
   state.money += earned;
   state.inventory.eggs = 0;
   state.stats.henEggsSold += n;

@@ -44,8 +44,10 @@ export function recordLeagueResult(state: GameState, place: number): string | nu
   const l = state.league;
   // Wins above the Pond tier are worth Society points in their own right.
   if (place === 0 && l.tier > 0) addSocietyPoints(state, l.tier);
+  // Second is neutral in the Pond Derby (a learner's tier); higher up, only
+  // a win keeps the standing — so relegation is a real risk, as advertised.
   if (place === 0) l.wins += 1;
-  else if (place >= 2) l.losses += 1;
+  else if (place >= 2 || l.tier > 0) l.losses += 1;
   const net = l.wins - l.losses;
   if (net >= PROMOTE_AT && l.tier < LEAGUE.length - 1) {
     l.tier += 1;

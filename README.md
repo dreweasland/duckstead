@@ -51,13 +51,14 @@ npm run dev        # open http://localhost:5173
   exact genotypes). Late-game sinks scale with the flock: Reed Beds (more
   forage), Feed Silo (bigger self-filling trough), Egg Cooler (+25% basket
   eggs per level), Brooder Lamp (faster, happier young), Training Perch
-  (+4% race speed per level), Vet Clinic (half the sickness, double
-  medicine), and **festival sponsorship** — pay to raise the next festival
-  a tier for a year.
+  (+1 training drill per duck per day per level; drills also pay a little,
+  capped daily), Vet Clinic (half the sickness, double medicine), and
+  **festival sponsorship** — pay to raise the next festival a tier for a
+  year.
 - **Breed Book** — a 60-entry compendium of every phenotype combo you've
   hatched, with discovery rewards for new breeds.
-- **Race** — the Pond Derby: your duck's vigor, energy, and build set its
-  speed; time your paddle boosts to win prize money. Wild racers paddle like
+- **Race** — the Pond Derby: your duck's vigor, boldness, build, and paddle
+  training set its speed; time your paddle boosts to win prize money. Wild racers paddle like
   a competent player and precision matters (sloppy taps barely help), and
   each duck races once a day — so breeding fast ducks is the way to a
   winning stable. Festival tournaments ignore the daily limit.
@@ -66,7 +67,11 @@ npm run dev        # open http://localhost:5173
   HUD chip and scrub when it dips; befriend them with premium treats, you
   start with three). Your first wild visitor is guaranteed on day 2.
 - **Festivals** — one per season: Spring Egg Show, Summer Derby Grand Prix,
-  Autumn Market Day, Winter Lights.
+  Autumn Market Day, Winter Lights. Every one can be won: the Egg Show and
+  Grand Prix on the day, Market Day by selling past the fair's target, Winter
+  Lights by the lantern parade (decorations, poise, and a cheerful flock
+  against a bar). A festival left unfinished packs up at 20:00 — that's when
+  a sponsorship is spent.
 - **Decorations** — lanterns, benches, gnomes and more; they cheer the flock
   and help attract wild visitors. Click a placed decoration to pick it up
   and click the grass to set it down again (Esc cancels). Ducks form friendships and celebrate
@@ -75,7 +80,7 @@ npm run dev        # open http://localhost:5173
   unfertilised egg a day on the grass (on the bank if she's swimming). Tap
   to gather it into your **egg basket** and sell the basket at the shop —
   a steady income that doesn't cost you a fertilised egg. Autumn and
-  Market Day pay more.
+  Market Day pay more; past a dozen eggs in one basket the rest sell cheaper.
 - **Flock balance** — ducks keep best at one drake per three hens (two
   drakes are always fine). Surplus drakes harry the hens: happiness drains,
   hens skip laying, clutch viability drops 6% per extra drake. The Flock
@@ -104,15 +109,17 @@ npm run dev        # open http://localhost:5173
   (generations bred here, fixed Book genes, rare alleles, purebred parents)
   raises its sale price and is shown with a family tree on its card. Close
   kin throw less vigorous clutches. Birthdays come every season.
-- **Breed standards** — each of the 60 breeds has a 13-locus show standard
-  (its own build: size, bill, bill colour, markings, vigor). The duck card
+- **Breed standards** — each of the 60 breeds has a 15-locus show standard
+  (its own build: size, bill, bill colour, markings, vigor, temperament). The duck card
   shows % match; the Breed Book's award ladder pays for **Pure** (both
   parents the breed), **Standard** (90% match alive) and **Master** (five
   alive) — 180 awards, each worth coins and Society points.
 - **Commissions board** (Shop → Board, open from day one) — breeders post
   contracts for a breed, starting as plain "wants a Spotted Mallard"
-  requests and growing demands as you fill them (sex, generation, standard
-  %, pink bill). Deliver from the duck's card for several times market price
+  requests and growing demands as you fill them (sex, generation up to 5,
+  standard % up to 90, pink bill) — the demands and the pay keep climbing
+  with every three you fill. The rival ponds post here too, and the Board's
+  **stud service** lends you one of their drakes for a single clutch. Deliver from the duck's card for several times market price
   plus Society points. If nobody on the pond fits, the card names the pair
   most likely to hatch one and the chance per egg. Open commissions also
   show under Goals.
@@ -124,17 +131,53 @@ npm run dev        # open http://localhost:5173
   extra pond slot, richer wild visitors, and a golden egg basket.
 - **Derby league** — daily races sit in Pond → County → National tiers
   (bigger purses, tougher fields; National takes show-standard ducks only).
-  Three net wins promote, three net losses relegate.
-- **Festivals that scale** — Egg Show rivals are built from the breeds you've
-  already shown and judges score against the standard; the Grand Prix field
-  matches your best racer. Win and next year's edition is County, then
-  Regional, then National, with bigger purses. Winter Lights ends with a
-  wish of your choosing.
+  Three net wins promote, three net losses relegate (second place is only
+  neutral in the Pond Derby).
+- **Rival ponds** — three named breeders (Marta of Millpond breeds to the
+  standard, Old Wiggins races, the Reedy Sisters collect rare genes) keep
+  real flocks that hatch a generation every season and drill their birds.
+  They enter the Egg Show and the Grand Prix, post commissions, offer stud
+  drakes, and grow stronger every year — the world gets harder with time,
+  not just with your own flock. See them in Shop → Society.
+- **Society Cup** — from Society rank 5, stake 40 points to enter the year's
+  Cup: every point you earn until the last night of winter counts against
+  the rival ponds, and the winner takes coins scaled by the year. The point
+  sink for a pond that has climbed the ladder.
+- **Festivals that scale** — win and next year's edition is County, then
+  Regional, then National, with bigger purses and sharper rivals. Winter
+  Lights ends with a wish of your choosing (the "full purse" wish is capped).
 - **Chronicle & Records** (Book tabs) — an auto-written history of the pond
   (new breeds, champions, farewells with descendants) and lifetime records.
 - **Heritage** (Save panel) — once the Book has 10 breeds, retire the pond
   and refound it with one drake and one hen. Book, awards, Society, chronicle
-  and records carry over; each retirement adds a pond slot and +1% mutation.
+  and records carry over; each retirement adds a pond slot and +1% mutation
+  for the first five, then a quarter as much (to +7.5% and 8 slots).
+- **A duck's life** — genes set the ceiling; raising sets the rest. Every
+  duck from juvenile up has three **trained stats** (paddle, stamina, poise)
+  built through short timing drills on its card — one drill a day (+1 per
+  Training Perch level), fading a point a day — that feed race speed and Egg
+  Show judging. How a duck was raised leaves **upbringing marks** (hardy,
+  scrappy, steady, keen, spoiled, proud): permanent chips with small bonuses
+  or trade-offs, written to the Chronicle. And a few times a week a **life
+  event** needs a decision — a hen goes broody, two drakes fall out — with a
+  *Decide* chip in the HUD and a real trade-off either way; left alone, the
+  flock settles it by evening. Details in [GENETICS.md](GENETICS.md).
+- **Weather** — rolled at dawn by season and shown beside the clock: rain
+  freshens the pond and chills eggs (ducks love a swim in it), snow chills
+  them harder and makes the flock hungrier, wind frays tempers, fog keeps the
+  bugs in. What the sky shows is what the sim is doing.
+- **Sound & settings** — quacks (pitched by size and sex), plops, splashes,
+  chimes, and a day/night ambience, all synthesised in-browser with no audio
+  files. The gear button (or `?`) opens Settings: volume and mute, reduced
+  motion (follows the OS by default), large text, and the keyboard sheet —
+  Esc closes whatever is on top, 1–6 open the panels, C toggles cards, P
+  pauses, +/− change speed. Tooltips work on touch (tap) and keyboard focus.
+- **Photo mode** — the sparkle button on a duck's card renders a portrait
+  card (name, breed, pedigree, temperament, marks, training) to a PNG you can
+  save, copy, or share.
+- **Pond life** — frogs on the rim and dragonflies over the water by day
+  (pocket change, and ducks snap them up), ground shadows, swimming wakes,
+  and courting pairs wear hearts.
 - **Speed controls** — ⏸ / 1× / 4× / 16×. One game-day = 24 real minutes at 1×.
   The game autosaves to localStorage every 30 seconds; it only runs while the
   tab is visible (no offline progress).
@@ -149,7 +192,7 @@ ducks, then "Breed selected" to inspect inheritance without playing the game.
 The full player guide — every locus, dominance rule, standard, and breeding
 recipe — lives in [GENETICS.md](GENETICS.md), and ships with the site at `/guide/`. The short version:
 
-Each duck has a diploid genome across 13 loci:
+Each duck has a diploid genome across 15 loci:
 
 | Trait | Kind | Notes |
 |---|---|---|
@@ -162,6 +205,7 @@ Each duck has a diploid genome across 13 loci:
 | Bill color | Mendelian | orange > yellow; **P pink** is rare |
 | Crest | Recessive | only `RR` grows the pom-pom |
 | Vigor | Additive ×2 loci | lifespan ±20%, sickness resistance |
+| Temperament | Additive ×2 loci | timid ↔ bold: behaviour, race speed, laying, drill aptitude |
 
 Inheritance is one random allele per parent per locus, with a 2% mutation rate
 per allele — mutation is the *only* way rare alleles (blue, pink bill) enter a
@@ -176,8 +220,9 @@ parents' happiness and health, so a neglected flock breeds poorly.
 
 The game is a static Vite build (`dist/`), hosted on **Cloudflare Pages**.
 
-- **CI** (`.github/workflows/ci.yml`) type-checks, runs the test suite, and
-  builds on every push and pull request.
+- **CI** (`.github/workflows/ci.yml`) type-checks, lints (`npm run lint`,
+  ESLint flat config), runs the test suite, and builds on every push and
+  pull request.
 - **Deploy** — Cloudflare's Git integration. In the dashboard, Workers &
   Pages → Create → connect this GitHub repo. Build command `npm run build`;
   the deploy command `npx wrangler deploy` uses `wrangler.jsonc` to publish
@@ -199,9 +244,10 @@ cloud sync → Link a device**: the desktop mints a one-time pairing code
 On a phone (or any other browser), open **`/companion`** and enter the code.
 
 - `/companion` is the **pocket pond**: the full simulation running behind a
-  touch UI — feed, pet, clean, treats, medicine, tuck and hatch eggs, fill
-  the trough, skim the pond, gather pickups, sell the egg basket, restock
-  supplies, and read the dawn report, goals, and commissions. Time passes
+  touch UI — feed, pet, clean, treats, medicine, quick drills, tuck and hatch
+  eggs, **nest a pair**, fill the trough, skim the pond, gather pickups, sell
+  the egg basket, restock supplies, **buy upgrades**, browse the **Breed Book
+  and Chronicle**, and read the dawn report, goals, and commissions. Time passes
   while it's open, exactly as on the desktop. It installs to the home screen
   as a PWA.
 - Only one device plays at a time (the same rule as two desktop tabs): the
@@ -231,7 +277,11 @@ Key files:
 - `src/sim/genetics.ts` — loci, breeding, mutation, genotype→phenotype
 - `src/render/duckPainter.ts` — phenotype → procedural canvas drawing
 - `src/sim/needs.ts` — care mechanics and the breeding gate
-- `src/sim/economy.ts` — all balance numbers in one `BALANCE`/`UPGRADES` table
+- `src/sim/economy.ts` — prices and payouts in one `BALANCE`/`UPGRADES` table;
+  rates, chances, and thresholds in `src/sim/tuning.ts` (`TUNING`, re-exported
+  from economy.ts)
+- `src/sim/rivals.ts`, `cup.ts`, `training.ts`, `marks.ts`, `lifeEvents.ts` —
+  the rival ponds, the Society Cup, and a duck's life beyond its genes
 - `src/save/save.ts` — versioned localStorage saves with export/import
 
 ## Playtest checklist

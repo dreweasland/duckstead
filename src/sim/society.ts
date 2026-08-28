@@ -7,6 +7,7 @@ import type { GameState } from '../state';
 import { events } from '../events';
 import { chronicle } from './chronicle';
 import { pedigreeScore } from './pedigree';
+import { noteCupPoints } from './cup';
 
 export type StyleSlot = 'water' | 'lily' | 'grass' | 'hutch';
 
@@ -70,6 +71,7 @@ export const RANKS: RankDef[] = [
 export function addSocietyPoints(state: GameState, n: number): void {
   state.society.points += n;
   state.society.lifetimePoints += n;
+  noteCupPoints(state, n);
 }
 
 export function nextRank(state: GameState): RankDef | null {

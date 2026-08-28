@@ -2,74 +2,50 @@ import type { Game } from '../game';
 import type { Renderer } from '../render/renderer';
 import { events } from '../events';
 import { formatClock } from '../sim/time';
-import { catchBugAt } from '../sim/bugs';
-import { claimHatch } from '../sim/lifecycle';
 import { goalProgress, pendingGoals } from '../sim/goals';
-import { describeRequest, matchesRequest, treatVisitor, VISITOR_CLICK_RADIUS } from '../sim/visitors';
-import {
-  FESTIVAL_NAMES,
-  festivalEnteredToday,
-  festivalToday,
-  generateMarketBuyers,
-  LANTERN_WISHES,
-  markFestivalEntered,
-  marketHaggle,
-  marketSell,
-  runEggShow,
-  upcomingFestival,
-  winterCeremonyFinale,
-  WINTER_WISHES,
-  festivalPurseScale,
-  festivalTier,
-  festivalTitle,
-  noteFestivalWinPublic,
-  type MarketBuyer,
-} from '../sim/festivals';
-import { createDuck, type Duck } from '../sim/duck';
-import { createRng } from '../rng';
+import { describeRequest, matchesRequest } from '../sim/visitors';
+import { FESTIVAL_NAMES, festivalEnteredToday, festivalToday, festivalTitle, upcomingFestival } from '../sim/festivals';
+import { openEggShow, openGrandPrix, openMarketStall, openWinterLights, type FestivalHost } from './festivalScreens';
+import type { Duck } from '../sim/duck';
 import { dayOf, isNight, TICKS_PER_HOUR } from '../sim/time';
 import { dawnReport } from '../sim/daybook';
 import { FOODS, TREATS, type FoodKind, type TreatKind } from '../sim/food';
 import { describeCommission, duckFits } from '../sim/commissions';
 import { isUnlocked, UNLOCK_LABELS, UNLOCKABLES } from '../sim/unlocks';
 import { duckPortrait } from './portrait';
-import { brushStroke, dropFood, fillFeeder, petStroke, tuckEgg } from '../sim/needs';
 import { cleanPond, FEEDER_POS, isInPond, nestPos } from '../sim/pond';
 import { GROUND_TOP, WORLD_H, WORLD_W } from '../state';
 import { DECOR_ITEMS, duckCapacity, pondOccupancy } from '../sim/economy';
 
 const WORLD_H_SAFE = WORLD_H - 15;
-const DECOR_PICK_RADIUS = 26;
-import { ordinal } from '../text';
-import { el, statTile } from './dom';
+import { el } from './dom';
 import { icon } from './icons';
 import { railSignature, renderCardRail } from './cardRail';
 import { backToPondRow, eventCard } from './eventCard';
 import { renderDuckPanel } from './duckPanel';
-import { pickMateFromPond, renderBreedingPanel } from './breedingPanel';
+import { renderBreedingPanel } from './breedingPanel';
 import { renderShopPanel } from './shopPanel';
 import { renderRosterPanel } from './rosterPanel';
 import { renderSavePanel, resetSavePanelState } from './savePanel';
 import { claimAndReload } from '../sync/sync';
-import { isSyncConfigured } from '../sync/syncMeta';
 import { renderBookPanel } from './bookPanel';
-import { openRacePanel, raceEligible, raceSpeed } from './racePanel';
-import { clamp } from '../types';
+import { renderSettingsPanel } from './settingsPanel';
+import { buildHud } from './hud';
+import { bindCanvasInput } from './canvasInput';
+import { installTooltips } from './tooltip';
+import { loadSettings } from './settings';
+import { play, quack, setAmbienceNight, unlockAudio, wireGameAudio } from '../audio/audio';
+import { WEATHER_NAMES, weatherOf } from '../sim/weather';
+import { openRacePanel } from './racePanel';
+import { describeLifeEvent, lifeEventChoices, resolveLifeEvent, type LifeEvent } from '../sim/lifeEvents';
 
-export type PanelKind = 'duck' | 'breeding' | 'shop' | 'roster' | 'save' | 'book';
+export type PanelKind = 'duck' | 'breeding' | 'shop' | 'roster' | 'save' | 'book' | 'settings';
 
 // UI preference, not game state — deliberately outside the save file.
 const CARDS_PREF_KEY = 'ducksim:ui:cards';
 // Inner scrollable lists whose scroll position must survive the periodic
 // panel rebuild. Any new scroll region in a panel belongs in this list.
 const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .society-ladder, .chronicle, .nest-grid';
-
-// A row of already-lit lanterns for Winter Lights recaps.
-function litLanternRow(): HTMLElement {
-  const row = el('div', { class: 'lantern-row static' });
-  for (let i = 0; i < 5; i += 1) row.append(el('span', { class: 'lantern lit' }, el('span', { class: 'lantern-flame' })));
-  return row;
-}
 
 export class UI {
   private root: HTMLElement;
@@ -89,10 +65,6 @@ export class UI {
   private pointerDownInPanel = false;
   private pointerDownInRail = false;
   private feedMode: 'none' | FoodKind | 'brush' = 'none';
-  // Active stroke session: petting (bare hand) or brushing (brush tool).
-  private stroke: { duckId: string; lastX: number; lastY: number; travelled: number } | null =
-    null;
-  private suppressNextClick = false;
   private placingDecor: import('../sim/economy').DecorDef | null = null;
   private movingDecor: number | null = null; // index into state.decorations
   private careCounts: Partial<Record<FoodKind, HTMLElement>> = {};
@@ -103,6 +75,7 @@ export class UI {
   private floatHost!: HTMLElement;
   private modalHost!: HTMLElement;
   private festivalChip!: HTMLElement;
+  private lifeChip!: HTMLElement;
   // Where the floating duck card sits; remembered across opens this session.
   private floatPos: { x: number; y: number } | null = null;
   // Pinned duck cards: extra floating copies kept open for comparison.
@@ -110,11 +83,34 @@ export class UI {
   private showCards = localStorage.getItem(CARDS_PREF_KEY) === '1';
 
   constructor(
-    private game: Game,
-    private renderer: Renderer,
+    readonly game: Game,
+    readonly renderer: Renderer,
   ) {
     this.root = document.getElementById('ui-root')!;
-    this.root.append(this.buildHud());
+    loadSettings();
+    wireGameAudio();
+    // Browsers only open audio after a gesture; the first one anywhere does.
+    window.addEventListener('pointerdown', () => unlockAudio(), { passive: true });
+    window.addEventListener('keydown', () => unlockAudio());
+    installTooltips();
+    const hud = buildHud({
+      game: this.game,
+      toast: (m) => this.toast(m),
+      onFestivalChip: () => this.onFestivalChip(),
+      openLifeEvent: () => this.openLifeEvent(),
+      togglePanel: (k) => this.togglePanel(k),
+      toggleCareMenu: () => this.toggleCareMenu(),
+      toggleFeedMode: (k) => this.toggleFeedMode(k),
+      showCards: () => this.showCards,
+      toggleCardRail: () => this.toggleCardRail(),
+      setSpeed: (sp) => this.setSpeed(sp),
+    });
+    this.hudClock = hud.hudClock;
+    this.festivalChip = hud.festivalChip;
+    this.lifeChip = hud.lifeChip;
+    this.hudCounts = hud.hudCounts;
+    this.careCounts = hud.careCounts;
+    this.root.append(hud.element);
     this.panelHost = el('div', { class: 'panel-host' });
     this.toastHost = el('div', { class: 'toast-host' });
     this.bannerHost = el('div', { class: 'banner-host' });
@@ -179,6 +175,7 @@ export class UI {
       if (this.duckCardOpen) this.refreshPanel();
     });
     events.on('takeover', (payload) => this.showTakeoverOverlay(Boolean((payload as { remote?: boolean } | undefined)?.remote)));
+    events.on('life-event', () => this.openLifeEvent());
 
     // Never rebuild the panel mid-press: a rebuild between pointerdown and
     // pointerup destroys the button under the cursor and swallows the click.
@@ -196,12 +193,7 @@ export class UI {
       this.pointerDownInRail = false;
     });
 
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && (this.placingDecor || this.movingDecor !== null)) {
-        this.endDecorMode();
-        this.toast('Cancelled');
-      }
-    });
+    window.addEventListener('keydown', (e) => this.onKey(e));
 
     this.bindCanvas();
     this.refreshCardRail();
@@ -212,128 +204,76 @@ export class UI {
     setInterval(() => this.refreshHud(), 250);
   }
 
-  private buildHud(): HTMLElement {
-    this.hudClock = el('span', { class: 'hud-clock' });
-    this.festivalChip = el('button', { class: 'hud-chip festival-chip', onclick: () => this.onFestivalChip() });
-
-    // Cloud-sync status chip: only exists once a device has been linked.
-    const syncChip = el('span', { class: 'hud-chip sync-chip', style: 'display:none' });
-    events.on('sync-status', (status) => {
-      const st = status as string;
-      syncChip.style.display = '';
-      syncChip.className = `hud-chip sync-chip sync-${st}`;
-      syncChip.textContent =
-        st === 'synced' ? '☁ synced' : st === 'syncing' ? '☁ syncing…' : st === 'offline' ? '☁ offline' : '☁ paused';
-      syncChip.title =
-        st === 'offline'
-          ? 'Cloud unreachable — playing locally, will sync when it returns'
-          : st === 'stale'
-            ? 'Another device owns the pond right now'
-            : 'Cloud save is up to date';
-    });
-    if (isSyncConfigured()) {
-      syncChip.style.display = '';
-      syncChip.textContent = '☁';
+  // Keyboard: Esc closes whatever is on top; number keys open the panels;
+  // Tab is kept inside an open modal. Typing in a field is left alone.
+  private onKey(e: KeyboardEvent): void {
+    const target = e.target as HTMLElement | null;
+    const typing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
+    if (e.key === 'Escape') {
+      if (this.placingDecor || this.movingDecor !== null) {
+        this.endDecorMode();
+        this.toast('Cancelled');
+        return;
+      }
+      const overlayClose = document.querySelector<HTMLElement>('.race-overlay .close-btn');
+      if (overlayClose) {
+        overlayClose.click();
+        return;
+      }
+      if (typing) {
+        target.blur();
+        return;
+      }
+      if (this.openModalKind) this.closeModal();
+      else if (this.duckCardOpen) this.closeDuckCard();
+      return;
     }
-
-    // Resource chips: the icon is built once; only the count span updates.
-    const chip = (
-      key: 'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society',
-      iconName: Parameters<typeof icon>[0],
-      label: string,
-    ): HTMLElement => {
-      const count = el('span', { class: 'hud-chip-count' }, '0');
-      this.hudCounts[key] = count;
-      return el('span', { class: `hud-chip chip-${key}`, title: label }, icon(iconName, 13), count);
-    };
-    const chips = el(
-      'span',
-      { class: 'hud-chips' },
-      chip('coin', 'coin', 'Coins'),
-      chip('feed', 'wheat', 'Feed'),
-      chip('premium', 'sparkle', 'Premium feed'),
-      chip('medicine', 'pill', 'Medicine'),
-      chip('eggs', 'egg', 'Egg basket — hens lay daily; sell at the shop'),
-      chip('pond', 'bubbles', 'Pond cleanliness — wild ducks only visit above 70%'),
-      chip('flock', 'duck', 'Ducks on the pond / capacity — over it, the flock is stressed. Elders have earned a free spot and don\'t count.'),
-      chip('society', 'star', 'Society points — earned from breed awards, commissions, and festival placings'),
-    );
-
-    const speedBtns = [0, 1, 4, 16].map((s) =>
-      el(
-        'button',
-        {
-          class: 'speed-btn',
-          'data-speed': s,
-          onclick: () => {
-            this.game.speed = s;
-            this.root
-              .querySelectorAll('.speed-btn')
-              .forEach((b) =>
-                b.classList.toggle('active', Number(b.getAttribute('data-speed')) === s),
-              );
-          },
-        },
-        s === 0 ? icon('pause', 12) : `${s}×`,
-      ),
-    );
-    speedBtns[1].classList.add('active');
-
-    return el(
-      'header',
-      { class: 'hud' },
-      el('span', { class: 'hud-title' }, icon('duck', 20), ''),
-      this.hudClock,
-      chips,
-      this.festivalChip,
-      syncChip,
-      el('span', { class: 'hud-spacer' }),
-      el(
-        'span',
-        { class: 'treats-wrap care-wrap' },
-        el(
-          'button',
-          {
-            class: 'hud-btn care-btn',
-            title: 'Care tools: feed, treats, and the brush',
-            onclick: () => this.toggleCareMenu(),
-          },
-          icon('wheat'),
-          el('span', { class: 'hud-btn-label care-label' }, 'Care'),
-        ),
-        this.buildCareMenu(),
-      ),
-      el(
-        'button',
-        { class: 'hud-btn unlock-breeding', onclick: () => this.togglePanel('breeding') },
-        icon('heart'),
-        el('span', { class: 'hud-btn-label' }, 'Breed'),
-      ),
-      el('button', { class: 'hud-btn unlock-shop', onclick: () => this.togglePanel('shop') }, icon('cart'), el('span', { class: 'hud-btn-label' }, 'Shop')),
-      el('button', { class: 'hud-btn', onclick: () => this.togglePanel('roster') }, icon('list'), el('span', { class: 'hud-btn-label' }, 'Flock')),
-      el('button', { class: 'hud-btn unlock-book', onclick: () => this.togglePanel('book') }, icon('book'), el('span', { class: 'hud-btn-label' }, 'Book')),
-      el(
-        'button',
-        { class: 'hud-btn unlock-race', onclick: () => openRacePanel(this.game, { toast: (m) => this.toast(m) }, { league: true }) },
-        icon('flag'),
-        el('span', { class: 'hud-btn-label' }, 'Race'),
-      ),
-      el(
-        'button',
-        {
-          class: `hud-btn cards-btn${this.showCards ? ' active' : ''}`,
-          title: 'Show duck cards on the main screen',
-          onclick: () => this.toggleCardRail(),
-        },
-        icon('cards'),
-        el('span', { class: 'hud-btn-label' }, 'Cards'),
-      ),
-      el('button', { class: 'hud-btn', onclick: () => this.togglePanel('save') }, icon('disk'), el('span', { class: 'hud-btn-label' }, 'Save')),
-      ...speedBtns,
-    );
+    if (e.key === 'Tab' && this.openModalKind && this.modalHost.firstElementChild) {
+      const focusables = [...this.modalHost.querySelectorAll<HTMLElement>('button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])')];
+      if (focusables.length > 0) {
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        if (!this.modalHost.contains(active)) {
+          e.preventDefault();
+          first.focus();
+        } else if (e.shiftKey && active === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+      return;
+    }
+    if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (document.querySelector('.race-overlay')) return; // Space belongs to the race
+    const s = this.game.state;
+    switch (e.key) {
+      case '1': if (isUnlocked(s, 'breeding')) this.togglePanel('breeding'); break;
+      case '2': if (isUnlocked(s, 'shop')) this.togglePanel('shop'); break;
+      case '3': this.togglePanel('roster'); break;
+      case '4': if (isUnlocked(s, 'book')) this.togglePanel('book'); break;
+      case '5': if (isUnlocked(s, 'race')) openRacePanel(this.game, { toast: (m) => this.toast(m) }, { league: true }); break;
+      case '6': this.togglePanel('save'); break;
+      case 'c': case 'C': this.toggleCardRail(); break;
+      case '?': this.togglePanel('settings'); break;
+      case 'p': case 'P': this.setSpeed(this.game.speed === 0 ? 1 : 0); break;
+      case '+': case '=': this.setSpeed(this.game.speed === 0 ? 1 : this.game.speed === 1 ? 4 : 16); break;
+      case '-': case '_': this.setSpeed(this.game.speed === 16 ? 4 : this.game.speed === 4 ? 1 : 0); break;
+      default: return;
+    }
+    e.preventDefault();
   }
 
-  private toggleFeedMode(mode: FoodKind | 'brush'): void {
+  setSpeed(speed: number): void {
+    this.game.speed = speed;
+    this.root.querySelectorAll('.speed-btn').forEach((b) => b.classList.toggle('active', Number(b.getAttribute('data-speed')) === speed));
+  }
+
+
+  toggleFeedMode(mode: FoodKind | 'brush'): void {
     this.feedMode = this.feedMode === mode ? 'none' : mode;
     document.body.classList.toggle('feeding', this.feedMode !== 'none');
     const careBtn = this.root.querySelector('.care-btn')!;
@@ -351,245 +291,70 @@ export class UI {
     else if (TREATS.includes(this.feedMode as TreatKind)) this.toast(`Click the pond to toss ${FOODS[this.feedMode as FoodKind].name.toLowerCase()}`);
   }
 
-  // One menu for every hands-on tool: scatter feed, toss treats, brush.
-  private buildCareMenu(): HTMLElement {
-    const menu = el('div', { class: 'treats-menu care-menu' });
-    const foodPick = (kind: FoodKind, iconName: Parameters<typeof icon>[0], label: string): void => {
-      const count = el('span', { class: 'treat-count' }, '0');
-      this.careCounts[kind] = count;
-      menu.append(
-        el(
-          'button',
-          { class: 'treat-pick', 'data-kind': kind, onclick: () => this.toggleFeedMode(kind) },
-          icon(iconName, 13),
-          label,
-          count,
-        ),
-      );
-    };
-    foodPick('feed', 'wheat', 'Feed');
-    foodPick('premiumFeed', 'sparkle', 'Premium');
-    for (const kind of TREATS) {
-      const count = el('span', { class: 'treat-count' }, '0');
-      this.careCounts[kind] = count;
-      menu.append(
-        el(
-          'button',
-          { class: 'treat-pick', 'data-kind': kind, onclick: () => this.toggleFeedMode(kind) },
-          el('span', { class: 'treat-dot' }),
-          FOODS[kind].name,
-          count,
-        ),
-      );
-      (menu.lastElementChild!.querySelector('.treat-dot') as HTMLElement).style.background = FOODS[kind].color;
-    }
-    menu.append(
-      el(
-        'button',
-        { class: 'treat-pick', 'data-kind': 'brush', title: 'Rub over a duck to scrub it clean', onclick: () => this.toggleFeedMode('brush') },
-        icon('bubbles', 13),
-        'Brush',
-      ),
-      el('div', { class: 'muted small treat-hint' }, 'Every duck secretly loves one treat.'),
-    );
-    return menu;
-  }
 
   private toggleCareMenu(): void {
     this.root.querySelector('.care-menu')?.classList.toggle('open');
   }
 
   private bindCanvas(): void {
-    const canvas = document.getElementById('pond-canvas')!;
+    bindCanvasInput(this);
+  }
 
-    // Stroke gestures: press on a duck and rub to pet (bare hand, hearts) or
-    // scrub (brush tool, bubbles). A near-still press stays a normal click.
-    canvas.addEventListener('pointerdown', (e) => {
-      const world = this.renderer.toWorld(e.clientX, e.clientY);
-      if (this.feedMode !== 'none' && this.feedMode !== 'brush') return;
-      const id = this.renderer.pickDuck(world.x, world.y);
-      if (id) this.stroke = { duckId: id, lastX: world.x, lastY: world.y, travelled: 0 };
-    });
-    canvas.addEventListener('pointermove', (e) => {
-      if (this.placingDecor || this.movingDecor !== null) {
-        const world = this.renderer.toWorld(e.clientX, e.clientY);
-        this.updateDecorGhost(world);
-      }
-      if (!this.stroke) return;
-      const state = this.game.state;
-      const duck = state.ducks.find((d) => d.id === this.stroke!.duckId);
-      const world = this.renderer.toWorld(e.clientX, e.clientY);
-      const step = Math.hypot(world.x - this.stroke.lastX, world.y - this.stroke.lastY);
-      this.stroke.lastX = world.x;
-      this.stroke.lastY = world.y;
-      if (!duck || duck.stage === 'egg') return;
-      // Stay near the duck for the stroke to count.
-      if (Math.hypot(world.x - duck.pos.x, world.y - duck.pos.y) > 55) return;
-      this.stroke.travelled += step;
-      if (this.stroke.travelled > 8) this.suppressNextClick = true;
-      while (this.stroke.travelled >= 22) {
-        this.stroke.travelled -= 22;
-        if (this.feedMode === 'brush') {
-          if (brushStroke(state, duck.id, 6) > 0) {
-            this.renderer.spawnParticle(world.x, world.y, 'bubble');
-            this.renderer.spawnParticle(duck.pos.x, duck.pos.y - 10, 'bubble');
-          }
-        } else if (petStroke(state, duck.id, 2) > 0) {
-          this.renderer.spawnParticle(duck.pos.x, duck.pos.y - 20, 'heart');
-        }
-      }
-    });
-    window.addEventListener('pointerup', () => {
-      this.stroke = null;
-    });
+  // A click while placing or moving a decoration: set it down (or explain
+  // why it can't go there). Called by the canvas input layer.
+  decorClick(world: { x: number; y: number }): void {
 
-    canvas.addEventListener('click', (e) => {
-      if (this.suppressNextClick) {
-        this.suppressNextClick = false;
-        return;
+    const problem = this.decorSpotProblem(world);
+    if (problem) {
+      this.toast(problem);
+      return;
+    }
+    if (this.movingDecor !== null) {
+      const decor = this.game.state.decorations[this.movingDecor];
+      if (decor) {
+        decor.pos = { x: world.x, y: world.y };
+        this.toast('Moved!');
       }
-      const me = e as MouseEvent;
-      const world = this.renderer.toWorld(me.clientX, me.clientY);
+      this.endDecorMode();
+      return;
+    }
+    const def = this.placingDecor!;
+    if (this.game.state.money < def.cost) {
+      this.toast('Not enough coins any more!');
+      this.endDecorMode();
+      return;
+    }
+    this.game.state.money -= def.cost;
+    this.game.state.decorations.push({ kind: def.kind, pos: { x: world.x, y: world.y } });
+    events.emit('purchase'); // persist the placement like any spend
+    this.toast(`${def.name} placed!`);
+    this.endDecorMode();
+    return;
+  }
 
-      // Decoration placement (new purchase, or moving an existing one) takes
-      // over the next click.
-      if (this.placingDecor || this.movingDecor !== null) {
-        const problem = this.decorSpotProblem(world);
-        if (problem) {
-          this.toast(problem);
-          return;
-        }
-        if (this.movingDecor !== null) {
-          const decor = this.game.state.decorations[this.movingDecor];
-          if (decor) {
-            decor.pos = { x: world.x, y: world.y };
-            this.toast('Moved!');
-          }
-          this.endDecorMode();
-          return;
-        }
-        const def = this.placingDecor!;
-        if (this.game.state.money < def.cost) {
-          this.toast('Not enough coins any more!');
-          this.endDecorMode();
-          return;
-        }
-        this.game.state.money -= def.cost;
-        this.game.state.decorations.push({ kind: def.kind, pos: { x: world.x, y: world.y } });
-        events.emit('purchase'); // persist the placement like any spend
-        this.toast(`${def.name} placed!`);
-        this.endDecorMode();
-        return;
-      }
+  decorModeActive(): boolean {
+    return Boolean(this.placingDecor) || this.movingDecor !== null;
+  }
 
-      // A visiting wild duck: clicking it offers a premium treat.
-      const visitor = this.game.state.visitor;
-      if (visitor) {
-        const vdx = world.x - visitor.duck.pos.x;
-        const vdy = world.y - visitor.duck.pos.y;
-        if (vdx * vdx + vdy * vdy < VISITOR_CLICK_RADIUS * VISITOR_CLICK_RADIUS) {
-          const result = treatVisitor(this.game.state);
-          if (result === 'no-feed') this.toast('It wants premium feed — buy some at the shop!');
-          else if (result === 'landing') this.toast('Let it land first!');
-          return;
-        }
-      }
+  // Pick up a placed decoration to move it.
+  startMovingDecor(idx: number, world: { x: number; y: number }): void {
+    this.movingDecor = idx;
+    document.body.classList.add('feeding');
+    this.updateDecorGhost(world);
+    const def = DECOR_ITEMS.find((d) => d.kind === this.game.state.decorations[idx].kind);
+    this.toast(`Moving the ${def?.name ?? 'decoration'} — click the grass to set it down (Esc to cancel)`);
+  }
 
-      // Bugs are small, precise targets — give them first claim on the click,
-      // otherwise the trough's larger hit area swallows catches near it.
-      const pickup = catchBugAt(this.game.state, world.x, world.y);
-      if (pickup) {
-        this.renderer.spawnParticle(world.x, world.y, 'sparkle');
-        switch (pickup.kind) {
-          case 'feather':
-            this.toast(`${pickup.source ?? 'A duck'}'s feather — added to the album (+${pickup.coins} coins)`);
-            break;
-          case 'duckweed':
-            this.toast(`Gathered duckweed — +${pickup.feed} feed`);
-            break;
-          case 'firefly':
-            this.toast(`Caught a firefly! +${pickup.coins} coin`);
-            break;
-          case 'henEgg':
-            this.toast(`${pickup.source ?? 'A hen'} laid an egg — basket: ${this.game.state.inventory.eggs}`);
-            break;
-          default:
-            this.toast(`Caught it! +${pickup.coins} coins`);
-        }
-        return;
-      }
+  feedModeNow(): 'none' | FoodKind | 'brush' {
+    return this.feedMode;
+  }
 
-      // Clicking the trough tops it up from the feed inventory. Hit area
-      // matches the drawn trough (plus a small margin), not a big circle.
-      if (
-        (this.game.state.upgrades.feedingTrough ?? 0) > 0 &&
-        Math.abs(world.x - FEEDER_POS.x) < 52 &&
-        world.y > FEEDER_POS.y - 22 &&
-        world.y < FEEDER_POS.y + 28
-      ) {
-        const moved = fillFeeder(this.game.state);
-        if (moved > 0) this.toast(`Poured ${moved} feed into the trough`);
-        else if (this.game.state.inventory.feed <= 0)
-          this.toast('No feed to pour — visit the shop!');
-        else this.toast('The trough is already full');
-        return;
-      }
+  duckCardIsOpen(): boolean {
+    return this.duckCardOpen;
+  }
 
-      if (this.feedMode !== 'none' && this.feedMode !== 'brush') {
-        const ok = dropFood(this.game.state, world, this.feedMode);
-        if (!ok) {
-          this.toast(`Out of ${FOODS[this.feedMode].name.toLowerCase()} — visit the shop!`);
-          this.toggleFeedMode(this.feedMode);
-        }
-        return;
-      }
-
-      const id = this.renderer.pickDuck(world.x, world.y);
-      // No duck under the cursor: a decoration there gets picked up to move.
-      if (!id && this.feedMode === 'none') {
-        const idx = this.game.state.decorations.findIndex(
-          (d) => Math.hypot(d.pos.x - world.x, d.pos.y - world.y) < DECOR_PICK_RADIUS,
-        );
-        if (idx >= 0) {
-          this.movingDecor = idx;
-          document.body.classList.add('feeding');
-          this.updateDecorGhost(world);
-          const def = DECOR_ITEMS.find((d) => d.kind === this.game.state.decorations[idx].kind);
-          this.toast(`Moving the ${def?.name ?? 'decoration'} — click the grass to set it down (Esc to cancel)`);
-          return;
-        }
-      }
-      // Eggs are tended by tapping: a cracked egg hatches, otherwise it gets
-      // tucked back into the warm straw.
-      const egg = id ? this.game.state.ducks.find((d) => d.id === id) : undefined;
-      if (egg && egg.stage === 'egg') {
-        if (claimHatch(this.game.state, this.game.rng, egg.id)) {
-          for (let i = 0; i < 5; i += 1) this.renderer.spawnParticle(egg.pos.x, egg.pos.y - 10, 'heart');
-          this.game.selectedDuckId = egg.id;
-          this.openPanel('duck');
-          return;
-        }
-        if (tuckEgg(this.game.state, egg.id)) {
-          this.renderer.spawnParticle(egg.pos.x, egg.pos.y - 14, 'heart');
-          this.toast('Tucked the egg into the warm straw');
-        }
-      }
-      // With the Breeding panel open, clicking an adult on the pond drops it
-      // straight into a mate slot — no detour through the duck cards.
-      if (id && this.openModalKind === 'breeding' && pickMateFromPond(this.game.state, id)) {
-        const picked = this.game.state.ducks.find((d) => d.id === id);
-        if (picked) this.renderer.spawnParticle(picked.pos.x, picked.pos.y - 20, 'heart');
-        this.refreshPanel();
-        return;
-      }
-      if (id && (me.ctrlKey || me.metaKey)) {
-        this.selectDuck(id, true);
-        return;
-      }
-      this.game.selectedDuckId = id;
-      if (id) this.openPanel('duck');
-      else if (this.duckCardOpen) this.closeDuckCard();
-    });
+  modalKindNow(): Exclude<PanelKind, 'duck'> | null {
+    return this.openModalKind;
   }
 
   // Drag the floating duck card by its header. Delegated so it survives the
@@ -691,14 +456,14 @@ export class UI {
     this.toast(`Click the grass to place your ${def.name}`);
   }
 
-  private endDecorMode(): void {
+  endDecorMode(): void {
     this.placingDecor = null;
     this.movingDecor = null;
     this.renderer.decorGhost = null;
     document.body.classList.remove('feeding');
   }
 
-  private updateDecorGhost(world: { x: number; y: number }): void {
+  updateDecorGhost(world: { x: number; y: number }): void {
     const kind =
       this.movingDecor !== null
         ? this.game.state.decorations[this.movingDecor]?.kind
@@ -852,6 +617,8 @@ export class UI {
     }
     this.game.selectedDuckId = id;
     this.openPanel('duck');
+    const duck = this.game.state.ducks.find((d) => d.id === id);
+    if (duck && duck.stage !== 'egg') quack(duck.phenotype.sizeScale, duck.sex, duck.stage === 'duckling' ? 2 : 1);
   }
 
   refreshPanel(): void {
@@ -904,6 +671,9 @@ export class UI {
           break;
         case 'book':
           panel = renderBookPanel(ctx);
+          break;
+        case 'settings':
+          panel = renderSettingsPanel(ctx);
           break;
       }
       if (panel) {
@@ -1017,7 +787,10 @@ export class UI {
     const s = this.game.state;
     this.refreshGoals();
     this.refreshFestivalChip();
-    this.hudClock.textContent = formatClock(s.clock);
+    this.lifeChip.style.display = s.lifeEvent ? '' : 'none';
+    const weather = weatherOf(s);
+    this.hudClock.textContent = weather === 'clear' ? formatClock(s.clock) : `${formatClock(s.clock)} · ${WEATHER_NAMES[weather]}`;
+    setAmbienceNight(isNight(s.clock));
     this.hudCounts.coin.textContent = String(s.money);
     this.hudCounts.feed.textContent = String(s.inventory.feed);
     this.hudCounts.premium.textContent = String(s.inventory.premiumFeed);
@@ -1078,6 +851,7 @@ export class UI {
             class: 'hud-btn pond-warn',
             onclick: () => {
               cleanPond(this.game.state);
+              play('splash');
               this.toast('You scrubbed the pond sparkling clean!');
               warn.remove();
             },
@@ -1174,6 +948,16 @@ export class UI {
     }
   }
 
+  private festivalHost(): FestivalHost {
+    return {
+      game: this.game,
+      root: this.root,
+      floatHost: this.floatHost,
+      toast: (m) => this.toast(m),
+      selectDuck: (id) => this.selectDuck(id),
+    };
+  }
+
   private onFestivalChip(): void {
     const state = this.game.state;
     const today = festivalToday(state.clock);
@@ -1182,486 +966,20 @@ export class UI {
       this.toast(`The ${FESTIVAL_NAMES[kind]} is in ${inDays} day${inDays === 1 ? '' : 's'}!`);
       return;
     }
+    const host = this.festivalHost();
     switch (today) {
       case 'eggShow':
-        this.openEggShow();
+        openEggShow(host);
         break;
       case 'grandPrix':
-        if (festivalEnteredToday(state, 'grandPrix')) {
-          const last = state.lastFestival;
-          if (last?.kind === 'grandPrix' && last.day === dayOf(state.clock) && last.race) {
-            this.showRaceRecap(last.race);
-          } else {
-            this.toast('You already raced the Grand Prix today!');
-          }
-        } else {
-          // Two-round tournament: top two in the heat advance to the final.
-          // The field scales to the player's best racer; reputation tiers
-          // raise the purse and the competition.
-          const best = Math.max(52, ...raceEligible(this.game).map(raceSpeed));
-          const tier = festivalTier(state, 'grandPrix');
-          const scale = festivalPurseScale(state, 'grandPrix');
-          const fieldBoost = clamp((best / 52) * (1 + tier * 0.05), 1, 1.5);
-          const gpTitle = festivalTitle(state, 'grandPrix');
-          openRacePanel(this.game, { toast: (m) => this.toast(m) }, {
-            title: `${gpTitle} — Qualifying Heat`,
-            entryFee: 15,
-            prizes: [0, 0, 0, 0],
-            aiBoost: fieldBoost * 0.92,
-            ignoreDailyLimit: true,
-            onFinish: (heatPlace) => {
-              markFestivalEntered(state, 'grandPrix');
-              state.lastFestival = { day: dayOf(state.clock), kind: 'grandPrix', race: { heatPlace, prize: 0 } };
-            },
-            nextRace: (place) =>
-              place <= 1
-                ? {
-                    title: `${gpTitle} — Final`,
-                    entryFee: 0,
-                    prizes: [Math.round(75 * scale), Math.round(25 * scale), 0, 0],
-                    aiBoost: fieldBoost,
-                    ignoreDailyLimit: true,
-                    onFinish: (finalPlace) => {
-                      if (finalPlace === 0) noteFestivalWinPublic(state, 'grandPrix');
-                      if (state.lastFestival?.race) {
-                        state.lastFestival.race.finalPlace = finalPlace;
-                        state.lastFestival.race.prize = finalPlace === 0 ? Math.round(75 * scale) : finalPlace === 1 ? Math.round(25 * scale) : 0;
-                      }
-                    },
-                  }
-                : null,
-          });
-        }
+        openGrandPrix(host);
         break;
       case 'marketDay':
-        this.openMarketStall();
+        openMarketStall(host);
         break;
       case 'winterLights':
-        this.openWinterLights();
+        openWinterLights(host);
         break;
-    }
-  }
-
-  // A finished Grand Prix, recapped from the festival chip.
-  private showRaceRecap(race: { heatPlace: number; finalPlace?: number; prize: number }): void {
-    const won = race.finalPlace === 0;
-    const ev = eventCard(this.root, 'derby', won ? 'win' : '');
-    if (!ev) return;
-    const round = (label: string, placed: number, note: string, reward: number) =>
-      el(
-        'div',
-        { class: 'race-result-row mine' },
-        el('span', { class: `race-place p${placed + 1}` }, String(placed + 1)),
-        el('span', { class: 'race-result-name' }, label),
-        el('span', { class: 'muted small' }, note),
-        reward > 0 ? el('span', { class: 'goal-reward with-icon' }, icon('coin', 11), String(reward)) : null,
-      );
-    const rows = el(
-      'div',
-      { class: 'race-results' },
-      round('Qualifying Heat', race.heatPlace, race.heatPlace <= 1 ? 'advanced to the final' : 'eliminated', 0),
-    );
-    if (race.finalPlace !== undefined) rows.append(round('Final', race.finalPlace, won ? 'champion!' : 'finished', race.prize));
-    ev.card.append(
-      ev.header('flag', won ? 'Grand Prix champions!' : festivalTitle(this.game.state, 'grandPrix')),
-      rows,
-      backToPondRow(ev.close),
-    );
-  }
-
-  // Market Day: a queue of smitten buyers; accept, haggle, or send them off.
-  private openMarketStall(): void {
-    if (document.querySelector('.race-overlay')) return;
-    const state = this.game.state;
-    const today = dayOf(state.clock);
-    // The day's buyers are generated once and kept, so you can close the stall
-    // to think it over and come back to the same queue.
-    // The stored queue is the lock: a finished market leaves an empty queue
-    // for the day. (Saves from before the queue existed carry only the old
-    // "entered" mark, which is ignored so they aren't locked out.)
-    if (!state.market || state.market.day !== today) {
-      const fresh = generateMarketBuyers(state, this.game.rng);
-      if (fresh.length === 0) {
-        this.toast('No ducks to show at market — the stalls stay quiet.');
-        return;
-      }
-      state.market = { day: today, buyers: fresh, sold: 0, earned: 0 };
-    }
-    const market = state.market!;
-    const buyers = market.buyers;
-    if (buyers.length === 0) {
-      // Packed up: show the day's tally instead of a shrug.
-      const ev0 = eventCard(this.root, 'market');
-      if (!ev0) return;
-      ev0.card.append(
-        ev0.header('cart', 'Market Day — closed'),
-        el(
-          'div',
-          { class: 'race-stats fit' },
-          statTile('duck', String(market.sold), market.sold === 1 ? 'duck sold' : 'ducks sold'),
-          statTile('coin', String(market.earned), 'earned'),
-        ),
-        el(
-          'div',
-          { class: 'egg-comment' },
-          market.sold > 0 ? 'The stalls have packed up until next autumn.' : 'The stalls have packed up — nothing sold this year.',
-        ),
-        backToPondRow(ev0.close),
-      );
-      return;
-    }
-
-    const ev = eventCard(this.root, 'market', '', () => this.floatHost.classList.remove('above-overlay'));
-    if (!ev) return;
-    const { card, close, header } = ev;
-    let index = 0;
-    // A buyer leaves the queue when dealt with; the stall is "entered" once
-    // the last one goes.
-    const dismiss = (buyer: MarketBuyer) => {
-      const i = buyers.indexOf(buyer);
-      if (i >= 0) buyers.splice(i, 1);
-      if (buyers.length === 0) markFestivalEntered(state, 'marketDay');
-    };
-
-    const showBuyer = () => {
-      if (index >= buyers.length) {
-        card.replaceChildren(
-          header('cart', 'Market Day'),
-          el(
-            'div',
-            { class: 'race-stats fit' },
-            statTile('duck', String(market.sold), market.sold === 1 ? 'duck sold' : 'ducks sold'),
-            statTile('coin', String(market.earned), 'earned'),
-          ),
-          el('div', { class: 'egg-comment' }, 'The last buyer tips their hat. The stalls pack up until next autumn.'),
-          el(
-            'div',
-            { class: 'actions race-actions' },
-            el('button', { class: 'action-btn primary', onclick: close }, 'Back to the pond'),
-          ),
-        );
-        return;
-      }
-      const buyer = buyers[index];
-      const duck = state.ducks.find((d) => d.id === buyer.duckId);
-      if (!duck) {
-        dismiss(buyer);
-        showBuyer();
-        return;
-      }
-      const actions = el(
-        'div',
-        { class: 'actions race-actions' },
-        el(
-          'button',
-          {
-            class: 'action-btn primary',
-            onclick: () => {
-              marketSell(state, buyer);
-              dismiss(buyer);
-              showBuyer();
-            },
-          },
-          'Accept ',
-          icon('coin', 11),
-          ` ${buyer.offer}`,
-        ),
-        buyer.haggled
-          ? null
-          : el(
-              'button',
-              {
-                class: 'action-btn',
-                title: 'Push for 25% more — but they may walk away',
-                onclick: () => {
-                  if (marketHaggle(buyer, this.game.rng)) {
-                    this.toast(`They grumble… and agree to ${buyer.offer}!`);
-                    showBuyer();
-                  } else {
-                    this.toast('“Outrageous!” The buyer storms off.');
-                    dismiss(buyer);
-                    showBuyer();
-                  }
-                },
-              },
-              'Haggle for more',
-            ),
-        el(
-          'button',
-          {
-            class: 'action-btn',
-            onclick: () => {
-              dismiss(buyer);
-              showBuyer();
-            },
-          },
-          `Not for sale`,
-        ),
-      );
-      card.replaceChildren(
-        header('cart', `Market Day — ${buyers.length} buyer${buyers.length === 1 ? '' : 's'} waiting`),
-        el(
-          'div',
-          { class: 'egg-stage market-stage' },
-          el('div', { class: 'egg-breeder' }, buyer.name),
-          el('div', { class: 'egg-comment' }, buyer.quote),
-          el(
-            'button',
-            {
-              class: 'egg-pedestal pedestal-btn',
-              title: `Look ${duck.name} over before you decide`,
-              onclick: () => {
-                // The duck card normally sits under the stall overlay; lift
-                // it above and it steps aside so both stay readable.
-                this.floatHost.classList.add('above-overlay');
-                this.selectDuck(duck.id);
-              },
-            },
-            duckPortrait(duck, 64),
-          ),
-          el('div', { class: 'muted small' }, `${duck.name} — offering `, icon('coin', 11), ` ${buyer.offer}`),
-          el('div', { class: 'muted small pedestal-hint' }, 'tap the pedestal to look them over'),
-        ),
-        actions,
-      );
-    };
-
-    showBuyer();
-  }
-
-  // Winter Lights: light the five wish-lanterns, then the flock gathers.
-  private openWinterLights(): void {
-    if (document.querySelector('.race-overlay')) return;
-    const state = this.game.state;
-    if (festivalEnteredToday(state, 'winterLights')) {
-      const last = state.lastFestival;
-      if (last?.kind === 'winterLights' && last.day === dayOf(state.clock) && last.winter) {
-        const ev0 = eventCard(this.root, 'winter');
-        if (!ev0) return;
-        ev0.card.append(
-          ev0.header('sparkle', 'The pond glows'),
-          litLanternRow(),
-          el(
-            'div',
-            { class: 'race-stats fit' },
-            statTile('coin', `+${last.winter.coins}`, 'coins'),
-            statTile('wheat', `+${last.winter.premiumFeed}`, 'premium feed'),
-          ),
-          el('div', { class: 'egg-comment' }, last.winter.wishText),
-          backToPondRow(ev0.close),
-        );
-        return;
-      }
-      this.toast('The lanterns already burn bright — enjoy the glow.');
-      return;
-    }
-    let wishTimer = 0;
-    const ev = eventCard(this.root, 'winter', '', () => window.clearTimeout(wishTimer));
-    if (!ev) return;
-    const { card, close, header } = ev;
-    let lit = 0;
-
-    const wishLine = el('div', { class: 'egg-comment' }, 'Light each lantern and make a wish…');
-    const lanternRow = el('div', { class: 'lantern-row' });
-    LANTERN_WISHES.forEach((wish) => {
-      const lantern = el(
-        'button',
-        {
-          class: 'lantern',
-          onclick: () => {
-            if (lantern.classList.contains('lit')) return;
-            lantern.classList.add('lit');
-            lit += 1;
-            wishLine.textContent = wish;
-            if (lit === LANTERN_WISHES.length) {
-              // The fifth lantern is the player's own wish.
-              wishTimer = window.setTimeout(() => {
-                const choices = el('div', { class: 'wish-choices' });
-                for (const w of WINTER_WISHES) {
-                  choices.append(
-                    el(
-                      'button',
-                      { class: 'wish-choice', onclick: () => showFinale(winterCeremonyFinale(state, w.id)) },
-                      el('strong', {}, w.label),
-                      el('span', { class: 'muted small' }, w.blurb),
-                    ),
-                  );
-                }
-                card.replaceChildren(
-                  header('sparkle', 'The last lantern is yours'),
-                  el('div', { class: 'egg-comment' }, 'Four wishes for the flock. The fifth is for the pond. Choose.'),
-                  choices,
-                );
-              }, 700);
-              const showFinale = (reward: ReturnType<typeof winterCeremonyFinale>) => {
-                const finale = el(
-                  'div',
-                  {},
-                  header('sparkle', 'The pond glows'),
-                  el(
-                    'div',
-                    { class: 'egg-comment' },
-                    'The whole flock drifts in beneath the lights, feathers silvered by the glow. Somebody quacks softly. It is perfect.',
-                  ),
-                  litLanternRow(),
-                  reward
-                    ? el(
-                        'div',
-                        { class: 'race-stats fit' },
-                        statTile('coin', `+${reward.coins}`, 'coins'),
-                        statTile('wheat', `+${reward.premiumFeed}`, 'premium feed'),
-                      )
-                    : null,
-                  reward ? el('div', { class: 'muted small race-blurb' }, 'And a very happy flock.') : null,
-                  reward ? el('div', { class: 'egg-comment' }, reward.wishText) : null,
-                  el(
-                    'div',
-                    { class: 'actions race-actions' },
-                    el('button', { class: 'action-btn primary', onclick: close }, 'Stay a while, then head back'),
-                  ),
-                );
-                if (reward) state.lastFestival = { day: dayOf(state.clock), kind: 'winterLights', winter: reward };
-                card.replaceChildren(finale);
-              };
-            }
-          },
-        },
-        el('span', { class: 'lantern-flame' }),
-      );
-      lanternRow.append(lantern);
-    });
-
-    card.append(header('sparkle', 'Winter Lights'), wishLine, lanternRow);
-  }
-
-  private openEggShow(): void {
-    if (document.querySelector('.race-overlay')) return;
-    const state = this.game.state;
-    const eggs = state.ducks.filter((d) => d.stage === 'egg');
-    // Judged entries render as a fresh egg still with a fixed seed.
-    const sampleEgg = (genome: Duck['genome']): Duck =>
-      createDuck(createRng(7), { genome, stage: 'egg', pos: { x: 0, y: 0 }, name: 'egg' });
-    const timers: number[] = [];
-    const ev = eventCard(this.root, 'egg', 'egg-show', () => timers.forEach((t) => clearTimeout(t)));
-    if (!ev) return;
-    const { card, close } = ev;
-    const header = (): HTMLElement => ev.header('egg', 'Spring Egg Show');
-
-    const showStandings = (result: import('../sim/festivals').EggShowResult, replay = false) => {
-      timers.forEach((t) => clearTimeout(t));
-      const list = el('div', { class: 'race-results' });
-      result.entries.forEach((entry, i) => {
-        const sample = sampleEgg(entry.genome);
-        list.append(
-          el(
-            'div',
-            { class: `race-result-row${entry.isPlayer ? ' mine' : ''}` },
-            el('span', { class: `race-place p${i + 1}` }, `${i + 1}`),
-            duckPortrait(sample, 34),
-            el(
-              'span',
-              { class: 'race-result-name egg-standing' },
-              el('span', {}, `${entry.eggName} — ${entry.breeder}`),
-              el('span', { class: 'chip chip-trait' }, entry.breed),
-            ),
-            el('span', { class: 'muted small' }, `${entry.score} pts`),
-            entry.isPlayer && result.prize > 0
-              ? el('span', { class: 'goal-reward with-icon' }, icon('coin', 11), `${result.prize}`)
-              : null,
-          ),
-        );
-      });
-      card.classList.toggle('win', result.playerPlace === 0);
-      card.replaceChildren(
-        ev.header('egg', result.playerPlace === 0 ? 'Best in Show!' : 'Final standings'),
-        el(
-          'div',
-          { class: 'muted small' },
-          'The judges reveal each bloodline after the verdict:',
-        ),
-        list,
-        el(
-          'div',
-          { class: 'actions race-actions' },
-          el('button', { class: 'action-btn primary', onclick: close }, 'Back to the pond'),
-        ),
-      );
-      if (result.prize > 0 && !replay) this.toast(`Placed ${ordinal(result.playerPlace + 1)} — +${result.prize} coins!`);
-    };
-
-    const runCeremony = (result: import('../sim/festivals').EggShowResult) => {
-      // Judge from the bottom of the field up, so the winner lands last.
-      const order = [...result.entries].reverse();
-      const stage = el('div', { class: 'egg-stage' });
-      card.replaceChildren(
-        header(),
-        stage,
-        el(
-          'div',
-          { class: 'actions race-actions' },
-          el('button', { class: 'action-btn', onclick: () => showStandings(result) }, 'Skip to results'),
-        ),
-      );
-      order.forEach((entry, i) => {
-        timers.push(
-          window.setTimeout(() => {
-            const sample = sampleEgg(entry.genome);
-            stage.replaceChildren(
-              el('div', { class: 'muted small' }, `Now judging entry ${i + 1} of ${order.length}…`),
-              el(
-                'div',
-                { class: 'egg-pedestal' },
-                duckPortrait(sample, 72),
-              ),
-              el('div', { class: 'egg-breeder' }, `${entry.eggName} — ${entry.breeder}${entry.isPlayer ? ' (you)' : ''}`),
-              el('div', { class: 'egg-comment' }, `“${entry.comment}”`),
-              el('div', { class: 'egg-score' }, `${entry.score} points`),
-            );
-          }, i * 2100),
-        );
-      });
-      timers.push(window.setTimeout(() => showStandings(result), order.length * 2100 + 700));
-    };
-
-    card.append(header());
-    const last = state.lastFestival;
-    if (festivalEnteredToday(state, 'eggShow') && last?.kind === 'eggShow' && last.day === dayOf(state.clock) && last.eggShow) {
-      showStandings(last.eggShow, true);
-      return;
-    }
-    if (festivalEnteredToday(state, 'eggShow')) {
-      card.append(el('div', { class: 'muted' }, 'You already entered an egg this year — see you next spring!'));
-    } else if (eggs.length === 0) {
-      card.append(el('div', { class: 'muted' }, 'No eggs in the nest to enter. Nest a pair and come back before sundown!'));
-    } else {
-      card.append(
-        el(
-          'div',
-          { class: 'muted' },
-          'Enter one egg against four rival breeders. Judges score hidden genetics and how well its parents are kept.',
-        ),
-      );
-      const grid = el('div', { class: 'race-picker' });
-      for (const egg of eggs) {
-        grid.append(
-          el(
-            'button',
-            {
-              class: 'race-pick',
-              onclick: () => {
-                const result = runEggShow(state, egg.id, this.game.rng);
-                if (result) {
-                  state.lastFestival = { day: dayOf(state.clock), kind: 'eggShow', eggShow: result };
-                  runCeremony(result);
-                } else close();
-              },
-            },
-            duckPortrait(egg, 48),
-            el('span', { class: 'small' }, 'Egg'),
-          ),
-        );
-      }
-      card.append(grid);
     }
   }
 
@@ -1698,6 +1016,56 @@ export class UI {
           ),
         ),
       ),
+    );
+  }
+
+  // A life event card: what's happening, who it's happening to, and the
+  // choices — each with its trade-off spelled out. Closing without choosing
+  // leaves the chip lit; by evening the flock decides for itself.
+  private openLifeEvent(): void {
+    const state = this.game.state;
+    const ev: LifeEvent | null = state.lifeEvent;
+    if (!ev) return;
+    const card = eventCard(this.root, 'life');
+    if (!card) return;
+    const { text, title } = describeLifeEvent(state, ev);
+    const duck = state.ducks.find((d) => d.id === ev.duckId);
+    const other = state.ducks.find((d) => d.id === ev.otherId);
+    const portraits = el('div', { class: 'life-event-portraits' });
+    if (duck) portraits.append(duckPortrait(duck, 64));
+    if (other) portraits.append(el('span', { class: 'life-event-vs' }, 'vs'), duckPortrait(other, 64));
+    const choices = el('div', { class: 'life-event-choices' });
+    for (const c of lifeEventChoices(state, ev)) {
+      choices.append(
+        el(
+          'button',
+          {
+            class: 'life-choice',
+            disabled: !c.ok,
+            title: c.reason ?? '',
+            onclick: () => {
+              const outcome = resolveLifeEvent(state, this.game.rng, c.id);
+              if (outcome === null) return;
+              card.card.replaceChildren(
+                card.header('duck', title),
+                portraits,
+                el('div', { class: 'life-event-outcome' }, outcome),
+                backToPondRow(card.close),
+              );
+              this.refreshPanel();
+            },
+          },
+          el('strong', {}, c.label),
+          el('span', { class: 'muted small' }, c.ok ? c.blurb : c.reason ?? c.blurb),
+        ),
+      );
+    }
+    card.card.append(
+      card.header('duck', title),
+      portraits,
+      el('div', { class: 'life-event-text' }, text),
+      choices,
+      el('div', { class: 'muted small life-event-hint' }, 'Decide later from the HUD — by evening the flock settles it their own way.'),
     );
   }
 

@@ -53,6 +53,12 @@ export interface Duck {
   friendId?: string; // best friend, formed by hanging out together
   friendCandidate?: string; // friendship-in-progress tracking
   friendStreak?: number;
+  // A life beyond the genes (see training.ts, marks.ts, lifeEvents.ts).
+  training?: import('./training').Training; // drilled stats, fade a point a day
+  marks?: import('./marks').Mark[]; // what its upbringing left on it
+  upbringing?: import('./marks').Upbringing; // tallies kept only while young
+  broodyDay?: number; // a hen sitting the nest today (life event)
+  parentRarity?: number; // eggs: the parents' average rarity, so the price never reads the hidden genes
 }
 
 export const STAGE_DAYS: Record<Exclude<LifeStage, 'egg' | 'adult'>, number> = {
@@ -166,6 +172,7 @@ export function layEgg(rng: Rng, mother: Duck, father: Duck, pos: Vec2, mutation
     name: 'Egg',
   });
   egg.lineage = lineageFrom(mother, father);
+  egg.parentRarity = (mother.phenotype.rarityScore + father.phenotype.rarityScore) / 2;
   return egg;
 }
 

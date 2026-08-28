@@ -28,9 +28,11 @@ const FOLLOW_MOM_DIST = 70; // ducklings trail their mother past this
 // snapping its heading left and right every few ticks.
 const CATCH_UP_DIST = 34;
 
-// Stable per-duck temperament derived from the duck's identity — no stored
-// state, no save-format change. Energy scales how briskly a duck cycles
-// through activities; sociability pulls it toward (or away from) the flock.
+// Temperament. Energy — how briskly a duck cycles through activities and
+// how hard it races — comes from the heritable temper loci (bold ducks are
+// busy, timid ones mellow) with a pinch of id-hashed jitter so siblings with
+// the same genes still differ. Sociability (toward or away from the flock)
+// stays a quirk of the individual, hashed from its id.
 export interface Personality {
   energy: number; // 0.75 (mellow) .. 1.3 (busy)
   sociability: number; // -1 (loner) .. 1 (flocker)
@@ -39,8 +41,10 @@ export interface Personality {
 export function personality(duck: Duck): Personality {
   let h = 0;
   for (let i = 0; i < duck.id.length; i += 1) h = (h * 31 + duck.id.charCodeAt(i)) >>> 0;
+  const boldness = duck.phenotype.boldness ?? 0.5;
+  const jitter = ((h % 97) / 96 - 0.5) * 0.1; // ±0.05
   return {
-    energy: 0.75 + ((h % 97) / 96) * 0.55,
+    energy: 0.8 + boldness * 0.45 + jitter,
     sociability: (((h >>> 8) % 89) / 88) * 2 - 1,
   };
 }
@@ -48,9 +52,11 @@ export function personality(duck: Duck): Personality {
 // Human-readable temperament tags for panels and tooltips.
 export function personalityLabels(duck: Duck): string[] {
   const p = personality(duck);
+  const b = duck.phenotype.boldness ?? 0.5;
   const labels: string[] = [];
-  if (p.energy > 1.15) labels.push('energetic');
-  else if (p.energy < 0.9) labels.push('mellow');
+  if (b >= 0.75) labels.push('bold');
+  else if (b <= 0.25) labels.push('timid');
+  else labels.push('steady');
   if (p.sociability > 0.5) labels.push('social');
   else if (p.sociability < -0.5) labels.push('loner');
   return labels;

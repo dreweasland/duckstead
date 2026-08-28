@@ -11,9 +11,9 @@ import { formatClock } from '../sim/time';
 import { el } from '../ui/dom';
 import { icon } from '../ui/icons';
 import { renderPairScreen } from './pairScreen';
-import { dayScreen, duckScreen, flockScreen, pondScreen } from './screens';
+import { bookScreen, dayScreen, duckScreen, flockScreen, nestScreen, pondScreen, shopScreen } from './screens';
 
-type Tab = 'flock' | 'pond' | 'day';
+type Tab = 'flock' | 'nest' | 'pond' | 'shop' | 'book' | 'day';
 
 export function runCompanion(): void {
   // Installable PWA: the service worker is registered only in companion mode,
@@ -46,6 +46,7 @@ async function bootCompanion(root: HTMLElement): Promise<void> {
 class Shell {
   private tab: Tab = 'flock';
   private openDuckId: string | null = null;
+  private nestPick: string | null = null; // first duck chosen for a pairing
   private lastRender = 0;
   private pointerDown = false;
   private header: HTMLElement;
@@ -78,7 +79,14 @@ class Shell {
         icon(iconName, 15),
         label,
       );
-    this.nav.append(navBtn('flock', 'duck', 'Flock'), navBtn('pond', 'broom', 'Chores'), navBtn('day', 'book', 'Day'));
+    this.nav.append(
+      navBtn('flock', 'duck', 'Flock'),
+      navBtn('nest', 'egg', 'Nest'),
+      navBtn('pond', 'broom', 'Chores'),
+      navBtn('shop', 'cart', 'Shop'),
+      navBtn('book', 'book', 'Book'),
+      navBtn('day', 'flag', 'Day'),
+    );
 
     // Never rebuild mid-touch: it would destroy the control under the finger
     // (and interrupt scrolling).
@@ -196,6 +204,15 @@ class Shell {
       });
     } else if (this.tab === 'pond') {
       screen = pondScreen(this.game);
+    } else if (this.tab === 'nest') {
+      screen = nestScreen(this.game, this.nestPick, (id) => {
+        this.nestPick = id;
+        this.forceRender();
+      });
+    } else if (this.tab === 'shop') {
+      screen = shopScreen(this.game);
+    } else if (this.tab === 'book') {
+      screen = bookScreen(this.game);
     } else {
       screen = dayScreen(this.game);
     }

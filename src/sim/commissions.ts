@@ -84,9 +84,20 @@ function breedChance(a: Genome, b: Genome, key: string): number {
   return p;
 }
 
-// Demands escalate with commissions fulfilled.
-function tierFor(state: GameState): number {
-  return Math.min(3, Math.floor(state.commissionsDone / 3));
+// Demands escalate with commissions fulfilled — and keep escalating: past
+// the third tier the generation, standard, and pink-bill asks keep rising
+// (to a ceiling each), and the pay with them.
+export function tierFor(state: GameState): number {
+  return Math.floor(state.commissionsDone / 3);
+}
+
+function demandsFor(tier: number, rng: Rng): Pick<Commission, 'sex' | 'minGen' | 'minStandard' | 'pinkBill'> {
+  const d: Pick<Commission, 'sex' | 'minGen' | 'minStandard' | 'pinkBill'> = {};
+  if (tier >= 1 && rng.chance(0.6)) d.sex = rng.chance(0.5) ? 'M' : 'F';
+  if (tier >= 1) d.minGen = Math.min(5, tier); // gen 1..5
+  if (tier >= 2) d.minStandard = tier === 2 ? 60 : tier === 3 ? 80 : 90;
+  if (tier >= 3 && rng.chance(Math.min(0.8, 0.35 + (tier - 3) * 0.15))) d.pinkBill = true;
+  return d;
 }
 
 function candidateKeys(state: GameState): string[] {
@@ -106,23 +117,22 @@ export function makeCommission(state: GameState, rng: Rng): Commission | null {
   const unmet = keys.filter((k) => !state.awards[k]?.standard);
   const key = rng.pick(unmet.length > 0 ? unmet : keys);
   const tier = tierFor(state);
+  // The rival ponds post too, once they know you: a third of the board.
+  const rivalClient = state.rivals.length > 0 && tier >= 1 && rng.chance(0.35) ? rng.pick(state.rivals).name : null;
   const c: Commission = {
     id: state.nextCommissionId,
-    client: rng.pick(CLIENTS),
+    client: rivalClient ?? rng.pick(CLIENTS),
     key,
     reward: 0,
-    points: 3 + tier * 3,
+    points: 3 + Math.min(6, tier) * 3,
     postedDay: dayOf(state.clock),
     expiresDay: dayOf(state.clock) + COMMISSION_DAYS,
+    ...demandsFor(tier, rng),
   };
-  if (tier >= 1 && rng.chance(0.6)) c.sex = rng.chance(0.5) ? 'M' : 'F';
-  if (tier >= 1) c.minGen = tier; // gen 1..3
-  if (tier >= 2) c.minStandard = tier === 2 ? 60 : 80;
-  if (tier >= 3 && rng.chance(0.35)) c.pinkBill = true;
   const rarity = computePhenotype(representativeGenome(key)).rarityScore;
   const base = BALANCE.adultBasePrice * (1 + rarity * BALANCE.rarityMultiplier);
   const demandBonus = 1 + (c.sex ? 0.2 : 0) + (c.minGen ?? 0) * 0.3 + (c.minStandard ? c.minStandard / 100 : 0) + (c.pinkBill ? 0.8 : 0);
-  c.reward = Math.round(base * (3 + tier) * demandBonus);
+  c.reward = Math.round(base * (3 + Math.min(6, tier)) * demandBonus);
   state.nextCommissionId += 1;
   return c;
 }

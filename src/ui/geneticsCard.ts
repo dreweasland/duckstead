@@ -20,6 +20,7 @@ const ADDITIVE_GROUPS: Array<{ label: string; loci: LocusId[]; max: number }> = 
   { label: 'size', loci: ['size1', 'size2', 'size3'], max: 6 },
   { label: 'bill', loci: ['bill1', 'bill2'], max: 4 },
   { label: 'vigor', loci: ['vigor1', 'vigor2'], max: 4 },
+  { label: 'temper', loci: ['temper1', 'temper2'], max: 4 },
 ];
 
 // Friendly names for alleles a duck can secretly carry.
@@ -59,6 +60,7 @@ export function buildGeneticsCard(state: GameState, duck: Duck): HTMLElement {
     gauge('size', (p.sizeScale - 0.75) / 0.55, 'petite', 'grand'),
     gauge('bill', p.billLength, 'stubby', 'long'),
     gauge('vigor', p.vigor, 'frail', 'hardy'),
+    gauge('temper', p.boldness, 'timid', 'bold'),
   );
 
   if (upgradeLevel(state, 'pedigreeScope') > 0) {
@@ -170,6 +172,7 @@ export function buildGeneStrip(state: GameState, duck: Duck): HTMLElement {
   strip.append(
     gauge('size', (p.sizeScale - 0.75) / 0.55, 'petite', 'grand'),
     gauge('vigor', p.vigor, 'frail', 'hardy'),
+    gauge('temper', p.boldness, 'timid', 'bold'),
   );
 
   if (upgradeLevel(state, 'pedigreeScope') > 0) {

@@ -6,7 +6,8 @@ import { dayOf, seasonOf, yearOf } from './time';
 
 export type ChronicleKind =
   | 'breed' | 'hatch' | 'death' | 'festival' | 'race' | 'award' | 'visitor' | 'sale' | 'birthday' | 'society' | 'milestone'
-  | 'ofAge' /* juvenile grew into an adult */ | 'elder' /* adult grew into an elder */;
+  | 'ofAge' /* juvenile grew into an adult */ | 'elder' /* adult grew into an elder */
+  | 'mark' /* an upbringing mark */ | 'life' /* a life event */;
 
 export interface ChronicleEntry {
   day: number;

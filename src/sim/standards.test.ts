@@ -31,7 +31,7 @@ describe('breed standards', () => {
     const m = standardMatch(rep, key);
     expect(m.pct).toBeGreaterThan(30);
     expect(m.pct).toBeLessThan(100);
-    expect(m.slots.length).toBe(9);
+    expect(m.slots.length).toBe(10);
   });
 });
 

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../state';
 import { tickLifecycle } from '../sim/lifecycle';
 import { tickNeeds } from '../sim/needs';
-import { CORRUPT_KEY, deserialize, loadFromStorage, SAVE_KEY, saveToStorage, serialize } from './save';
+import { CORRUPT_KEY, deserialize, loadFromStorage, SAVE_KEY, SAVE_VERSION, saveToStorage, serialize } from './save';
+import { LOCI } from '../sim/genetics';
 
 describe('save round-trip', () => {
   it('deserialize(serialize(state)) preserves the whole game state', () => {
@@ -65,8 +66,49 @@ describe('save round-trip', () => {
 
   it('rejects unknown save versions', () => {
     const { state } = createNewGame(1);
-    const json = serialize(state).replace('"version":1', '"version":99');
+    const json = serialize(state).replace(`"version":${SAVE_VERSION}`, '"version":99');
     expect(() => deserialize(json)).toThrow(/unknown save version/i);
+    expect(() => deserialize(serialize(state).replace(`"version":${SAVE_VERSION}`, '"version":0'))).toThrow(/unknown save version/i);
+  });
+
+  it('walks a v1 save up the migration chain: temperament loci are filled in everywhere', () => {
+    const { state, rng } = createNewGame(21);
+    for (let i = 0; i < 500; i += 1) {
+      state.clock.totalTicks += 1;
+      tickNeeds(state, rng);
+      tickLifecycle(state, rng);
+    }
+    // Forge a v1 blob: strip the temper loci from every stored genome.
+    const raw = JSON.parse(serialize(state));
+    raw.version = 1;
+    const strip = (g: Record<string, unknown> | undefined | null) => {
+      if (!g) return;
+      delete g.temper1;
+      delete g.temper2;
+    };
+    for (const d of raw.state.ducks) {
+      strip(d.genome);
+      if (d.lineage) {
+        strip(d.lineage.sire?.genome);
+        strip(d.lineage.dam?.genome);
+        for (const g of d.lineage.grand) strip(g?.genome);
+      }
+    }
+    raw.state.memorial = [{ name: 'Old', sex: 'F', bodyColor: '#fff', genome: (() => { const g = JSON.parse(JSON.stringify(state.ducks[0].genome)); strip(g); return g; })(), diedOnDay: 1, rarityScore: 0 }];
+    delete raw.state.stats.drills;
+    delete raw.state.lifeEvent;
+    const restored = deserialize(JSON.stringify(raw));
+    expect(restored.version).toBe(SAVE_VERSION);
+    for (const duck of restored.ducks) {
+      for (const def of LOCI) expect(duck.genome[def.id]).toHaveLength(2);
+      expect(Number.isFinite(duck.phenotype.boldness)).toBe(true);
+    }
+    expect(restored.memorial[0].genome?.temper1).toHaveLength(2);
+    expect(restored.stats.drills).toBe(0);
+    expect(restored.lifeEvent).toBeNull();
+    // Living ducks draw varied pairs from a per-duck seed, not all mid.
+    const bold = restored.ducks.map((d) => d.phenotype.boldness);
+    expect(new Set(bold).size).toBeGreaterThan(1);
   });
 });
 

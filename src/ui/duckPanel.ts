@@ -12,6 +12,10 @@ import { canPen, penCapacity, penDuck, penDucks, releaseDuck } from '../sim/pen'
 import { sellDuck, sellPrice } from '../sim/economy';
 import { matchesRequest, requestPrice, sellToBuyer } from '../sim/visitors';
 import { personalityLabels } from '../sim/behavior';
+import { MARKS } from '../sim/marks';
+import { canDrill, drillCoinsLeft, drillsLeft, drillsPerDay, TRAIN_STAT_META, TRAIN_STATS, trainingOf } from '../sim/training';
+import { DRILL_META, openDrill } from './trainingPanel';
+import { openPhoto } from './photo';
 import { breedingValue, keepVerdict, verdictReason } from '../sim/advisor';
 import { breedKey, breedLabel } from '../sim/breedBook';
 import {
@@ -63,6 +67,11 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
       el(
         'div',
         { class: 'card-window-btns' },
+        el(
+          'button',
+          { class: 'close-btn photo-btn', title: 'Take a portrait photo to save or share', onclick: () => openPhoto(game, { toast: (m) => ctx.ui.toast(m) }, duck) },
+          icon('sparkle', 13),
+        ),
         ctx.pinned
           ? el('span', { class: 'chip chip-trait pin-chip', title: 'Pinned for comparison' }, 'pinned')
           : el(
@@ -87,7 +96,10 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   if (duck.stage !== 'egg') {
     const traits = el('div', { class: 'gene-badges' });
     for (const label of personalityLabels(duck)) {
-      traits.append(el('span', { class: 'chip chip-trait' }, label));
+      traits.append(el('span', { class: 'chip chip-trait', title: label === 'bold' || label === 'timid' || label === 'steady' ? 'Temperament — inherited through the temper loci' : 'A quirk of this duck' }, label));
+    }
+    for (const mark of duck.marks ?? []) {
+      traits.append(el('span', { class: 'chip chip-mark', title: `${MARKS[mark].blurb} (earned: ${MARKS[mark].how})` }, MARKS[mark].label));
     }
     if (duck.stage === 'adult') {
       const readiness = breedReadiness(duck);
@@ -214,6 +226,55 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
       ),
       treatRow,
     );
+  }
+
+  // Training: drilled stats and today's drills.
+  if (duck.stage === 'juvenile' || duck.stage === 'adult' || duck.stage === 'elder') {
+    const t = trainingOf(duck);
+    const left = drillsLeft(game.state, duck);
+    const gate = canDrill(game.state, duck);
+    const box = el(
+      'div',
+      { class: 'section training' },
+      el(
+        'div',
+        { class: 'pedigree-head' },
+        el('strong', {}, 'Training'),
+        el('span', { class: 'muted small' }, `${left}/${drillsPerDay(game.state)} drills today`),
+      ),
+    );
+    for (const stat of TRAIN_STATS) {
+      box.append(
+        el(
+          'div',
+          { class: 'need-row', title: TRAIN_STAT_META[stat].blurb },
+          el('span', { class: 'need-label' }, TRAIN_STAT_META[stat].label),
+          bar(t[stat], '#6aa0d8'),
+          el('span', { class: 'muted small train-num' }, String(Math.round(t[stat]))),
+        ),
+      );
+    }
+    const drills = el('div', { class: 'care-actions' });
+    for (const stat of TRAIN_STATS) {
+      drills.append(
+        el(
+          'button',
+          {
+            class: 'action-btn',
+            disabled: !gate.ok,
+            title: gate.ok ? DRILL_META[stat].hint : gate.reason ?? '',
+            onclick: () => openDrill(game, { toast: (m) => ctx.ui.toast(m), refresh: () => ctx.ui.refreshPanel() }, duck, stat),
+          },
+          icon(DRILL_META[stat].icon, 13),
+          DRILL_META[stat].label,
+        ),
+      );
+    }
+    box.append(
+      drills,
+      el('div', { class: 'muted small' }, `Stats fade a point a day. Bold ducks take to sprints; timid ones to poise. Drills pay up to ${drillCoinsLeft(game.state)} more coins today.`),
+    );
+    panel.append(box);
   }
 
   // Breeding advisor: is this duck worth keeping?

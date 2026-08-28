@@ -14,7 +14,9 @@ export type LocusId =
   | 'billColor'
   | 'crest'
   | 'vigor1'
-  | 'vigor2';
+  | 'vigor2'
+  | 'temper1'
+  | 'temper2';
 
 export type Genome = Record<LocusId, [Allele, Allele]>;
 
@@ -60,7 +62,28 @@ export const LOCI: LocusDef[] = [
   { id: 'crest', alleles: ['n', 'R'], kind: 'mendelian', dominance: { n: 2, R: 1 } },
   { id: 'vigor1', alleles: ['+', '-'], kind: 'additive' },
   { id: 'vigor2', alleles: ['+', '-'], kind: 'additive' },
+  // Temperament: bold (4 '+') to timid (0). Heritable like any additive
+  // trait — it drives how a duck behaves, races, lays, and trains.
+  { id: 'temper1', alleles: ['+', '-'], kind: 'additive' },
+  { id: 'temper2', alleles: ['+', '-'], kind: 'additive' },
 ];
+
+// Genomes saved before a locus existed lack its pair. Fill the gaps so every
+// consumer can index the genome blindly: additive loci draw a random pair
+// when an rng is given (so old flocks show variety) or a mid pair otherwise;
+// mendelian loci get the common dominant. Returns the same object, healed.
+export function completeGenome(genome: Genome, rng?: Rng): Genome {
+  for (const def of LOCI) {
+    if (Array.isArray(genome[def.id]) && genome[def.id].length === 2) continue;
+    if (def.kind === 'additive') {
+      genome[def.id] = rng ? [rng.pick(def.alleles), rng.pick(def.alleles)] : ['+', '-'];
+    } else {
+      const common = def.alleles.filter((x) => !def.rare?.includes(x));
+      genome[def.id] = [common[0], common[0]];
+    }
+  }
+  return genome;
+}
 
 export const MUTATION_RATE = 0.02;
 
@@ -82,6 +105,7 @@ export interface Phenotype {
   billColor: string;
   crested: boolean;
   vigor: number; // 0..1
+  boldness: number; // 0 timid .. 1 bold
   rarityScore: number;
 }
 
@@ -147,7 +171,7 @@ export function expressedAlleles(genome: Genome, id: LocusId): Allele[] {
 function additiveCount(genome: Genome, ids: LocusId[]): number {
   let n = 0;
   for (const id of ids) {
-    for (const allele of genome[id]) if (allele === '+') n += 1;
+    for (const allele of genome[id] ?? []) if (allele === '+') n += 1;
   }
   return n;
 }
@@ -186,6 +210,7 @@ export function computePhenotype(genome: Genome): Phenotype {
   const crested = genome.crest[0] === 'R' && genome.crest[1] === 'R';
 
   const vigor = additiveCount(genome, ['vigor1', 'vigor2']) / 4; // 0..1
+  const boldness = additiveCount(genome, ['temper1', 'temper2']) / 4; // 0..1
 
   // Rarity: expressed rare alleles + polygenic extremes + crest.
   let rarityScore = 0;
@@ -211,6 +236,7 @@ export function computePhenotype(genome: Genome): Phenotype {
     billColor,
     crested,
     vigor,
+    boldness,
     rarityScore,
   };
 }
@@ -219,6 +245,8 @@ export function computePhenotype(genome: Genome): Phenotype {
 // inherited allele mutates to a different allele of the same locus. Mutation
 // is the only way rare alleles (B, P) enter a fresh flock.
 export function breed(a: Genome, b: Genome, rng: Rng, mutationRate = MUTATION_RATE): Genome {
+  completeGenome(a);
+  completeGenome(b);
   const child = {} as Genome;
   for (const def of LOCI) {
     const fromA = a[def.id][rng.int(2)];
@@ -264,5 +292,6 @@ export function formatGenotype(genome: Genome): string {
   const size = additiveCount(genome, ['size1', 'size2', 'size3']);
   const bill = additiveCount(genome, ['bill1', 'bill2']);
   const vigor = additiveCount(genome, ['vigor1', 'vigor2']);
-  return `${mendel} | size ${size}/6 · bill ${bill}/4 · vigor ${vigor}/4`;
+  const temper = additiveCount(genome, ['temper1', 'temper2']);
+  return `${mendel} | size ${size}/6 · bill ${bill}/4 · vigor ${vigor}/4 · bold ${temper}/4`;
 }

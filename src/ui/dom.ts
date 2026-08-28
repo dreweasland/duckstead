@@ -34,6 +34,11 @@ export function el(tag: string, attrs: Attrs = {}, ...children: Child[]): HTMLEl
     if (child == null) continue;
     node.append(child instanceof Node ? child : document.createTextNode(child));
   }
+  // An icon-only button is unreadable to a screen reader: its tooltip
+  // becomes its accessible name.
+  if (tag === 'button' && typeof attrs.title === 'string' && attrs.title && !attrs['aria-label'] && !node.textContent?.trim()) {
+    node.setAttribute('aria-label', attrs.title);
+  }
   return node;
 }
 

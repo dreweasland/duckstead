@@ -10,22 +10,30 @@ import { pondDistance, pondGeometry } from './pond';
 import { dayOf, hourOf, TICKS_PER_HOUR } from './time';
 import { drakePressure } from './flockBalance';
 import { upgradeLevel } from './economy';
+import { TUNING } from './tuning';
 
-const LAY_START = 7;
-const LAY_END = 17;
-const MAX_LOOSE_EGGS = 6;
+const LAY_START = TUNING.laying.start;
+const LAY_END = TUNING.laying.end;
+const MAX_LOOSE_EGGS = TUNING.laying.maxLooseEggs;
 // Spread each hen's daily egg over the laying window (~10 game-hours).
 const LAY_CHANCE_PER_TICK = 1 / ((LAY_END - LAY_START) * TICKS_PER_HOUR * 0.7);
+
+// The cheer a hen needs before she'll lay: bold hens lay through most
+// things, timid ones need settling. 45 (bold) .. 65 (timid).
+export function layHappinessNeeded(duck: Duck): number {
+  return TUNING.laying.happinessNeeded + (0.5 - (duck.phenotype.boldness ?? 0.5)) * TUNING.laying.temperSwing;
+}
 
 export function canLayToday(duck: Duck, day: number): boolean {
   return (
     duck.sex === 'F' &&
     (duck.stage === 'adult' || duck.stage === 'elder') &&
     duck.lastLayDay !== day &&
+    duck.broodyDay !== day &&
     !duck.penned &&
     !duck.sick &&
     duck.needs.hunger > 40 &&
-    duck.needs.happiness > 55
+    duck.needs.happiness > layHappinessNeeded(duck)
   );
 }
 

@@ -5,7 +5,8 @@
 import type { GameState } from '../state';
 import type { Duck } from './duck';
 import { clamp } from '../types';
-import { BALANCE } from './economy';
+import { TUNING } from './tuning';
+import { treatCheerScale, upbringingOf } from './marks';
 
 export type FoodKind = 'feed' | 'premiumFeed' | 'peas' | 'worms' | 'berries';
 export type TreatKind = 'peas' | 'worms' | 'berries';
@@ -21,8 +22,8 @@ export interface FoodDef {
 }
 
 export const FOODS: Record<FoodKind, FoodDef> = {
-  feed: { kind: 'feed', name: 'Feed', restore: BALANCE.feedRestore, happiness: 0, cost: 5, color: '#b08d4f', treat: false },
-  premiumFeed: { kind: 'premiumFeed', name: 'Premium feed', restore: BALANCE.premiumFeedRestore, happiness: BALANCE.premiumFeedHappiness, cost: 15, color: '#e8b83a', treat: false },
+  feed: { kind: 'feed', name: 'Feed', restore: TUNING.food.feedRestore, happiness: 0, cost: 5, color: '#b08d4f', treat: false },
+  premiumFeed: { kind: 'premiumFeed', name: 'Premium feed', restore: TUNING.food.premiumFeedRestore, happiness: TUNING.food.premiumFeedHappiness, cost: 15, color: '#e8b83a', treat: false },
   peas: { kind: 'peas', name: 'Peas', restore: 40, happiness: 2, cost: 8, color: '#7cc15a', treat: true },
   worms: { kind: 'worms', name: 'Worms', restore: 45, happiness: 2, cost: 10, color: '#c97a6a', treat: true },
   berries: { kind: 'berries', name: 'Berries', restore: 40, happiness: 3, cost: 10, color: '#8e4fb8', treat: true },
@@ -62,8 +63,10 @@ export function eatFood(state: GameState, duck: Duck, kind: FoodKind): EatResult
   const favourite = def.treat && favouriteTreat(duck) === kind;
   const restore = favourite ? def.restore * FAVOURITE_RESTORE_SCALE : def.restore;
   duck.needs.hunger = clamp(duck.needs.hunger + restore, 0, 100);
-  const cheer = def.happiness + (favourite ? FAVOURITE_HAPPINESS : 0);
+  const cheer = (def.happiness + (favourite ? FAVOURITE_HAPPINESS : 0)) * (def.treat ? treatCheerScale(duck) : 1);
   if (cheer > 0) duck.needs.happiness = clamp(duck.needs.happiness + cheer, 0, 100);
+  // Treats while young count toward a 'spoiled' upbringing.
+  if (def.treat && (duck.stage === 'duckling' || duck.stage === 'juvenile')) upbringingOf(duck).treats += 1;
   let discovered = false;
   if (favourite && !duck.favouriteKnown) {
     duck.favouriteKnown = true;

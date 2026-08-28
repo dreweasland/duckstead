@@ -168,7 +168,11 @@ function giftGenome(state: GameState, rng: Rng, lured: boolean): Genome {
     (g) => { g.billColor = tier >= 2 ? ['P', 'P'] : ['P', rng.pick(['O', 'y'])]; },
     (g) => { g.crest = ['R', 'R']; },
   ];
-  const order = [0, 1, 2].sort(() => rng.next() - 0.5);
+  const order = [0, 1, 2];
+  for (let i = order.length - 1; i > 0; i -= 1) {
+    const j = rng.int(i + 1);
+    [order[i], order[j]] = [order[j], order[i]];
+  }
   for (let i = 0; i < Math.min(gifts, 3); i += 1) pool[order[i]](genome);
   return genome;
 }

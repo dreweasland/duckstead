@@ -13,8 +13,13 @@ import { addSocietyPoints } from './society';
 import { breedStandard, standardMatch } from './standards';
 import type { Duck } from './duck';
 
+import { ordinal } from '../text';
+import { poiseOf, TRAINING } from './training';
+import { rivalEggEntries } from './rivals';
+import { BALANCE } from './economy';
+
 function ordinalWord(n: number): string {
-  return ['first', 'second', 'third', 'fourth', 'fifth'][n - 1] ?? `${n}th`;
+  return ['first', 'second', 'third', 'fourth', 'fifth'][n - 1] ?? ordinal(n);
 }
 import type { Season } from '../types';
 import { events } from '../events';
@@ -53,8 +58,24 @@ export function upcomingFestival(clock: GameClock): { kind: FestivalKind; inDays
 }
 
 export function tickFestivals(state: GameState): void {
+  const tickOfDay = state.clock.totalTicks % TICKS_PER_DAY;
+  // Evening: a festival that was never finished packs up. This is what spends
+  // a sponsorship (and closes a market left with buyers waiting), so a paid
+  // tier can't hang around forever.
+  if (tickOfDay === 20 * TICKS_PER_HOUR) {
+    const today = festivalToday(state.clock);
+    if (today && !festivalEnteredToday(state, today)) {
+      if (today === 'marketDay' && state.market?.day === dayOf(state.clock)) {
+        closeMarket(state);
+      } else {
+        markFestivalEntered(state, today);
+        events.emit('toast', `The ${FESTIVAL_NAMES[today]} has packed up for the year.`);
+      }
+    }
+    return;
+  }
   // Morning announcements only.
-  if (state.clock.totalTicks % TICKS_PER_DAY !== 8 * TICKS_PER_HOUR) return;
+  if (tickOfDay !== 8 * TICKS_PER_HOUR) return;
   const today = festivalToday(state.clock);
   if (today) {
     events.emit('toast', `Today is the ${FESTIVAL_NAMES[today]}!`);
@@ -125,10 +146,8 @@ export function noteFestivalWinPublic(state: GameState, kind: FestivalKind): voi
   noteFestivalWin(state, kind);
 }
 
+// Local entrants beyond the three rival ponds (see rivals.ts).
 const RIVAL_BREEDERS = [
-  'Marta of Millpond',
-  'Old Wiggins',
-  'The Reedy Sisters',
   'Ferryman Bram',
   'Duchess Plumage',
   'Tilly Two-Ponds',
@@ -247,6 +266,43 @@ export function marketHaggle(buyer: MarketBuyer, rng: Rng): boolean {
   return false;
 }
 
+// Market Day is won by selling: the target rises with the festival's tier.
+export function marketTarget(state: GameState): number {
+  return BALANCE.marketTargetBase + festivalTier(state, 'marketDay') * BALANCE.marketTargetPerTier;
+}
+
+export interface MarketClose {
+  sold: number;
+  earned: number;
+  target: number;
+  won: boolean;
+}
+
+// The stalls pack up: the day is entered (spending any sponsorship), and a
+// sale total past the target wins the festival. Null if there's no market
+// today or it's already closed.
+export function closeMarket(state: GameState, rng?: Rng): MarketClose | null {
+  void rng;
+  if (!state.market || state.market.day !== dayOf(state.clock)) return null;
+  if (festivalEnteredToday(state, 'marketDay')) return null;
+  const { sold, earned } = state.market;
+  const target = marketTarget(state);
+  const won = earned >= target;
+  const title = festivalTitle(state, 'marketDay');
+  const scale = festivalPurseScale(state, 'marketDay');
+  markFestivalEntered(state, 'marketDay');
+  state.market.buyers = [];
+  if (won) {
+    noteFestivalWin(state, 'marketDay');
+    addSocietyPoints(state, Math.round(4 * scale));
+    chronicle(state, 'festival', `${title}: ${earned} coins taken at the stall — the best trade of the fair.`);
+    events.emit('toast', `Market Day won — ${earned} coins against a target of ${target}! (+${Math.round(4 * scale)} Society)`);
+  } else if (sold > 0) {
+    chronicle(state, 'festival', `${title}: ${sold} duck${sold === 1 ? '' : 's'} sold for ${earned} coins.`);
+  }
+  return { sold, earned, target, won };
+}
+
 export function marketSell(state: GameState, buyer: MarketBuyer): boolean {
   const idx = state.ducks.findIndex((d) => d.id === buyer.duckId);
   if (idx < 0) return false;
@@ -276,13 +332,31 @@ export interface CeremonyReward {
   premiumFeed: number;
   wish: WinterWish;
   wishText: string;
+  // The lantern parade: how the pond looked under the lights, against the
+  // tier's bar. Absent on rewards saved before the parade existed.
+  parade?: { score: number; target: number; won: boolean };
+}
+
+// The parade is judged on the pond itself: decorations, the flock's poise,
+// and its cheer. Out of ~100.
+export function winterParadeScore(state: GameState): number {
+  const adults = flock(state).filter((d) => d.stage !== 'duckling');
+  const avg = (f: (d: Duck) => number) => (adults.length > 0 ? adults.reduce((s, d) => s + f(d), 0) / adults.length : 0);
+  const decor = Math.min(6, state.decorations.length) * 8;
+  const poise = avg((d) => poiseOf(d)) * 0.3;
+  const cheer = avg((d) => d.needs.happiness) * 0.3;
+  return Math.round(decor + poise + cheer);
+}
+
+export function winterParadeTarget(state: GameState): number {
+  return 45 + festivalTier(state, 'winterLights') * 15;
 }
 
 export type WinterWish = 'lure' | 'society' | 'fortune';
 export const WINTER_WISHES: Array<{ id: WinterWish; label: string; blurb: string }> = [
   { id: 'lure', label: 'A stranger on the wind', blurb: 'A remarkable wild duck arrives tomorrow, bearing the best it can.' },
   { id: 'society', label: 'Good standing', blurb: '+8 Society points.' },
-  { id: 'fortune', label: 'A full purse', blurb: `Coins equal to your pond's best-ever sale (at least 60).` },
+  { id: 'fortune', label: 'A full purse', blurb: `Coins equal to your pond's best-ever sale (at least 60, capped).` },
 ];
 
 // The finale after all lanterns are lit: the flock gathers, spirits soar,
@@ -295,6 +369,9 @@ export function winterCeremonyFinale(state: GameState, wish: WinterWish = 'fortu
     duck.needs.happiness = Math.min(100, duck.needs.happiness + 12);
   }
   const reward: CeremonyReward = { coins: 15, premiumFeed: 2, wish, wishText: '' };
+  const score = winterParadeScore(state);
+  const target = winterParadeTarget(state);
+  reward.parade = { score, target, won: score >= target };
   if (wish === 'lure') {
     state.visitorLure = true;
     reward.wishText = 'Something stirs in the reeds to the north. Tomorrow, then.';
@@ -302,11 +379,19 @@ export function winterCeremonyFinale(state: GameState, wish: WinterWish = 'fortu
     addSocietyPoints(state, 8);
     reward.wishText = 'Word of your pond reaches the Society. +8 points.';
   } else {
-    reward.coins += Math.max(60, state.stats.biggestSale);
-    reward.wishText = `A purse is found under the lantern post: ${Math.max(60, state.stats.biggestSale)} coins.`;
+    const purse = Math.min(BALANCE.winterFortuneCap, Math.max(60, state.stats.biggestSale));
+    reward.coins += purse;
+    reward.wishText = `A purse is found under the lantern post: ${purse} coins.`;
   }
   state.money += reward.coins;
   state.inventory.premiumFeed += reward.premiumFeed;
+  const title = festivalTitle(state, 'winterLights');
+  if (reward.parade.won) {
+    const scale = festivalPurseScale(state, 'winterLights');
+    noteFestivalWin(state, 'winterLights');
+    addSocietyPoints(state, Math.round(4 * scale));
+    chronicle(state, 'festival', `${title}: the lantern parade scored ${score} — the finest pond on the water.`);
+  }
   chronicle(state, 'festival', `At Winter Lights the pond wished for ${WINTER_WISHES.find((w) => w.id === wish)?.label.toLowerCase()}.`);
   markFestivalEntered(state, 'winterLights');
   events.emit('toast', 'The whole flock gathers beneath the lights…');
@@ -326,9 +411,10 @@ export function runEggShow(state: GameState, eggId: string, rng: Rng): EggShowRe
     const parents = egg.parents
       .map((id) => state.ducks.find((d) => d.id === id))
       .filter((d): d is NonNullable<typeof d> => Boolean(d));
+    // Poise: a well-drilled parent carries itself before the judges.
     if (parents.length > 0) {
       parentCare =
-        parents.reduce((sum, p) => sum + (p.needs.happiness + p.needs.health) / 2, 0) /
+        parents.reduce((sum, p) => sum + ((p.needs.happiness + p.needs.health) / 2) * (1 + (poiseOf(p) / TRAINING.max) * TRAINING.poiseCare), 0) /
         parents.length;
     }
   }
@@ -344,21 +430,31 @@ export function runEggShow(state: GameState, eggId: string, rng: Rng): EggShowRe
     },
   ];
 
-  // Four rivals scaled to the player's own Book; one is the local favourite.
+  // The three rival ponds each enter a clutch from their own flocks (they
+  // get stronger every year), plus one local entrant scaled to the player's
+  // Book — the favourite when the Book is still empty.
   const tier = festivalTier(state, 'eggShow');
-  const breeders = [...RIVAL_BREEDERS];
-  for (let i = 0; i < 4; i += 1) {
-    const genome = rivalGenome(state, rng, tier, i === 0);
-    if (i === 0 && Object.keys(state.breedBook).length === 0) {
-      // The local favorite: guaranteed something showworthy.
+  for (const r of rivalEggEntries(state, rng)) {
+    entries.push({
+      breeder: r.breeder,
+      eggName: rng.pick(RIVAL_EGG_NAMES),
+      genome: r.genome,
+      breed: breedLabel(breedKey(r.genome)),
+      score: scoreEgg(r.genome, r.care * (1 + tier * 0.05)),
+      comment: judgeComment(r.genome, rng),
+      isPlayer: false,
+    });
+  }
+  {
+    const genome = rivalGenome(state, rng, tier, true);
+    if (Object.keys(state.breedBook).length === 0) {
       const flourish = rng.int(3);
       if (flourish === 0) genome.pattern = ['p', 'p'];
       else if (flourish === 1) genome.dilution = ['d', 'd'];
       else genome.crest = ['R', 'R'];
     }
-    const breeder = breeders.splice(rng.int(breeders.length), 1)[0];
     entries.push({
-      breeder,
+      breeder: rng.pick(RIVAL_BREEDERS),
       eggName: rng.pick(RIVAL_EGG_NAMES),
       genome,
       breed: breedLabel(breedKey(genome)),

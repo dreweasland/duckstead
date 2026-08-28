@@ -145,7 +145,9 @@ function breedsTab(state: GameState, discovered: number, total: number): HTMLEle
 const KIND_ICON: Record<ChronicleKind, Parameters<typeof icon>[0]> = {
   breed: 'book', hatch: 'egg', death: 'grave', festival: 'flag', race: 'flag', award: 'star',
   visitor: 'sparkle', sale: 'coin', birthday: 'smile', society: 'star', milestone: 'star',
-  ofAge: 'duck', elder: 'feather',
+  ofAge: 'duck',
+  mark: 'sparkle',
+  life: 'duck', elder: 'feather',
 };
 
 function chronicleTab(state: GameState): HTMLElement {
@@ -193,6 +195,9 @@ function recordsTab(state: GameState): HTMLElement {
       tile('Ducks sold', String(s.ducksSold)),
       tile('Derby wins', String(s.racesWon)),
       tile('Festival wins', String(s.festivalWins)),
+      tile('Society Cups', String(s.cupWins), s.cupEntries > 0 ? `${s.cupEntries} entered` : undefined),
+      tile('Drills run', String(s.drills)),
+      tile('Life events settled', String(s.lifeEventsSettled)),
       tile('Hen eggs gathered', String(s.henEggsGathered)),
       tile('Feathers', String(s.feathersCollected)),
       tile('Wild ducks befriended', String(s.wildRecruited)),

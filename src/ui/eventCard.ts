@@ -4,7 +4,7 @@
 import { el } from './dom';
 import { icon, type IconName } from './icons';
 
-export type EventTheme = 'derby' | 'market' | 'winter' | 'egg';
+export type EventTheme = 'derby' | 'market' | 'winter' | 'egg' | 'life' | 'drill';
 
 export interface EventCard {
   overlay: HTMLElement;

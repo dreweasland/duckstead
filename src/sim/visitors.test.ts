@@ -161,3 +161,29 @@ describe('wild visitors', () => {
     expect(state.visitor).toBeNull();
   });
 });
+
+describe('visitor gift shuffle', () => {
+  it('spreads the first gift evenly across the three rare genes', async () => {
+    const { createRng } = await import('../rng');
+    const { createNewGame } = await import('../state');
+    const { TICKS_PER_DAY, TICKS_PER_HOUR } = await import('./time');
+    const counts = { blue: 0, pink: 0, crest: 0 };
+    for (let seed = 0; seed < 300; seed += 1) {
+      const { state } = createNewGame(seed);
+      const rng = createRng(seed * 7 + 1);
+      state.clock.totalTicks = TICKS_PER_DAY + 10 * TICKS_PER_HOUR;
+      state.stats.wildVisits = 0;
+      tickVisitors(state, rng);
+      const g = state.visitor!.duck.genome;
+      if (g.baseColor.includes('B')) counts.blue += 1;
+      if (g.billColor.includes('P')) counts.pink += 1;
+      if (g.crest[0] === 'R' && g.crest[1] === 'R') counts.crest += 1;
+    }
+    // A biased sort() put the same gene first far too often; a fair shuffle
+    // lands each within a comfortable band of a third.
+    for (const n of Object.values(counts)) {
+      expect(n).toBeGreaterThan(300 / 3 - 40);
+      expect(n).toBeLessThan(300 / 3 + 40);
+    }
+  });
+});
