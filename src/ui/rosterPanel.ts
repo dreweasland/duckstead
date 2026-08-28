@@ -4,11 +4,10 @@ import { icon, sexBadge, starRow, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { quickActions } from './quickActions';
 import { duckCapacity, isOvercrowded, pondOccupancy } from '../sim/economy';
-import { breedingValue, keepVerdict, verdictReason } from '../sim/advisor';
+import { breedingValue, keepVerdict, verdictReason, type KeepVerdict } from '../sim/advisor';
 import { eggIncubationTicks } from '../sim/lifecycle';
 import { TICKS_PER_DAY } from '../sim/time';
 import type { Duck, Needs } from '../sim/duck';
-import type { GameState } from '../state';
 import { breedReadiness } from '../sim/needs';
 import { pedigreeScore } from '../sim/pedigree';
 import { generationOf } from '../sim/lineage';
@@ -51,7 +50,7 @@ function needsCare(duck: Duck): boolean {
   return duck.sick || Math.min(duck.needs.hunger, duck.needs.cleanliness, duck.needs.happiness, duck.needs.health) < 25;
 }
 
-function matchesFilter(state: GameState, duck: Duck, filter: Filter): boolean {
+function matchesFilter(duck: Duck, filter: Filter, verdicts: ReadonlyMap<string, KeepVerdict>): boolean {
   switch (filter) {
     case 'all':
       return true;
@@ -72,13 +71,13 @@ function matchesFilter(state: GameState, duck: Duck, filter: Filter): boolean {
     case 'care':
       return duck.stage !== 'egg' && needsCare(duck);
     case 'key':
-      return duck.stage !== 'egg' && keepVerdict(breedingValue(state, duck)) === 'key';
+      return verdicts.get(duck.id) === 'key';
     case 'penned':
       return Boolean(duck.penned);
   }
 }
 
-function compare(state: GameState, sort: Sort): (a: Duck, b: Duck) => number {
+function compare(sort: Sort, verdicts: ReadonlyMap<string, KeepVerdict>): (a: Duck, b: Duck) => number {
   // Oldest first: the life stage is the age (ageTicks resets per stage), so
   // elders lead and eggs trail, with time-in-stage breaking ties.
   const stageOrder = { egg: 5, duckling: 4, juvenile: 3, adult: 2, elder: 1 } as const;
@@ -98,7 +97,7 @@ function compare(state: GameState, sort: Sort): (a: Duck, b: Duck) => number {
         // Eggs are unknown quantities; elders have no breeding value at all
         // and sort to the bottom.
         const rank = (d: Duck): number =>
-          d.stage === 'elder' ? 4 : d.stage === 'egg' ? 3 : VERDICT_RANK[keepVerdict(breedingValue(state, d))];
+          d.stage === 'elder' ? 4 : d.stage === 'egg' ? 3 : VERDICT_RANK[verdicts.get(d.id) ?? 'covered'];
         return rank(a) - rank(b);
       };
     case 'age':
@@ -143,10 +142,22 @@ export function renderRosterPanel(ctx: PanelCtx): HTMLElement {
     ),
   );
 
-  // Filter chips (with live counts) and a sort picker.
+  // One advisor verdict per duck per refresh — the 'key' filter previously
+  // recomputed it per duck per filter pass, every 500ms.
+  const verdicts = new Map<string, KeepVerdict>();
+  for (const d of state.ducks) {
+    if (d.stage !== 'egg') verdicts.set(d.id, keepVerdict(breedingValue(state, d)));
+  }
+  // Filter chips (with live counts, tallied in one pass) and a sort picker.
+  const counts = new Map<Filter, number>(FILTERS.map((f) => [f.id, 0]));
+  for (const d of state.ducks) {
+    for (const f of FILTERS) {
+      if (matchesFilter(d, f.id, verdicts)) counts.set(f.id, counts.get(f.id)! + 1);
+    }
+  }
   const filters = el('div', { class: 'roster-filters' });
   for (const f of FILTERS) {
-    const count = state.ducks.filter((d) => matchesFilter(state, d, f.id)).length;
+    const count = counts.get(f.id)!;
     if (f.id !== 'all' && count === 0 && activeFilter !== f.id) continue;
     filters.append(
       el(
@@ -185,7 +196,7 @@ export function renderRosterPanel(ctx: PanelCtx): HTMLElement {
   );
 
   const grid = el('div', { class: 'card-grid' });
-  const shown = state.ducks.filter((d) => matchesFilter(state, d, activeFilter)).sort(compare(state, activeSort));
+  const shown = state.ducks.filter((d) => matchesFilter(d, activeFilter, verdicts)).sort(compare(activeSort, verdicts));
   if (shown.length === 0) {
     grid.append(el('div', { class: 'muted small roster-empty' }, 'No ducks match this filter.'));
   }
