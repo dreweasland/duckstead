@@ -4,6 +4,7 @@
 // The DO is the serialization point: every read-modify-write below runs
 // single-threaded, which is the whole reason this is a DO and not KV.
 import { DurableObject } from 'cloudflare:workers';
+import { json, secretsMatch } from './http';
 import {
   codeValid,
   decideClaim,
@@ -23,13 +24,6 @@ interface SaveRow extends Record<string, number | string | null> {
   owner: string | null;
   savedAt: number;
   blob: string;
-}
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'content-type': 'application/json' },
-  });
 }
 
 export class DuckSyncDO extends DurableObject<Env> {
@@ -104,7 +98,7 @@ export class DuckSyncDO extends DurableObject<Env> {
 
   private async saveOp(op: string, body: Record<string, unknown>): Promise<Response> {
     const secret = await this.ctx.storage.get<string>('secret');
-    if (secret === undefined || body.secret !== secret) {
+    if (secret === undefined || !(await secretsMatch(body.secret, secret))) {
       return json({ error: 'unauthorized' }, 401);
     }
     const row = this.currentRow();
