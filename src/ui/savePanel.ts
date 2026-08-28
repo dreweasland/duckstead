@@ -5,7 +5,7 @@ import { deserialize, serialize } from '../save/save';
 import { canRetire } from '../sim/heritage';
 import { pedigreeScore } from '../sim/pedigree';
 import { duckPortrait } from './portrait';
-import { attachCloudSync } from '../sync/sync';
+import { attachCloudSync, detachCloudSync } from '../sync/sync';
 import { claimSave, pairStart } from '../sync/syncClient';
 import { isSyncConfigured, loadSyncMeta, newDeviceId, saveSyncMeta, unlinkSync } from '../sync/syncMeta';
 
@@ -152,8 +152,11 @@ function linkDeviceSection(ctx: PanelCtx): HTMLElement {
           lastSyncedSeq: 0,
           dirty: true,
         };
-        saveSyncMeta(meta);
+        // Prove the claim works before persisting credentials — persisting
+        // first left the device half-linked (cloud chip on, nothing pushing)
+        // when the claim failed.
         await claimSave(meta);
+        saveSyncMeta(meta);
         game.save(); // triggers the first push via attachCloudSync
         attachCloudSync(game);
       }
@@ -200,6 +203,7 @@ function linkDeviceSection(ctx: PanelCtx): HTMLElement {
               {
                 class: 'danger-btn',
                 onclick: () => {
+                  detachCloudSync(); // kill the old push/poll closures first
                   unlinkSync();
                   confirmingUnlink = false;
                   pairInfo = null;

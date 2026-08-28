@@ -142,13 +142,21 @@ function askConflict(cloudSavedAt: number): Promise<boolean> {
 
 // ---- steady state ----------------------------------------------------------
 
-let attached = false;
+// The live attachment's teardown. Re-attaching (unlink then relink in one
+// session) must first kill the old closures — they hold the old syncId and
+// secret, and would keep pushing to the previous sync and write its stale
+// credentials back over the new ones.
+let detachCurrent: (() => void) | null = null;
+
+export function detachCloudSync(): void {
+  detachCurrent?.();
+  detachCurrent = null;
+}
 
 export function attachCloudSync(game: Game): void {
-  if (attached) return;
+  detachCloudSync();
   const meta = loadSyncMeta();
   if (!meta) return;
-  attached = true;
 
   let pushing = false;
 
@@ -198,7 +206,7 @@ export function attachCloudSync(game: Game): void {
   };
 
   // Every local save (30s autosave, purchase, hatch, sleep) becomes a push.
-  events.on('saved', () => void push());
+  const offSaved = events.on('saved', () => void push());
 
   // Poll ownership: another device claiming shows up here within ~15s even
   // between autosaves. Doubles as the offline-recovery probe.
@@ -216,14 +224,21 @@ export function attachCloudSync(game: Game): void {
       setStatus('offline');
     }
   };
-  setInterval(() => void poll(), POLL_MS);
+  const pollId = setInterval(() => void poll(), POLL_MS);
 
   // Best effort on the way out; keepalive bodies cap at ~64KB so this is a
   // bonus, not a guarantee — the 30s cadence bounds what could be lost.
-  window.addEventListener('pagehide', () => {
+  const onPagehide = (): void => {
     game.save();
     void push(true);
-  });
+  };
+  window.addEventListener('pagehide', onPagehide);
+
+  detachCurrent = () => {
+    offSaved();
+    clearInterval(pollId);
+    window.removeEventListener('pagehide', onPagehide);
+  };
 
   setStatus(meta.dirty ? 'offline' : 'synced');
   if (meta.dirty) void push();

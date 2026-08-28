@@ -131,7 +131,7 @@ class Shell {
             {
               class: 'comp-btn primary',
               onclick: () => {
-                if (remote) void claimAndReload();
+                if (remote) claimAndReload().catch(() => this.toast('Could not reach the cloud — try again in a moment.'));
                 else location.reload();
               },
             },
