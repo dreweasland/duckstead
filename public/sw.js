@@ -27,7 +27,14 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE).then((c) => c.put(event.request, copy));
           return res;
         })
-        .catch(() => caches.match(event.request).then((hit) => hit ?? caches.match('/companion'))),
+        .catch(() =>
+          caches
+            .match(event.request)
+            .then((hit) => hit ?? caches.match('/companion'))
+            // respondWith(undefined) surfaces as a browser network-error
+            // page; a real Response keeps the failure legible.
+            .then((hit) => hit ?? new Response('Offline', { status: 503, headers: { 'content-type': 'text/plain' } })),
+        ),
     );
     return;
   }
@@ -37,13 +44,15 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request).then(
       (hit) =>
         hit ??
-        fetch(event.request).then((res) => {
-          if (res.ok && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/'))) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(event.request, copy));
-          }
-          return res;
-        }),
+        fetch(event.request)
+          .then((res) => {
+            if (res.ok && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/'))) {
+              const copy = res.clone();
+              caches.open(CACHE).then((c) => c.put(event.request, copy));
+            }
+            return res;
+          })
+          .catch(() => new Response('Offline', { status: 503, headers: { 'content-type': 'text/plain' } })),
     ),
   );
 });

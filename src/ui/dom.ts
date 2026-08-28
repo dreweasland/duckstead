@@ -22,6 +22,10 @@ export function el(tag: string, attrs: Attrs = {}, ...children: Child[]): HTMLEl
       node.addEventListener(key.slice(2).toLowerCase(), value as EventListener);
     } else if (key === 'disabled') {
       if (value) node.setAttribute('disabled', '');
+    } else if (key.startsWith('on')) {
+      // Defensive: a computed key reaching here would write onclick="..."
+      // markup. No call site does this today; keep it impossible.
+      continue;
     } else {
       node.setAttribute(key, String(value));
     }

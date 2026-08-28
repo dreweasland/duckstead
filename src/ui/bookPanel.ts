@@ -139,7 +139,7 @@ function breedsTab(state: GameState, discovered: number, total: number): HTMLEle
     const row = el('div', { class: 'feather-row' });
     for (const [color, count] of album) {
       const swatch = el('span', { class: 'feather-swatch', title: `${color} ×${count}` });
-      swatch.style.background = color;
+      swatch.style.background = safeColor(color);
       row.append(el('span', { class: 'feather-chip' }, swatch, el('span', { class: 'muted small' }, `×${count}`)));
     }
     albumBox.append(row);
@@ -240,6 +240,13 @@ const EPITAPHS = [
   'The bench was theirs.',
 ];
 
+// featherAlbum keys and memorial colors come from the save blob, which a
+// hostile import or cloud push controls — and `background` is a shorthand
+// that would accept url(...). Only plain hex colors get through.
+function safeColor(value: string): string {
+  return /^#[0-9a-f]{3,8}$/i.test(value) ? value : '#8a97a5';
+}
+
 function memorialCard(gone: DuckSummary): HTMLElement {
   const elder = gone.diedStage === 'elder';
   const card = el('div', { class: `memorial-card${elder ? ' honoured' : ''}` });
@@ -257,7 +264,7 @@ function memorialCard(gone: DuckSummary): HTMLElement {
     card.append(el('div', { class: 'memorial-portrait' }, duckPortrait(stub, 54)));
   } else {
     const feather = el('div', { class: 'memorial-portrait memorial-feather' }, icon('feather', 30));
-    feather.style.color = gone.bodyColor;
+    feather.style.color = safeColor(gone.bodyColor);
     card.append(feather);
   }
   card.append(
