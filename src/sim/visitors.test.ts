@@ -24,14 +24,24 @@ function runDays(days: number, setup: ReturnType<typeof createNewGame>): void {
 }
 
 describe('buyer requests', () => {
-  it('no longer posts daily buyer requests (the Board carries them); stale ones still expire', () => {
-    const setup = createNewGame(31);
-    const { state } = setup;
-    runDays(5, setup);
-    expect(state.request).toBeNull();
-    state.request = { wants: { pattern: 'solid' }, multiplier: 2.5, expiresDay: 6 };
-    runDays(2, setup);
-    expect(state.request).toBeNull();
+  it('posts requests at the 09:00 roll again (reconnected alongside the Board), and they expire', () => {
+    const { state, rng } = createNewGame(31);
+    // A 35% daily chance: within a couple of weeks one must post. (Checking
+    // at the end alone is a coin flip — active periods last ~3 days.)
+    let seen: BuyerRequest | null = null;
+    for (let i = 0; i < 14 * TICKS_PER_DAY && !seen; i += 1) {
+      state.clock.totalTicks += 1;
+      tickVisitors(state, rng);
+      if (state.request) seen = state.request;
+    }
+    expect(seen).not.toBeNull();
+    expect(seen!.multiplier).toBeGreaterThanOrEqual(2.5);
+    // Run well past its expiry: it must be gone or replaced by a fresh one.
+    for (let i = 0; i < 4 * TICKS_PER_DAY; i += 1) {
+      state.clock.totalTicks += 1;
+      tickVisitors(state, rng);
+    }
+    expect(state.request === null || state.request !== seen).toBe(true);
   });
 
   it('matcher enforces every requested trait', () => {

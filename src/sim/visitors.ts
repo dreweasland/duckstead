@@ -81,9 +81,22 @@ export function tickVisitors(state: GameState, rng: Rng): void {
     state.visitor = null;
   }
 
-  // Buyer requests used to post here daily; the Commissions Board now carries
-  // them (its first tier is exactly a plain "wants a breed" request). Any
-  // request left in an old save still expires above and can be fulfilled.
+  // 09:00 — a buyer may post a request: a time-limited price premium on any
+  // MATCHING duck already on the pond. Deliberately coexists with the
+  // Commissions Board — commissions are bespoke bred-to-order contracts,
+  // requests are the "hot market" counterpart that rewards the flock you
+  // already have. (The roll was dropped during the board's introduction and
+  // the rest of the feature sat dormant; reconnected 2026-08-28.)
+  if (state.clock.totalTicks % TICKS_PER_DAY === 9 * TICKS_PER_HOUR) {
+    if (!state.request && rng.chance(0.35)) {
+      state.request = makeRequest(rng, day, state);
+      const want = describeRequest(state.request);
+      events.emit(
+        'toast',
+        `A buyer is asking after ${want.endsWith('duck') ? want : `a ${want} duck`} — ${state.request.multiplier}\u00d7 the usual price for two days!`,
+      );
+    }
+  }
 
   // 10:00 — a wild duck may drop by if the pond is inviting.
   if (state.clock.totalTicks % TICKS_PER_DAY === 10 * TICKS_PER_HOUR) {

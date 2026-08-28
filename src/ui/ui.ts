@@ -5,7 +5,7 @@ import { formatClock } from '../sim/time';
 import { catchBugAt } from '../sim/bugs';
 import { claimHatch } from '../sim/lifecycle';
 import { goalProgress, pendingGoals } from '../sim/goals';
-import { describeRequest, treatVisitor, VISITOR_CLICK_RADIUS } from '../sim/visitors';
+import { describeRequest, matchesRequest, treatVisitor, VISITOR_CLICK_RADIUS } from '../sim/visitors';
 import {
   FESTIVAL_NAMES,
   festivalEnteredToday,
@@ -998,8 +998,8 @@ export class UI {
         el('div', { class: 'goals-title request-title' }, 'Buyer request'),
         el(
           'div',
-          { class: 'goal-row' },
-          el('span', { class: 'goal-dot request-dot' }),
+          { class: 'goal-row', title: 'A buyer pays this multiple of the sell price for any matching duck — sell from the duck\'s card' },
+          el('span', { class: `goal-dot request-dot${this.game.state.ducks.some((d) => matchesRequest(d, request)) ? ' fits' : ''}` }),
           el('span', { class: 'goal-label' }, `wants a ${describeRequest(request)} duck`),
           el('span', { class: 'goal-reward' }, `×${request.multiplier}`),
         ),
