@@ -13,6 +13,7 @@ import { randomCommonGenome } from '../sim/genetics';
 import { createRng } from '../rng';
 import { clamp } from '../types';
 import { dayOf } from '../sim/time';
+import { events } from '../events';
 import { computeAnim } from '../render/animation';
 import { drawDuck } from '../render/duckPainter';
 import { el, statBar } from './dom';
@@ -181,6 +182,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
             title: !allowed ? `${duck.name} doesn't meet the ${tierDef!.name} rule` : rested ? '' : `${duck.name} already raced today`,
             onclick: () => {
               game.state.money -= fee;
+              events.emit('purchase'); // persist the fee like any spend
               startRace(duck);
             },
           },
@@ -345,6 +347,9 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
       playerDuck.needs.happiness = clamp(playerDuck.needs.happiness + BALANCE.raceHappiness, 0, 100);
       playerDuck.needs.hunger = clamp(playerDuck.needs.hunger - BALANCE.raceHunger, 0, 100);
     }
+    // Winnings, league standing, and racesWon are real progress: save them
+    // like a shop transaction — on mobile, beforeunload often never fires.
+    events.emit('purchase');
 
     const list = el('div', { class: 'race-results' });
     ranked.forEach((racer, i) => {
@@ -409,6 +414,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
 
   if (opts.racer && game.state.money >= entryFee) {
     game.state.money -= entryFee;
+    events.emit('purchase');
     startRace(opts.racer);
   } else {
     showPicker();

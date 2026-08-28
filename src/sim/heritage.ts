@@ -37,9 +37,12 @@ export function canRetire(state: GameState): { ok: boolean; reason?: string } {
 }
 
 // Build the successor pond. Returns the new state + rng; the caller swaps it in.
-export function retirePond(old: GameState, drakeId: string, henId: string, seed: number): { state: GameState; rng: Rng } {
-  const drake = old.ducks.find((d) => d.id === drakeId)!;
-  const hen = old.ducks.find((d) => d.id === henId)!;
+export function retirePond(old: GameState, drakeId: string, henId: string, seed: number): { state: GameState; rng: Rng } | null {
+  // The panel's Retire button re-validates only on its 500ms refresh, so a
+  // founder that died or was sold in that window can still be submitted.
+  const drake = old.ducks.find((d) => d.id === drakeId);
+  const hen = old.ducks.find((d) => d.id === henId);
+  if (!drake || !hen) return null;
   const fresh = createNewGame(seed);
   const s = fresh.state;
   const rng = fresh.rng;

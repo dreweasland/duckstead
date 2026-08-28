@@ -19,7 +19,8 @@ describe('heritage', () => {
     const drake = state.ducks.find((d) => d.sex === 'M')!;
     const hen = state.ducks.find((d) => d.sex === 'F')!;
     expect(canRetire(state).ok).toBe(true);
-    const next = retirePond(state, drake.id, hen.id, 123);
+    expect(retirePond(state, 'no-such-duck', hen.id, 123)).toBeNull();
+    const next = retirePond(state, drake.id, hen.id, 123)!;
     const s = next.state;
     expect(s.heritage).toBe(1);
     expect(s.ducks).toHaveLength(2);

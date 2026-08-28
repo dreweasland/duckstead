@@ -129,6 +129,10 @@ export class Game {
   // Heritage: retire this pond and found the next with a chosen pair.
   retire(drakeId: string, henId: string): void {
     const next = retirePond(this.state, drakeId, henId, (Math.random() * 0xffffffff) >>> 0);
+    if (!next) {
+      events.emit('toast', 'That founder is no longer on the pond — choose the pair again.');
+      return;
+    }
     this.state = next.state;
     this.rng = next.rng;
     this.selectedDuckId = null;

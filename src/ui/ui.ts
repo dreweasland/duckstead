@@ -479,6 +479,7 @@ export class UI {
         }
         this.game.state.money -= def.cost;
         this.game.state.decorations.push({ kind: def.kind, pos: { x: world.x, y: world.y } });
+        events.emit('purchase'); // persist the placement like any spend
         this.toast(`${def.name} placed!`);
         this.endDecorMode();
         return;
