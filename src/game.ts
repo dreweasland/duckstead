@@ -106,19 +106,32 @@ export class Game {
     if (s.clock.totalTicks % TICKS_PER_DAY === NIGHT_END * TICKS_PER_HOUR) events.emit('dawn');
   };
 
-  // Skip the night: the flock is asleep and nothing but the race is possible,
-  // so let the player jump to 06:00 and the dawn briefing. Returns ticks slept.
-  sleepUntilDawn(): number {
-    if (!isNight(this.state.clock) || this.stale) return 0;
+  // Advance up to `budget` night ticks. Returns how many ran and whether the
+  // night is over — the UI spreads the ~6000-tick night across animation
+  // frames (one synchronous run froze the main thread for seconds), while
+  // sleepUntilDawn below stays atomic for tests and non-UI callers.
+  sleepChunk(budget: number): { slept: number; done: boolean } {
+    if (!isNight(this.state.clock) || this.stale) return { slept: 0, done: true };
     let slept = 0;
-    const limit = 10 * TICKS_PER_HOUR;
     // The 06:00 tick itself is the one that emits 'dawn'.
-    while (slept < limit && isNight(this.state.clock)) {
+    while (slept < budget && isNight(this.state.clock)) {
       this.tick();
       slept += 1;
     }
-    this.save();
-    return slept;
+    return { slept, done: !isNight(this.state.clock) };
+  }
+
+  // Skip the night atomically. Returns ticks slept.
+  sleepUntilDawn(): number {
+    const limit = 10 * TICKS_PER_HOUR;
+    let total = 0;
+    while (total < limit) {
+      const { slept, done } = this.sleepChunk(limit - total);
+      total += slept;
+      if (done || slept === 0) break;
+    }
+    if (total > 0) this.save();
+    return total;
   }
 
   snapshotState(): GameState {

@@ -27,7 +27,7 @@ import {
 } from '../sim/festivals';
 import { createDuck, type Duck } from '../sim/duck';
 import { createRng } from '../rng';
-import { dayOf, isNight } from '../sim/time';
+import { dayOf, isNight, TICKS_PER_HOUR } from '../sim/time';
 import { dawnReport } from '../sim/daybook';
 import { FOODS, TREATS, type FoodKind, type TreatKind } from '../sim/food';
 import { describeCommission, duckFits } from '../sim/commissions';
@@ -1037,12 +1037,7 @@ export class UI {
             class: 'hud-btn sleep-btn',
             title: 'Skip to 06:00 — the flock is asleep anyway',
             onclick: () => {
-              const slept = this.game.sleepUntilDawn();
-              if (slept > 0) {
-                this.toast('You dozed off by the pond and woke at dawn');
-                this.refreshPanel();
-                this.refreshCardRail();
-              }
+              this.sleepToDawnAnimated();
             },
           },
           icon('pause', 13),
@@ -1106,6 +1101,33 @@ export class UI {
     localStorage.setItem(CARDS_PREF_KEY, this.showCards ? '1' : '0');
     this.root.querySelector('.cards-btn')?.classList.toggle('active', this.showCards);
     this.refreshCardRail();
+  }
+
+  // Sleep 'til dawn, spread across animation frames: ~600 ticks per frame
+  // keeps the night visibly sweeping past instead of freezing the tab.
+  private sleepingToDawn = false;
+
+  private sleepToDawnAnimated(): void {
+    if (this.sleepingToDawn) return;
+    this.sleepingToDawn = true;
+    const limit = 10 * TICKS_PER_HOUR;
+    let total = 0;
+    const step = (): void => {
+      const { slept, done } = this.game.sleepChunk(Math.min(600, limit - total));
+      total += slept;
+      if (!done && slept > 0 && total < limit) {
+        requestAnimationFrame(step);
+        return;
+      }
+      this.sleepingToDawn = false;
+      if (total > 0) {
+        this.game.save();
+        this.toast('You dozed off by the pond and woke at dawn');
+        this.refreshPanel();
+        this.refreshCardRail();
+      }
+    };
+    step();
   }
 
   private lastRailSig = '';
