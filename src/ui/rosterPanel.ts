@@ -79,7 +79,9 @@ function matchesFilter(state: GameState, duck: Duck, filter: Filter): boolean {
 }
 
 function compare(state: GameState, sort: Sort): (a: Duck, b: Duck) => number {
-  const stageOrder = { egg: 5, duckling: 4, juvenile: 3, adult: 1, elder: 2 } as const;
+  // Oldest first: the life stage is the age (ageTicks resets per stage), so
+  // elders lead and eggs trail, with time-in-stage breaking ties.
+  const stageOrder = { egg: 5, duckling: 4, juvenile: 3, adult: 2, elder: 1 } as const;
   switch (sort) {
     case 'name':
       return (a, b) => a.name.localeCompare(b.name);
@@ -101,7 +103,6 @@ function compare(state: GameState, sort: Sort): (a: Duck, b: Duck) => number {
       };
     case 'age':
     default:
-      // Adults first (oldest on top), then elders, then the young, then eggs.
       return (a, b) => stageOrder[a.stage] - stageOrder[b.stage] || b.ageTicks - a.ageTicks;
   }
 }

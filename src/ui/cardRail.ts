@@ -44,8 +44,13 @@ let railSort: RailSort = (() => {
 
 function railCompare(sort: RailSort): (a: Duck, b: Duck) => number {
   const egg = (d: Duck) => (d.stage === 'egg' ? 1 : 0);
+  // Oldest first, for real: ageTicks resets at each stage transition, so the
+  // life stage is the age — elders first, eggs last — with time-in-stage
+  // breaking ties inside a stage.
+  const STAGE_AGE = { elder: 0, adult: 1, juvenile: 2, duckling: 3, egg: 4 } as const;
+  const byAge = (a: Duck, b: Duck) => STAGE_AGE[a.stage] - STAGE_AGE[b.stage] || b.ageTicks - a.ageTicks;
   const bySex = (first: 'M' | 'F') => (a: Duck, b: Duck) =>
-    egg(a) - egg(b) || (a.sex === first ? 0 : 1) - (b.sex === first ? 0 : 1) || b.ageTicks - a.ageTicks;
+    egg(a) - egg(b) || (a.sex === first ? 0 : 1) - (b.sex === first ? 0 : 1) || byAge(a, b);
   switch (sort) {
     case 'drakes':
       return bySex('M');
@@ -59,7 +64,7 @@ function railCompare(sort: RailSort): (a: Duck, b: Duck) => number {
       return (a, b) => egg(a) - egg(b) || a.name.localeCompare(b.name);
     case 'age':
     default:
-      return (a, b) => egg(a) - egg(b);
+      return byAge;
   }
 }
 

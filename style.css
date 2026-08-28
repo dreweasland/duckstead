@@ -1494,6 +1494,20 @@ body.feeding #pond-canvas {
   animation: none;
 }
 
+/* The header (with its ✕) rides along as the panel scrolls, same as the
+   floating duck card — no scrolling back up to close a long roster. */
+.panel.modal .panel-header {
+  position: sticky;
+  top: -14px;
+  /* Stop short of the right edge so the scrollbar never sits over the ✕. */
+  margin: -14px -2px 10px -14px;
+  padding: 12px 10px 8px 14px;
+  border-bottom: 1px solid #2c3947;
+  background: rgba(18, 24, 32, 0.97);
+  border-radius: 14px 14px 0 0;
+  z-index: 2;
+}
+
 .panel.breeding {
   width: min(780px, calc(100vw - 32px));
 }
@@ -2824,7 +2838,8 @@ body.feeding #pond-canvas {
   }
 }
 
-/* The header is a full-bleed banner band, tinted per event. */
+/* The header is a full-bleed banner band, tinted per event. It stays stuck
+   to the top while the card scrolls, so the ✕ is always in reach. */
 .race-header {
   display: flex;
   align-items: center;
@@ -2835,6 +2850,9 @@ body.feeding #pond-canvas {
   background: linear-gradient(135deg, #2c3c50, #3a4a5c);
   color: #f7f1e2;
   flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .race-header strong {
