@@ -159,11 +159,14 @@ function migrate(envelope: SaveEnvelope): GameState {
   }
 }
 
-export function saveToStorage(state: GameState): void {
+// Returns false when the write failed (storage full, private mode) so the
+// caller can tell the player instead of reporting a save that never landed.
+export function saveToStorage(state: GameState): boolean {
   try {
     localStorage.setItem(SAVE_KEY, serialize(state));
+    return true;
   } catch {
-    // Storage full or unavailable — non-fatal.
+    return false;
   }
 }
 

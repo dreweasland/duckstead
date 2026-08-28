@@ -15,6 +15,7 @@ import { tickNeeds } from './sim/needs';
 import { tickPond } from './sim/pond';
 import { isNight, NIGHT_END, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR } from './sim/time';
 import { loadFromStorage, OWNER_KEY, saveToStorage } from './save/save';
+import { isSyncConfigured } from './sync/syncMeta';
 import { events } from './events';
 
 const AUTOSAVE_MS = 30_000;
@@ -64,10 +65,24 @@ export class Game {
     events.on('egg-hatched', () => this.save());
   }
 
+  private lastSaveFailureToast = 0;
+
   save(): void {
     if (this.stale) return;
-    saveToStorage(this.snapshotState());
-    events.emit('saved');
+    if (saveToStorage(this.snapshotState())) {
+      events.emit('saved');
+      return;
+    }
+    // The write never landed: without this, cloud sync would push the
+    // previous blob and the HUD would read "synced" while the last stretch
+    // of play exists nowhere. Toast at most once a minute — autosave retries
+    // every 30s and a wall of identical warnings helps nobody.
+    if (isSyncConfigured()) events.emit('sync-status', 'offline');
+    const now = Date.now();
+    if (now - this.lastSaveFailureToast > 60_000) {
+      this.lastSaveFailureToast = now;
+      events.emit('toast', 'Saving failed — browser storage is full or blocked. Progress is not being kept!');
+    }
   }
 
   tick = (): void => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../state';
 import { tickLifecycle } from '../sim/lifecycle';
 import { tickNeeds } from '../sim/needs';
-import { CORRUPT_KEY, deserialize, loadFromStorage, SAVE_KEY, serialize } from './save';
+import { CORRUPT_KEY, deserialize, loadFromStorage, SAVE_KEY, saveToStorage, serialize } from './save';
 
 describe('save round-trip', () => {
   it('deserialize(serialize(state)) preserves the whole game state', () => {
@@ -67,5 +67,23 @@ describe('save round-trip', () => {
     const { state } = createNewGame(1);
     const json = serialize(state).replace('"version":1', '"version":99');
     expect(() => deserialize(json)).toThrow(/unknown save version/i);
+  });
+});
+
+describe('saveToStorage honesty', () => {
+  it('reports success and failure truthfully', () => {
+    const { state } = createNewGame(12);
+    const map = new Map<string, string>();
+    (globalThis as { localStorage?: unknown }).localStorage = {
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem: (k: string, v: string) => void map.set(k, v),
+      removeItem: (k: string) => void map.delete(k),
+    };
+    expect(saveToStorage(state)).toBe(true);
+    (globalThis as unknown as { localStorage: { setItem: (k: string, v: string) => void } }).localStorage.setItem = () => {
+      throw new Error('quota');
+    };
+    expect(saveToStorage(state)).toBe(false);
+    delete (globalThis as { localStorage?: unknown }).localStorage;
   });
 });
