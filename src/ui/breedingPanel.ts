@@ -13,7 +13,7 @@ import { computePhenotype, expressedAlleles, LOCI } from '../sim/genetics';
 import { eggsIncubating, nestPair, pairViability } from '../sim/breeding';
 import { TICKS_PER_MINUTE } from '../sim/time';
 import { breedReadiness, canBreedPair, eggSpeedFor, eggWarmth, tuckEgg } from '../sim/needs';
-import { breedingValue, childBreedKeys, keepVerdict } from '../sim/advisor';
+import { breedingValue, keepVerdict } from '../sim/advisor';
 import { breedKey, breedLabel } from '../sim/breedBook';
 import type { GameState } from '../state';
 import { nestCapacity, pondHasRoom, sellDuck, sellPrice, upgradeLevel } from '../sim/economy';
@@ -22,6 +22,7 @@ import { createRng } from '../rng';
 import { buildGeneStrip } from './geneticsCard';
 import { closeKin } from '../sim/lineage';
 import { describeBalance, drakePressure, flockBalance } from '../sim/flockBalance';
+import { pairKeys } from '../sim/advisor';
 import { PRESSURE_VIABILITY_PENALTY } from '../sim/needs';
 
 // Module-level selection persists across the panel's 500ms refreshes.
@@ -173,10 +174,13 @@ function chooser(ctx: PanelCtx, which: 'A' | 'B', other: Duck | null): HTMLEleme
     .filter((d) => d.stage === 'adult' && d.id !== other?.id && (!other || d.sex !== other.sex))
     .map((d) => {
       const gate = other ? canBreedPair(d, other) : breedReadiness(d);
+      const value = breedingValue(state, d);
+      // pairKeys caches per duck pair — childBreedKeys walks up to 256
+      // genotype leaves and this runs per candidate per 500ms refresh.
       const newBreeds = other
-        ? [...childBreedKeys(d.genome, other.genome)].filter((k) => !discovered.has(k)).length
-        : breedingValue(state, d).newBreeds.length;
-      return { d, gate, newBreeds };
+        ? [...pairKeys(d, other)].filter((k) => !discovered.has(k)).length
+        : value.newBreeds.length;
+      return { d, gate, newBreeds, verdict: keepVerdict(value) };
     })
     .sort((x, y) => Number(y.gate.ok) - Number(x.gate.ok) || y.newBreeds - x.newBreeds);
 
@@ -195,8 +199,7 @@ function chooser(ctx: PanelCtx, which: 'A' | 'B', other: Duck | null): HTMLEleme
     return box;
   }
   const grid = el('div', { class: 'br-cand-grid' });
-  for (const { d, gate, newBreeds } of candidates) {
-    const verdict = keepVerdict(breedingValue(state, d));
+  for (const { d, gate, newBreeds, verdict } of candidates) {
     grid.append(
       el(
         'button',
@@ -352,7 +355,7 @@ function offspringOdds(state: GameState, a: Duck, b: Duck): HTMLElement {
 
   // Breed Book impact.
   const discovered = new Set(Object.keys(state.breedBook));
-  const unlockable = [...childBreedKeys(a.genome, b.genome)].filter((k) => !discovered.has(k));
+  const unlockable = [...pairKeys(a, b)].filter((k) => !discovered.has(k));
   box.append(
     el(
       'div',

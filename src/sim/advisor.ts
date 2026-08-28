@@ -70,7 +70,9 @@ export interface BreedingValue {
 // Genomes never change after creation, so a pair's reachable keys are cached
 // by id forever (bounded: cleared when it grows past a few thousand pairs).
 const pairCache = new Map<string, Set<string>>();
-function pairKeys(a: Duck, b: Duck): Set<string> {
+// Exported: the Breeding panel's chooser walks the same pairs every 500ms
+// refresh and must hit this cache rather than re-enumerating 256 leaves.
+export function pairKeys(a: Duck, b: Duck): Set<string> {
   const k = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
   let v = pairCache.get(k);
   if (!v) {
