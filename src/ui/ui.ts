@@ -2,7 +2,7 @@ import type { Game } from '../game';
 import type { Renderer } from '../render/renderer';
 import { events } from '../events';
 import { formatClock } from '../sim/time';
-import { goalProgress, goalUnlocking, pendingGoals } from '../sim/goals';
+import { goalProgress, goalUnlocking, pendingGoals, tickGoals } from '../sim/goals';
 import type { Unlockable } from '../sim/unlocks';
 import { describeRequest, matchesRequest } from '../sim/visitors';
 import { FESTIVAL_NAMES, festivalEnteredToday, festivalToday, festivalTitle, upcomingFestival } from '../sim/festivals';
@@ -723,6 +723,11 @@ export class UI {
   }
 
   private refreshGoals(): void {
+    // Goals are settled by the sim tick, but the buttons they unlock read
+    // the stats directly — so while the game is paused a fourth pet opens
+    // Breeding at once and the goal would sit at 4/4 until time resumed.
+    // Settle them here whenever the clock isn't running.
+    if (this.game.speed === 0 && !this.game.stale) tickGoals(this.game.state);
     const pending = pendingGoals(this.game.state);
     const request = this.game.state.request;
     const commissions = this.game.state.commissions;
