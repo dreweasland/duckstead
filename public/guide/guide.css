@@ -1,0 +1,97 @@
+/* Shared stylesheet for both guides. The column grows with the viewport
+   (fluid type, a content column up to 68rem, a sticky side nav past 1100px)
+   and prose, tables, and cards all share the same width, so the page reads
+   as one column rather than alternating narrow and wide bands. */
+:root {
+  --paper: #eef2ee; --ink: #26333b; --muted: #5c6d76; --line: #d3dcd4;
+  --water: #3d7fb5; --straw: #c9a55c; --grass: #4f8a3f; --gold: #b07f22;
+  --tile-bg: #35506e; --tile-fg: #e8f1f8; --tile-dim: #9fb0bf; --card: #ffffff;
+  --nav-w: 15rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #151c23; --ink: #dfe7ea; --muted: #93a4ae; --line: #2b3945;
+    --water: #6aa6d8; --straw: #d9b571; --grass: #83bd6d; --gold: #e0b45a;
+    --tile-bg: #3d5372; --tile-fg: #d9ecf7; --tile-dim: #6e8090; --card: #1c252e;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #151c23; --ink: #dfe7ea; --muted: #93a4ae; --line: #2b3945;
+  --water: #6aa6d8; --straw: #d9b571; --grass: #83bd6d; --gold: #e0b45a;
+  --tile-bg: #3d5372; --tile-fg: #d9ecf7; --tile-dim: #6e8090; --card: #1c252e;
+}
+
+/* Type scales with the screen: 16px on a phone, 19px on a big monitor. */
+html { font-size: clamp(16px, 0.9rem + 0.3vw, 19px); scroll-behavior: smooth; }
+body { background: var(--paper); color: var(--ink); font: 400 1rem/1.6 "Nunito Sans", "Avenir Next", "Segoe UI", system-ui, sans-serif; margin: 0; }
+h1, h2, h3 { font-family: "Baloo 2", "Nunito Sans", "Avenir Next", "Segoe UI", system-ui, sans-serif; line-height: 1.15; text-wrap: balance; }
+h1 { font-size: clamp(2rem, 1.6rem + 1.6vw, 3rem); font-weight: 700; margin: 0.4rem 0 0.6rem; }
+h2 { font-size: clamp(1.35rem, 1.2rem + 0.5vw, 1.7rem); font-weight: 700; margin: 2.6rem 0 0.6rem; color: var(--water); scroll-margin-top: 1.5rem; }
+h3 { font-size: 1.1rem; font-weight: 700; margin: 1.5rem 0 0.4rem; }
+a { color: var(--water); }
+hr { border: 0; border-top: 1px solid var(--line); margin: 2.5rem 0; }
+ul { padding-left: 1.2rem; }
+li { margin: 0.35rem 0; }
+p { margin: 0.6rem 0 0.9rem; }
+
+/* Layout: one column that fills the screen (to a ceiling), with the
+   contents list becoming a sticky sidebar once there's room for one. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem 3rem;
+  width: min(100%, 100rem);
+  margin: 0 auto;
+  padding: clamp(1rem, 3vw, 3rem) clamp(1rem, 4vw, 3.5rem) 5rem;
+  box-sizing: border-box;
+}
+main { min-width: 0; max-width: 68rem; }
+.toc-side { min-width: 0; }
+.toc-side .eyebrow { margin: 0 0 0.6rem; }
+.toc { columns: 2; column-gap: 2rem; padding-left: 0; list-style: none; margin: 0.5rem 0 1rem; font-size: 0.95rem; }
+.toc li { margin: 0.2rem 0; break-inside: avoid; }
+.toc a { text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+@media (min-width: 1100px) {
+  /* The nav + column pair is capped and centred, so a very wide screen
+     gets margins on both sides rather than dead space on the right. */
+  .layout { grid-template-columns: var(--nav-w) minmax(0, 68rem); justify-content: center; }
+  .toc-side { position: sticky; top: 1.5rem; align-self: start; padding-top: 0.4rem; }
+  .toc { columns: 1; font-size: 0.92rem; }
+  .toc li { margin: 0.35rem 0; }
+  .toc-side .guide-switch { display: block; margin-top: 1.2rem; font-size: 0.88rem; }
+}
+@media (max-width: 640px) { .toc { columns: 1; } }
+
+.eyebrow { font: 800 0.72rem/1.4 "Nunito Sans", system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--straw); }
+.eyebrow a { color: inherit; }
+.lede { font-size: 1.12rem; color: var(--muted); }
+
+/* Tables and cards fill the column; prose does too. */
+.tablewrap { overflow-x: auto; margin: 1rem 0; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+th { text-align: left; font: 800 0.72rem/1.3 "Nunito Sans", system-ui, sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 0.75rem 0.4rem 0; border-bottom: 2px solid var(--line); }
+td { padding: 0.55rem 0.75rem 0.55rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:first-child { white-space: nowrap; }
+.tile { display: inline-flex; align-items: center; justify-content: center; min-width: 1.35em; height: 1.35em; padding: 0 0.2em; border-radius: 0.3em; background: var(--tile-bg); color: var(--tile-fg); font: 700 0.82em/1 "JetBrains Mono", ui-monospace, monospace; vertical-align: -0.15em; }
+.tile.dim { background: transparent; color: var(--tile-dim); box-shadow: inset 0 0 0 1.5px var(--tile-dim); }
+.tile.rare { background: var(--gold); color: #fff; }
+code, .mono { font: 500 0.9em "JetBrains Mono", ui-monospace, monospace; }
+.recipe { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.2rem; margin: 0.9rem 0; }
+.recipe strong:first-child { color: var(--grass); }
+.note { border-left: 3px solid var(--straw); padding: 0.1rem 0 0.1rem 1rem; color: var(--muted); margin: 1.2rem 0; }
+.punnett { display: inline-grid; grid-template-columns: repeat(3, auto); gap: 3px; margin: 0.4rem 1.4rem 0.4rem 0; vertical-align: top; font: 700 0.8rem "JetBrains Mono", ui-monospace, monospace; }
+.punnett span { min-width: 2.6em; text-align: center; padding: 0.3em 0.35em; border-radius: 0.3em; }
+.punnett .hd { color: var(--muted); }
+.punnett .cell { background: var(--card); border: 1px solid var(--line); }
+.punnett .hit { border-color: var(--gold); color: var(--gold); font-weight: 700; }
+.eli5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: 0.9rem; margin: 1rem 0; }
+.eli5 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.9rem 1.1rem; }
+.eli5 .card strong { display: block; color: var(--grass); margin-bottom: 0.25rem; }
+.eli5 .card p { margin: 0.3rem 0 0; font-size: 0.95rem; }
+.hand { display: inline-flex; gap: 0.2em; padding: 0.15em 0.3em; border: 1.5px dashed var(--line); border-radius: 0.5em; vertical-align: -0.3em; }
+.combo-row { display: flex; flex-wrap: wrap; gap: 0.5rem 1.1rem; align-items: center; margin: 0.6rem 0 0.2rem; font-size: 0.95rem; }
+.kbd { display: inline-block; font: 600 0.8em "JetBrains Mono", ui-monospace, monospace; padding: 0.1em 0.45em; border-radius: 0.35em; border: 1px solid var(--line); background: var(--card); }
+.calendar { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 0.6rem; margin: 1rem 0; }
+.calendar .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 0.8rem 1rem; font-size: 0.92rem; }
+.calendar .card strong { display: block; color: var(--water); margin-bottom: 0.3rem; }
