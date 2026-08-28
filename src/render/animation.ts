@@ -18,23 +18,30 @@ export interface AnimState {
 // All animation is derived from wall-clock time + a per-duck phase hash, so it
 // needs no stored state and stays smooth across save/load. The phase offset
 // also desynchronizes the flock so ducks never move in lockstep.
+// One shared AnimState, reset per call: 20 ducks x 60fps made 1,200
+// short-lived 12-field objects a second. Consumers draw immediately after
+// computing — never retain the returned object across calls.
+const SCRATCH: AnimState = {
+  bob: 0, bodyTilt: 0, legPhase: 0, headDip: 0, headBob: 0, billOpen: 0,
+  wingFlap: 0, tailWag: 0, headTuck: 0, headBack: 0, raise: 0, blink: false,
+};
+
 export function computeAnim(duck: Duck, timeMs: number): AnimState {
   const phase = idHash(duck.id);
   const t = timeMs / 1000 + phase * 10;
-  const anim: AnimState = {
-    bob: 0,
-    bodyTilt: 0,
-    legPhase: 0,
-    headDip: 0,
-    headBob: 0,
-    billOpen: 0,
-    wingFlap: 0,
-    tailWag: 0,
-    headTuck: 0,
-    headBack: 0,
-    raise: 0,
-    blink: false,
-  };
+  const anim = SCRATCH;
+  anim.bob = 0;
+  anim.bodyTilt = 0;
+  anim.legPhase = 0;
+  anim.headDip = 0;
+  anim.headBob = 0;
+  anim.billOpen = 0;
+  anim.wingFlap = 0;
+  anim.tailWag = 0;
+  anim.headTuck = 0;
+  anim.headBack = 0;
+  anim.raise = 0;
+  anim.blink = false;
 
   switch (duck.activity) {
     case 'waddle':

@@ -477,6 +477,26 @@ export function randomGrassPoint(state: GameState, rng: Rng): Vec2 {
 // Each duck's night roost: a fixed spot on the upper bank, fanned by id so
 // the flock spreads out, placed well outside the shore margin and kept on
 // the grass (not in the sky, not under the card rail, not off-screen).
+// roostSpot runs per duck per tick during the dusk march; rebuilding and
+// sorting the roster each call was three allocations plus a sort apiece.
+// Cache keyed on (count, grown count, last id) — membership can only change
+// via push/splice/stage transitions, all of which move one of those. Roost
+// spots are cosmetic, so a pathological same-key swap costs nothing real.
+let roosterCache: { key: string; ids: string[] } | null = null;
+
+function roosterIds(state: GameState): string[] {
+  let grown = 0;
+  for (const d of state.ducks) if (d.stage !== 'egg' && d.stage !== 'duckling') grown += 1;
+  const key = `${state.ducks.length}|${grown}|${state.ducks[state.ducks.length - 1]?.id ?? ''}`;
+  if (!roosterCache || roosterCache.key !== key) {
+    roosterCache = {
+      key,
+      ids: state.ducks.filter((d) => d.stage !== 'egg' && d.stage !== 'duckling').map((d) => d.id).sort(),
+    };
+  }
+  return roosterCache.ids;
+}
+
 export function roostSpot(state: GameState, duck: Duck): Vec2 {
   if (duck.penned) return penSpot(state, duck);
   // Ducklings tuck in beside their mother, fanned out by id so a brood
@@ -504,7 +524,7 @@ export function roostSpot(state: GameState, duck: Duck): Vec2 {
   const g = pondGeometry(state);
   // Fan the flock evenly along the upper bank (9 o'clock round to 3 o'clock),
   // ordered by id so each duck keeps the same spot night after night.
-  const roosters = state.ducks.filter((d) => d.stage !== 'egg' && d.stage !== 'duckling').map((d) => d.id).sort();
+  const roosters = roosterIds(state);
   const idx = Math.max(0, roosters.indexOf(duck.id));
   const n = Math.max(1, roosters.length);
   let theta = Math.PI * 1.08 + ((idx + 0.5) / n) * Math.PI * 0.84;

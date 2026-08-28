@@ -13,9 +13,18 @@ export interface PondGeometry {
   ry: number;
 }
 
+// Called per duck per frame (isInPond) and several times per duck per tick —
+// return a shared cached object instead of allocating each call. Treat the
+// result as read-only.
+let geoCache: { key: string; geo: PondGeometry } | null = null;
+
 export function pondGeometry(state: GameState): PondGeometry {
   const level = upgradeLevel(state, 'pondExpansion');
-  return { cx: WORLD_W / 2, cy: 400, rx: 190 + level * 40, ry: 100 + level * 20 };
+  const key = `${WORLD_W}|${level}`;
+  if (!geoCache || geoCache.key !== key) {
+    geoCache = { key, geo: { cx: WORLD_W / 2, cy: 400, rx: 190 + level * 40, ry: 100 + level * 20 } };
+  }
+  return geoCache.geo;
 }
 
 // The nest hugs the top-right of the play area, wherever the edge is.

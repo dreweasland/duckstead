@@ -15,10 +15,19 @@ import { breedKey, breedLabel } from '../sim/breedBook';
 import { describeStandard, standardMatch, STANDARD_THRESHOLD } from '../sim/standards';
 import { upgradeLevel } from '../sim/economy';
 
+// Ancestor stills are recomputed identically on every 500ms card refresh —
+// memoize the synthetic Duck so its stable id also hits the portrait cache.
+const ancestorSamples = new Map<string, Duck>();
+
 function ancestorPortrait(a: Ancestor | null, size: number): HTMLElement {
   if (!a) return el('span', { class: 'tree-node unknown', title: 'Unknown — a founder' }, '?');
-  const rng = createRng(11);
-  const sample = createDuck(rng, { genome: a.genome, stage: 'adult', pos: { x: 0, y: 0 }, sex: a.sex, name: a.name });
+  const key = `${a.name}|${a.sex}|${breedKey(a.genome)}`;
+  let sample = ancestorSamples.get(key);
+  if (!sample) {
+    if (ancestorSamples.size > 200) ancestorSamples.clear();
+    sample = createDuck(createRng(11), { genome: a.genome, stage: 'adult', pos: { x: 0, y: 0 }, sex: a.sex, name: a.name });
+    ancestorSamples.set(key, sample);
+  }
   return el(
     'span',
     { class: 'tree-node', title: `${a.name} · ${breedLabel(breedKey(a.genome))}` },

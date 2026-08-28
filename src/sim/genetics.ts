@@ -101,10 +101,22 @@ function rgbToHex(r: number, g: number, b: number): string {
   return `#${c(r)}${c(g)}${c(b)}`;
 }
 
+// Memoized: the duck painter derives ~10 shades per duck per frame from a
+// handful of fixed inputs — parsing hex strings 12,000 times a second was
+// pure garbage. Continuous inputs (sky tints) churn the cache, so it clears
+// wholesale at a bound instead of growing forever.
+const mixCache = new Map<string, string>();
+
 export function mixColors(a: string, b: string, t: number): string {
+  const key = `${a}|${b}|${t}`;
+  const hit = mixCache.get(key);
+  if (hit !== undefined) return hit;
+  if (mixCache.size > 4000) mixCache.clear();
   const [ar, ag, ab] = hexToRgb(a);
   const [br, bg, bb] = hexToRgb(b);
-  return rgbToHex(ar + (br - ar) * t, ag + (bg - ag) * t, ab + (bb - ab) * t);
+  const out = rgbToHex(ar + (br - ar) * t, ag + (bg - ag) * t, ab + (bb - ab) * t);
+  mixCache.set(key, out);
+  return out;
 }
 
 export function lighten(hex: string, amount: number): string {

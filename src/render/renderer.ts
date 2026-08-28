@@ -24,6 +24,7 @@ interface Particle {
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   private particles: Particle[] = [];
+  private sortScratch: import('../sim/duck').Duck[] = [];
   // Decoration being placed/moved, drawn translucent under the cursor.
   decorGhost: DecorGhost | null = null;
   private lastParticleTime = 0;
@@ -92,9 +93,13 @@ export class Renderer {
       ctx.fill();
     }
 
-    // Ducks, y-sorted for painter's-algorithm depth.
-    const sorted = [...state.ducks].sort((a, b) => a.pos.y - b.pos.y);
-    for (const duck of sorted) {
+    // Ducks, y-sorted for painter's-algorithm depth (scratch array reused
+    // across frames; egg incubation target hoisted out of the loop).
+    this.sortScratch.length = 0;
+    for (const d of state.ducks) this.sortScratch.push(d);
+    this.sortScratch.sort((a, b) => a.pos.y - b.pos.y);
+    const eggTicks = eggIncubationTicks(state);
+    for (const duck of this.sortScratch) {
       const x = lerp(duck.prevPos.x, duck.pos.x, alpha);
       const y = lerp(duck.prevPos.y, duck.pos.y, alpha);
       const anim = computeAnim(duck, timeMs);
@@ -109,7 +114,7 @@ export class Renderer {
         anim,
         facingLeft,
         eggProgress:
-          duck.stage === 'egg' ? duck.incubationTicks / eggIncubationTicks(state) : undefined,
+          duck.stage === 'egg' ? duck.incubationTicks / eggTicks : undefined,
         eggWarmth: duck.stage === 'egg' ? eggWarmth(duck) : undefined,
         eggReady: duck.stage === 'egg' ? duck.readyToHatch === true : undefined,
         timeMs,
