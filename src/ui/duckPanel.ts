@@ -17,7 +17,9 @@ import { canDrill, drillCoinsLeft, drillsLeft, drillsPerDay, TRAIN_STAT_META, TR
 import { DRILL_META, openDrill } from './trainingPanel';
 import { openPhoto } from './photo';
 import { breedingValue, keepVerdict, verdictReason } from '../sim/advisor';
-import { breedKey, breedLabel } from '../sim/breedBook';
+import { breedKey, breedLabel, representativeGenome } from '../sim/breedBook';
+import { computePhenotype } from '../sim/genetics';
+import { statTile } from './dom';
 import {
   breedReadiness,
   cleanDuck,
@@ -278,7 +280,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
         ),
       );
     }
-    const drills = el('div', { class: 'care-actions' });
+    const drills = el('div', { class: 'care-actions drill-row' });
     for (const stat of TRAIN_STATS) {
       drills.append(
         el(
@@ -338,36 +340,54 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   } else {
     const value = breedingValue(game.state, duck);
     const verdict = keepVerdict(value);
-    const advisor = el('div', { class: 'section advisor' }, el('strong', {}, 'Breeding value'));
-    const line = el('div', { class: 'gene-badges' });
-    if (verdict === 'key') {
-      line.append(el('span', { class: 'chip chip-rare' }, 'key breeder'));
-    } else if (verdict === 'useful') {
-      line.append(el('span', { class: 'chip chip-ready' }, value.marginalBreeds.length > 0 ? 'worth keeping' : 'best of breed'));
-    } else {
-      line.append(el('span', { class: 'chip chip-trait' }, value.duplicates.length > 0 ? 'genes duplicated — safe to sell' : 'covered — safe to sell'));
-    }
-    advisor.append(line, el('div', { class: 'muted small' }, verdictReason(value)));
-    if (value.newBreeds.length > 0) {
-      advisor.append(
-        el(
-          'div',
-          {
-            class: 'muted small',
-            title: value.newBreeds.slice(0, 6).map(breedLabel).join(' · '),
-          },
-          `Could help unlock ${value.newBreeds.length} undiscovered breed${value.newBreeds.length === 1 ? '' : 's'}`,
-        ),
-      );
-    }
+    const verdictChip =
+      verdict === 'key'
+        ? el('span', { class: 'chip chip-rare' }, 'key breeder')
+        : verdict === 'useful'
+          ? el('span', { class: 'chip chip-ready' }, value.marginalBreeds.length > 0 ? 'worth keeping' : 'best of breed')
+          : el('span', { class: 'chip chip-trait' }, 'safe to sell');
+    const advisor = el(
+      'div',
+      { class: 'section advisor' },
+      el('div', { class: 'pedigree-head' }, el('strong', {}, 'Breeding value'), verdictChip),
+      el(
+        'div',
+        { class: 'race-stats fit advisor-tiles' },
+        statTile('book', String(value.marginalBreeds.length), value.marginalBreeds.length === 1 ? 'breed only it reaches' : 'breeds only it reaches'),
+        statTile('sparkle', String(value.newBreeds.length), 'could help unlock'),
+        statTile('star', String(value.uniqueAlleles.length), value.uniqueAlleles.length === 1 ? 'gene only it carries' : 'genes only it carries'),
+        statTile('flag', `${value.standardPct}%`, 'to standard'),
+      ),
+      el('div', { class: 'muted small advisor-reason' }, verdictReason(value, true)),
+    );
+    // A row of breed chips, each with a swatch of the breed's plumage; the
+    // overflow folds into one "+N more" chip that lists the rest on hover.
+    const breedChips = (keys: string[], cls: string) => {
+      const row = el('div', { class: 'gene-badges advisor-breeds' });
+      for (const key of keys.slice(0, 6)) {
+        const dot = el('span', { class: 'swatch-dot small' });
+        dot.style.background = computePhenotype(representativeGenome(key)).bodyColor;
+        row.append(el('span', { class: `chip ${cls} with-icon` }, dot, breedLabel(key)));
+      }
+      if (keys.length > 6) row.append(el('span', { class: 'chip chip-trait', title: keys.slice(6).map(breedLabel).join(' · ') }, `+${keys.length - 6} more`));
+      return row;
+    };
     if (value.uniqueAlleles.length > 0) {
-      advisor.append(
-        el(
-          'div',
-          { class: 'muted small' },
-          `Only flock carrier of: ${value.uniqueAlleles.join(', ')} — selling loses these genes`,
-        ),
-      );
+      const row = el('div', { class: 'gene-badges' });
+      for (const a of value.uniqueAlleles) row.append(el('span', { class: 'chip chip-carrier' }, a));
+      advisor.append(el('div', { class: 'advisor-group' }, el('div', { class: 'advisor-label warn-text' }, 'Sole carrier — selling loses'), row));
+    }
+    if (value.marginalBreeds.length > 0) {
+      advisor.append(el('div', { class: 'advisor-group' }, el('div', { class: 'advisor-label' }, 'Only this duck can reach'), breedChips(value.marginalBreeds, 'chip-ready')));
+    }
+    const helped = value.newBreeds.filter((k) => !value.marginalBreeds.includes(k));
+    if (helped.length > 0) {
+      advisor.append(el('div', { class: 'advisor-group' }, el('div', { class: 'advisor-label' }, 'Could help unlock, with others'), breedChips(helped, 'chip-trait')));
+    }
+    if (value.duplicates.length > 0 || value.coveredBy.length > 0) {
+      const row = el('div', { class: 'gene-badges' });
+      for (const n of (value.duplicates.length > 0 ? value.duplicates : value.coveredBy).slice(0, 5)) row.append(el('span', { class: 'chip chip-friend' }, n));
+      advisor.append(el('div', { class: 'advisor-group' }, el('div', { class: 'advisor-label' }, value.duplicates.length > 0 ? 'Same Book genes as' : 'Everything it reaches, so can'), row));
     }
     lineTab.append(advisor);
   }

@@ -218,11 +218,14 @@ export function keepVerdict(value: BreedingValue): KeepVerdict {
   return 'covered';
 }
 
-// One line explaining the verdict.
-export function verdictReason(value: BreedingValue): string {
-  if (value.uniqueAlleles.length > 0) return `Only carrier of ${value.uniqueAlleles.join(', ')} — selling loses the gene.`;
+// One line explaining the verdict. `brief` leaves the lists out — for a
+// card that shows them as chips underneath.
+export function verdictReason(value: BreedingValue, brief = false): string {
+  if (value.uniqueAlleles.length > 0) return brief ? 'The flock\'s only carrier of a rare gene — selling loses it.' : `Only carrier of ${value.uniqueAlleles.join(', ')} — selling loses the gene.`;
   if (value.marginalBreeds.length > 0) {
-    return `Reaches ${value.marginalBreeds.length} undiscovered breed${value.marginalBreeds.length === 1 ? '' : 's'} no other duck can: ${value.marginalBreeds.slice(0, 3).map(breedLabel).join(', ')}${value.marginalBreeds.length > 3 ? '…' : ''}.`;
+    const n = value.marginalBreeds.length;
+    if (brief) return `Reaches ${n} undiscovered breed${n === 1 ? '' : 's'} no other duck can.`;
+    return `Reaches ${n} undiscovered breed${n === 1 ? '' : 's'} no other duck can: ${value.marginalBreeds.slice(0, 3).map(breedLabel).join(', ')}${n > 3 ? '…' : ''}.`;
   }
   if (value.bestOfBreed && value.standardPct >= 50) return `Best of its breed — ${value.standardPct}% to the show standard.`;
   if (value.duplicates.length > 0) {

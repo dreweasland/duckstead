@@ -3955,7 +3955,7 @@ body.feeding #pond-canvas {
 }
 
 /* Mid-size screens: panel buttons drop their text (icons + tooltips stay). */
-@media (max-width: 1500px) {
+@media (max-width: 1650px) {
   .hud-btn-label {
     display: none;
   }
@@ -3969,8 +3969,10 @@ body.feeding #pond-canvas {
   }
 }
 
-/* Smaller still: drop the supply chips whose counts live in the Care menu. */
-@media (max-width: 1250px) {
+/* Smaller still: drop the supply chips whose counts live in the Care menu.
+   (The settings button and the life-event chip pushed the bar past 1600px
+   with them showing.) */
+@media (max-width: 1650px) {
   .chip-feed,
   .chip-premium,
   .chip-medicine {
@@ -4520,4 +4522,69 @@ body.text-large .toast {
   letter-spacing: 0;
   font-weight: 500;
   color: var(--lilac);
+}
+
+/* Drill buttons breathe; the breeding-value card reads as tiles and chips
+   rather than a run of muted sentences. */
+.drill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.race-stats.advisor-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 2px 0 4px;
+  width: auto;
+}
+
+.race-stats.advisor-tiles .race-tile {
+  min-width: 0;
+  width: auto;
+  flex: none;
+  overflow: hidden;
+}
+
+.advisor-tiles .race-tile {
+  padding: 6px 4px;
+}
+
+.advisor-tiles .race-tile strong {
+  font-size: 15px;
+}
+
+.advisor-tiles .race-tile-label {
+  font-size: 10px;
+}
+
+.advisor-reason {
+  line-height: 1.4;
+}
+
+.advisor-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.advisor-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.advisor-breeds .chip {
+  gap: 5px;
+}
+
+.swatch-dot.small {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
