@@ -14,6 +14,7 @@ import { el, statTile } from './dom';
 import { backToPondRow, eventCard } from './eventCard';
 import type { IconName } from './icons';
 import { play } from '../audio/audio';
+import { keyFor, keyLabel, matchesKey } from './settings';
 
 const CANVAS_W = 860;
 const CANVAS_H = 200;
@@ -108,7 +109,7 @@ export function openDrill(game: Game, ui: UiHooks, duck: Duck, stat: TrainStat):
   const meterFill = el('div', { class: 'race-meter-marker' });
   const meter = el('div', { class: 'race-meter' }, meterFill);
   const counter = el('div', { class: 'drill-counter' }, '');
-  const hint = el('div', { class: 'muted small race-hint' }, DRILL_HINTS[stat]);
+  const hint = el('div', { class: 'muted small race-hint' }, drillHint(stat));
   card.replaceChildren(header(DRILL_META[stat].icon, title), canvas, meter, counter, hint);
 
   let done = false;
@@ -167,10 +168,14 @@ export function openDrill(game: Game, ui: UiHooks, duck: Duck, stat: TrainStat):
 }
 
 const DRILL_HINTS: Record<TrainStat, string> = {
-  paddle: 'Click the water (or press Space) on the beat — eight clean paddles make a perfect drill.',
-  stamina: 'Hold the water (or Space) to paddle. Let go before the fatigue bar fills, or the duck stalls.',
-  poise: 'Click (or press Space) when the needle sits in the mark. Five rounds; the mark shrinks each time.',
+  paddle: 'Click the water (or press KEY) on the beat — eight clean paddles make a perfect drill.',
+  stamina: 'Hold the water (or KEY) to paddle. Let go before the fatigue bar fills, or the duck stalls.',
+  poise: 'Click (or press KEY) when the needle sits in the mark. Five rounds; the mark shrinks each time.',
 };
+
+function drillHint(stat: TrainStat): string {
+  return DRILL_HINTS[stat].replace('KEY', keyLabel(keyFor('paddle')));
+}
 
 // --- Paddle: tap on the beat ---
 function runPaddle(s: DrillScaffold, racer: Duck): void {
@@ -194,7 +199,7 @@ function runPaddle(s: DrillScaffold, racer: Duck): void {
   };
   s.canvas.addEventListener('pointerdown', tap);
   s.setKeyHandler((e) => {
-    if (e.code === 'Space') {
+    if (matchesKey(e, 'paddle')) {
       e.preventDefault();
       tap();
     }
@@ -240,13 +245,13 @@ function runStamina(s: DrillScaffold, racer: Duck, onKeyUp: (h: (e: KeyboardEven
   s.canvas.addEventListener('pointerdown', down);
   window.addEventListener('pointerup', up);
   s.setKeyHandler((e) => {
-    if (e.code === 'Space') {
+    if (matchesKey(e, 'paddle')) {
       e.preventDefault();
       holding = true;
     }
   });
   onKeyUp((e) => {
-    if (e.code === 'Space') holding = false;
+    if (matchesKey(e, 'paddle')) holding = false;
   });
   const frame = (now: number) => {
     const dt = Math.min(0.05, (now - lastFrame) / 1000);
@@ -312,7 +317,7 @@ function runPoise(s: DrillScaffold, racer: Duck): void {
   };
   s.canvas.addEventListener('pointerdown', tap);
   s.setKeyHandler((e) => {
-    if (e.code === 'Space') {
+    if (matchesKey(e, 'paddle')) {
       e.preventDefault();
       tap();
     }

@@ -8,6 +8,7 @@ import { isSyncConfigured } from '../sync/syncMeta';
 import { FOODS, TREATS, type FoodKind } from '../sim/food';
 import { el } from './dom';
 import { icon } from './icons';
+import { keyFor, keyLabel } from './settings';
 
 export type HudCountKey = 'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society';
 
@@ -154,7 +155,7 @@ export function buildHud(host: HudHost): HudRefs {
       el('span', { class: 'hud-btn-label' }, 'Cards'),
     ),
     el('button', { class: 'hud-btn', onclick: () => host.togglePanel('save') }, icon('disk'), el('span', { class: 'hud-btn-label' }, 'Save')),
-    el('button', { class: 'hud-btn settings-btn', title: 'Settings and keyboard shortcuts (?)', onclick: () => host.togglePanel('settings') }, icon('star')),
+    el('button', { class: 'hud-btn settings-btn', title: `Settings and keyboard shortcuts (${keyLabel(keyFor('settings'))})`, onclick: () => host.togglePanel('settings') }, icon('star')),
     ...speedBtns,
   );
   return { element, hudClock, festivalChip, lifeChip, hudCounts, careCounts };

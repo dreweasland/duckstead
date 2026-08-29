@@ -34,7 +34,8 @@ import { renderSettingsPanel } from './settingsPanel';
 import { buildHud } from './hud';
 import { bindCanvasInput } from './canvasInput';
 import { installTooltips } from './tooltip';
-import { loadSettings } from './settings';
+import { actionForKey, loadSettings } from './settings';
+import { keyCaptureActive } from './settingsPanel';
 import { play, quack, setAmbienceNight, unlockAudio, wireGameAudio } from '../audio/audio';
 import { WEATHER_NAMES, weatherOf } from '../sim/weather';
 import { openRacePanel } from './racePanel';
@@ -249,20 +250,20 @@ export class UI {
       }
       return;
     }
-    if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (document.querySelector('.race-overlay')) return; // Space belongs to the race
-    switch (e.key) {
-      case '1': this.togglePanel('breeding'); break;
-      case '2': this.togglePanel('shop'); break;
-      case '3': this.togglePanel('roster'); break;
-      case '4': this.togglePanel('book'); break;
-      case '5': this.openRace(); break;
-      case '6': this.togglePanel('save'); break;
-      case 'c': case 'C': this.toggleCardRail(); break;
-      case '?': this.togglePanel('settings'); break;
-      case 'p': case 'P': this.setSpeed(this.game.speed === 0 ? 1 : 0); break;
-      case '+': case '=': this.setSpeed(this.game.speed === 0 ? 1 : this.game.speed === 1 ? 4 : 16); break;
-      case '-': case '_': this.setSpeed(this.game.speed === 16 ? 4 : this.game.speed === 4 ? 1 : 0); break;
+    if (typing || e.ctrlKey || e.metaKey || e.altKey || keyCaptureActive()) return;
+    if (document.querySelector('.race-overlay')) return; // the paddle key belongs to the race
+    switch (actionForKey(e.key)) {
+      case 'breeding': this.togglePanel('breeding'); break;
+      case 'shop': this.togglePanel('shop'); break;
+      case 'roster': this.togglePanel('roster'); break;
+      case 'book': this.togglePanel('book'); break;
+      case 'race': this.openRace(); break;
+      case 'save': this.togglePanel('save'); break;
+      case 'cards': this.toggleCardRail(); break;
+      case 'settings': this.togglePanel('settings'); break;
+      case 'pause': this.setSpeed(this.game.speed === 0 ? 1 : 0); break;
+      case 'faster': this.setSpeed(this.game.speed === 0 ? 1 : this.game.speed === 1 ? 4 : 16); break;
+      case 'slower': this.setSpeed(this.game.speed === 16 ? 4 : this.game.speed === 4 ? 1 : 0); break;
       default: return;
     }
     e.preventDefault();

@@ -4588,3 +4588,32 @@ body.text-large .toast {
   display: inline-block;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
+
+/* Settings: as wide as the Save panel; key rows with a Change button, and
+   a "press a key" state while rebinding. */
+.panel.settings {
+  width: min(640px, calc(100vw - 32px));
+}
+
+.panel.settings .shortcut-row {
+  grid-template-columns: 130px 1fr auto;
+}
+
+.shortcut-row kbd.waiting {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+.shortcut-row kbd.unbound {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+.shortcut-row.capturing {
+  background: rgba(232, 184, 58, 0.08);
+  border-radius: 6px;
+}
+
+.shortcut-row.fixed {
+  opacity: 0.75;
+}

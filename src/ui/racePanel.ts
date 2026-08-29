@@ -12,6 +12,7 @@ import { boostPower, enterRace, raceEligible, raceRested, raceSpeed, settleRace 
 import { staminaHold } from '../sim/training';
 import { TUNING } from '../sim/tuning';
 import { play } from '../audio/audio';
+import { keyLabel, keyFor, matchesKey } from './settings';
 import { computeAnim } from '../render/animation';
 import { drawDuck } from '../render/duckPainter';
 import { el, statBar, statTile } from './dom';
@@ -192,7 +193,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     canvas.height = CANVAS_H;
     const meterFill = el('div', { class: 'race-meter-marker' });
     const meter = el('div', { class: 'race-meter' }, meterFill);
-    const hint = el('div', { class: 'muted small race-hint' }, 'Click the water (or press Space) when the marker is centered to paddle!');
+    const hint = el('div', { class: 'muted small race-hint' }, `Click the water (or press ${keyLabel(keyFor('paddle'))}) when the marker is centered to paddle!`);
     card.replaceChildren(
       header('flag', title),
       canvas,
@@ -223,7 +224,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     };
     canvas.addEventListener('pointerdown', tryBoost);
     keyHandler = (e) => {
-      if (e.code === 'Space') {
+      if (matchesKey(e, 'paddle')) {
         e.preventDefault();
         tryBoost();
       }
