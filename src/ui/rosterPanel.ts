@@ -12,6 +12,11 @@ import { breedReadiness } from '../sim/needs';
 import { pedigreeScore } from '../sim/pedigree';
 import { generationOf } from '../sim/lineage';
 import { describeBalance, flockBalance, HENS_PER_DRAKE } from '../sim/flockBalance';
+import { buildGeneTable, clearPicks, isPicked, pickedCount } from './geneTable';
+
+type View = 'cards' | 'genes';
+let activeView: View = 'cards';
+let pickedOnly = false;
 
 type Filter = 'all' | 'drakes' | 'hens' | 'adults' | 'elders' | 'young' | 'eggs' | 'ready' | 'care' | 'key' | 'penned';
 type Sort = 'age' | 'name' | 'hunger' | 'happiness' | 'rarity' | 'pedigree' | 'value';
@@ -116,7 +121,7 @@ const NEED_ROWS: Array<[keyof Needs, IconName]> = [
 export function renderRosterPanel(ctx: PanelCtx): HTMLElement {
   const { game } = ctx;
   const state = game.state;
-  const panel = el('aside', { class: 'panel roster' });
+  const panel = el('aside', { class: `panel roster${activeView === 'genes' ? ' genes' : ''}` });
   panel.append(
     panelHeader(
       'list',
@@ -185,17 +190,44 @@ export function renderRosterPanel(ctx: PanelCtx): HTMLElement {
     sortSelect.blur(); // release the refresh guard now the choice is made
     ctx.ui.refreshPanel();
   });
+  // Cards or the genes table; and a "picked only" chip once any are ticked.
+  const nPicked = pickedCount(state);
+  const viewToggle = el(
+    'div',
+    { class: 'shop-tabs roster-view' },
+    el('button', { class: `shop-tab${activeView === 'cards' ? ' active' : ''}`, onclick: () => { activeView = 'cards'; ctx.ui.refreshPanel(); } }, icon('cards', 12), 'Cards'),
+    el('button', { class: `shop-tab${activeView === 'genes' ? ' active' : ''}`, title: 'Every duck\'s genes side by side', onclick: () => { activeView = 'genes'; ctx.ui.refreshPanel(); } }, icon('book', 12), 'Genes'),
+  );
+  if (nPicked > 0) {
+    filters.append(
+      el(
+        'button',
+        { class: `roster-chip picked-chip${pickedOnly ? ' active' : ''}`, title: 'Only the ducks you ticked in the Genes view', onclick: () => { pickedOnly = !pickedOnly; ctx.ui.refreshPanel(); } },
+        icon('cards', 10),
+        'Picked only',
+        el('span', { class: 'roster-chip-count' }, String(nPicked)),
+      ),
+      el('button', { class: 'roster-chip', title: 'Clear the picks', onclick: () => { clearPicks(); pickedOnly = false; ctx.ui.refreshPanel(); } }, 'Clear'),
+    );
+  }
   panel.append(
     el(
       'div',
       { class: 'roster-controls' },
+      viewToggle,
       filters,
-      el('label', { class: 'roster-sort-wrap muted small' }, 'Sort ', sortSelect),
+      activeView === 'cards' ? el('label', { class: 'roster-sort-wrap muted small' }, 'Sort ', sortSelect) : null,
     ),
   );
 
+  const shown = state.ducks
+    .filter((d) => matchesFilter(d, activeFilter, verdicts) && (!pickedOnly || isPicked(d.id)))
+    .sort(compare(activeSort, verdicts));
+  if (activeView === 'genes') {
+    panel.append(buildGeneTable(ctx, shown));
+    return panel;
+  }
   const grid = el('div', { class: 'card-grid' });
-  const shown = state.ducks.filter((d) => matchesFilter(d, activeFilter, verdicts)).sort(compare(activeSort, verdicts));
   if (shown.length === 0) {
     grid.append(el('div', { class: 'muted small roster-empty' }, 'No ducks match this filter.'));
   }

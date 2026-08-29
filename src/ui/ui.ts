@@ -47,7 +47,7 @@ export type PanelKind = 'duck' | 'breeding' | 'shop' | 'roster' | 'save' | 'book
 const CARDS_PREF_KEY = 'ducksim:ui:cards';
 // Inner scrollable lists whose scroll position must survive the periodic
 // panel rebuild. Any new scroll region in a panel belongs in this list.
-const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .society-ladder, .chronicle, .nest-grid';
+const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .society-ladder, .chronicle, .nest-grid, .gene-table-wrap';
 
 export class UI {
   private root: HTMLElement;

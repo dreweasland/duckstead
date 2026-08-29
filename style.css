@@ -4617,3 +4617,173 @@ body.text-large .toast {
 .shortcut-row.fixed {
   opacity: 0.75;
 }
+
+/* Flock → Genes: the whole flock's genes in one sortable table. */
+.panel.roster.genes {
+  width: min(1180px, calc(100vw - 32px));
+}
+
+.roster-view {
+  margin: 0 0 8px;
+  padding: 3px;
+  flex: none;
+  width: auto;
+}
+
+.roster-view .shop-tab {
+  flex: none;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.roster-controls {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gene-view-hint {
+  margin: 0 0 8px;
+}
+
+.gene-table-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 230px);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.gene-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.gene-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-4);
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  user-select: none;
+}
+
+.gene-table th.sortable {
+  cursor: pointer;
+}
+
+.gene-table th.sortable:hover,
+.gene-table th.sorted {
+  color: var(--ink);
+}
+
+.sort-arrow {
+  margin-left: 3px;
+  font-size: 8px;
+  color: var(--gold);
+}
+
+.gene-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.gene-table tbody tr {
+  cursor: pointer;
+}
+
+.gene-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.gene-table tbody tr.picked td {
+  background: rgba(232, 184, 58, 0.08);
+}
+
+.gene-table tbody tr.selected td {
+  background: rgba(127, 178, 217, 0.12);
+}
+
+.gene-table th:nth-child(2),
+.gene-table td.gt-duck {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface-5);
+}
+
+.gene-table th:nth-child(2) {
+  z-index: 3;
+}
+
+.gene-table tbody tr.picked td.gt-duck {
+  background: #2e2a24;
+}
+
+.gene-table tbody tr.selected td.gt-duck {
+  background: #24313f;
+}
+
+.gene-table .pick-col {
+  width: 24px;
+  text-align: center;
+}
+
+.pick-box {
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.gt-duck {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 170px;
+}
+
+.gt-name {
+  font-weight: 600;
+}
+
+.gt-breed {
+  max-width: 180px;
+  white-space: normal;
+}
+
+.gt-alleles {
+  white-space: nowrap;
+}
+
+.gt-alleles .allele-tile {
+  width: 15px;
+  height: 15px;
+  font-size: 10px;
+  margin-right: 2px;
+}
+
+.gt-pips {
+  flex: none;
+  vertical-align: middle;
+}
+
+.gt-pipnum {
+  margin-left: 5px;
+}
+
+.gt-num {
+  font-variant-numeric: tabular-nums;
+}
+
+.gt-pheno {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
