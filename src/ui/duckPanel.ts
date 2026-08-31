@@ -184,7 +184,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
     );
   }
   if (duck.stage === 'egg') {
-    panel.append(buildGeneticsCard(game.state, duck), buildPedigreeCard(game.state, duck));
+    panel.append(buildGeneticsCard(game.state, duck), buildPedigreeCard(game.state, duck), buildSellSection(ctx, duck));
     return panel;
   }
 
@@ -491,7 +491,53 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
     sellTab.append(buyerSection);
   }
 
-  // Inline two-step confirm — native confirm() would block the game loop.
+  sellTab.append(buildSellSection(ctx, duck));
+
+  // The tabs. Sell lights up when a commission or a buyer wants this duck.
+  const tab = cardTabs.get(duck.id) ?? 'care';
+  const fitsAny = game.state.commissions.some((c) => duckFits(duck, c)) || (game.state.request !== null && matchesRequest(duck, game.state.request));
+  const drillBadge = duck.stage !== 'duckling' ? drillsLeft(game.state, duck) : 0;
+  const tabs: Array<[CardTab, IconName, string, string | null]> = [
+    ['care', 'hand', 'Care', drillBadge > 0 ? String(drillBadge) : null],
+    ['genes', 'book', 'Genes', null],
+    ['line', 'star', 'Line', null],
+    ['sell', 'coin', 'Sell', fitsAny ? '!' : null],
+  ];
+  const bar_ = el('div', { class: 'shop-tabs card-tabs' });
+  for (const [id, ic, label, badge] of tabs) {
+    bar_.append(
+      el(
+        'button',
+        {
+          class: `shop-tab${tab === id ? ' active' : ''}`,
+          'aria-pressed': String(tab === id),
+          onclick: () => {
+            cardTabs.set(duck.id, id);
+            ctx.ui.refreshPanel();
+          },
+        },
+        icon(ic, 12),
+        label,
+        badge ? el('span', { class: 'shop-tab-badge' }, badge) : null,
+      ),
+    );
+  }
+  panel.append(bar_, tab === 'care' ? careTab : tab === 'genes' ? genesTab : tab === 'line' ? lineTab : sellTab);
+  return panel;
+}
+
+// Which tab each card is showing; keyed by duck so pinned cards keep theirs.
+type CardTab = 'care' | 'genes' | 'line' | 'sell';
+const cardTabs = new Map<string, CardTab>();
+
+let pendingSellFor: string | null = null;
+let pendingCommissionFor: string | null = null;
+let pendingBuyerSellFor: string | null = null;
+
+// The sell block with its inline two-step confirm — native confirm() would
+// block the game loop. Shared by the Sell tab and the (short) egg card.
+function buildSellSection(ctx: PanelCtx, duck: import('../sim/duck').Duck): HTMLElement {
+  const { game } = ctx;
   const price = sellPrice(game.state, duck);
   const sellSection = el('div', { class: 'section actions' });
   // The sell-button conscience: an elder is close to an honoured passing —
@@ -552,48 +598,8 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
       ),
     );
   }
-  sellTab.append(sellSection);
-
-  // The tabs. Sell lights up when a commission or a buyer wants this duck.
-  const tab = cardTabs.get(duck.id) ?? 'care';
-  const fitsAny = game.state.commissions.some((c) => duckFits(duck, c)) || (game.state.request !== null && matchesRequest(duck, game.state.request));
-  const drillBadge = duck.stage !== 'duckling' ? drillsLeft(game.state, duck) : 0;
-  const tabs: Array<[CardTab, IconName, string, string | null]> = [
-    ['care', 'hand', 'Care', drillBadge > 0 ? String(drillBadge) : null],
-    ['genes', 'book', 'Genes', null],
-    ['line', 'star', 'Line', null],
-    ['sell', 'coin', 'Sell', fitsAny ? '!' : null],
-  ];
-  const bar_ = el('div', { class: 'shop-tabs card-tabs' });
-  for (const [id, ic, label, badge] of tabs) {
-    bar_.append(
-      el(
-        'button',
-        {
-          class: `shop-tab${tab === id ? ' active' : ''}`,
-          'aria-pressed': String(tab === id),
-          onclick: () => {
-            cardTabs.set(duck.id, id);
-            ctx.ui.refreshPanel();
-          },
-        },
-        icon(ic, 12),
-        label,
-        badge ? el('span', { class: 'shop-tab-badge' }, badge) : null,
-      ),
-    );
-  }
-  panel.append(bar_, tab === 'care' ? careTab : tab === 'genes' ? genesTab : tab === 'line' ? lineTab : sellTab);
-  return panel;
+  return sellSection;
 }
-
-// Which tab each card is showing; keyed by duck so pinned cards keep theirs.
-type CardTab = 'care' | 'genes' | 'line' | 'sell';
-const cardTabs = new Map<string, CardTab>();
-
-let pendingSellFor: string | null = null;
-let pendingCommissionFor: string | null = null;
-let pendingBuyerSellFor: string | null = null;
 
 function buildNameEditor(ctx: PanelCtx, duckId: string, name: string): HTMLElement {
   const input = el('input', {
