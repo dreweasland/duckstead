@@ -16,9 +16,9 @@ import { breedStandard, standardMatch } from './standards';
 import { rareAlleleCount } from './pedigree';
 import { chronicle } from './chronicle';
 import { events } from '../events';
-import { dayOfSeason, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR, yearOf } from './time';
+import { dayOf, dayOfSeason, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR, yearOf } from './time';
 import { TUNING } from './tuning';
-import { BALANCE } from './economy';
+import { BALANCE, noteSale } from './economy';
 import { canBreedPair } from './needs';
 import { nestCapacity } from './economy';
 import { eggsIncubating, BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS } from './breeding';
@@ -34,6 +34,7 @@ export interface Rival {
   wins: number; // festival + cup wins, all time
   yearPoints: number; // Society-equivalent points this year (the Cup)
   lastSeason: number; // absolute season index last advanced
+  lastEggDay?: number; // the day this rival last bought a hatching egg
 }
 
 export interface RivalDef {
@@ -98,6 +99,7 @@ export function createRivals(rng: Rng): Rival[] {
     wins: 0,
     yearPoints: 0,
     lastSeason: 0,
+    lastEggDay: -1,
   }));
 }
 
@@ -107,7 +109,11 @@ export function rivalStrength(state: GameState, rival: Rival): number {
   return Math.min(1, 0.2 + (yearOf(state.clock) - 1) * 0.15 + rival.wins * 0.05);
 }
 
-// What a rival is breeding for, as a number to maximise.
+// What a rival is breeding for, as a number to maximise (roughly 0–100).
+export function rivalFitness(specialty: RivalSpecialty, g: Genome): number {
+  return fitness(specialty, g);
+}
+
 function fitness(specialty: RivalSpecialty, g: Genome): number {
   const p = computePhenotype(g);
   if (specialty === 'show') return standardMatch({ genome: g } as Duck, breedKey(g)).pct;
@@ -201,6 +207,90 @@ export function rivalRacers(state: GameState): Array<{ duck: Duck; skill: number
     const duck = rivalDuck(rival, i, genome);
     return { duck, skill: 0.85 + strength * 0.4 + (rival.specialty === 'racing' ? 0.1 : 0) };
   });
+}
+
+// --- The hatching-egg market ---
+// Rivals buy eggs from pairings that suit their programme. The offer is
+// priced on the PARENTS (the family tree stamped on the egg) — never the
+// egg's own hidden genes, so the bid can't leak what's inside the shell.
+
+export const EGG_OFFER_THRESHOLD = 55; // parents' average fitness a rival needs
+export const EGG_OFFER_SHARE = 0.35; // of projected adult value, plus quality
+export const EGG_ABSORB_CHANCE = 0.5; // the rival folds the genome into its flock
+
+export interface EggOffer {
+  rivalId: string;
+  rivalName: string;
+  price: number;
+  score: number; // the pairing's fit for that rival, 0–100
+}
+
+// Projected adult value from what the player can see: the parents' rarity
+// (stamped at lay) and the visible pedigree (generation, purebred parents).
+function projectedValue(egg: Duck): number {
+  const rarity = egg.parentRarity ?? 0;
+  const visiblePed = Math.min(6, egg.lineage?.gen ?? 0) + (isPureBredPair(egg) ? 1 : 0);
+  return BALANCE.adultBasePrice * (1 + rarity * BALANCE.rarityMultiplier) * (1 + BALANCE.pedigreeMultiplier * visiblePed);
+}
+
+function isPureBredPair(egg: Duck): boolean {
+  const l = egg.lineage;
+  return Boolean(l?.sire && l.dam && breedKey(l.sire.genome) === breedKey(l.dam.genome));
+}
+
+// The best standing offer on a nest egg, if any rival wants it today.
+export function rivalEggOffer(state: GameState, egg: Duck): EggOffer | null {
+  if (egg.stage !== 'egg') return null;
+  const l = egg.lineage;
+  if (!l?.sire || !l.dam) return null; // a wild clutch has no pedigree to sell
+  const day = dayOf(state.clock);
+  let best: EggOffer | null = null;
+  for (const rival of state.rivals) {
+    if (rival.lastEggDay === day) continue; // one egg per rival per day
+    const score = (fitness(rival.specialty, l.sire.genome) + fitness(rival.specialty, l.dam.genome)) / 2;
+    if (score < EGG_OFFER_THRESHOLD) continue;
+    const strength = rivalStrength(state, rival);
+    const price = Math.round(projectedValue(egg) * (EGG_OFFER_SHARE + (score / 100) * 0.35) * (0.8 + strength * 0.4));
+    if (!best || price > best.price) best = { rivalId: rival.id, rivalName: rival.name, price, score: Math.round(score) };
+  }
+  return best;
+}
+
+// The rival takes the egg — and, as often as not, your bloodline: the
+// genome may replace the weakest bird in their flock. Coins now, a sharper
+// Egg Show field later.
+export function sellEggToRival(state: GameState, eggId: string, rng: Rng): boolean {
+  const idx = state.ducks.findIndex((d) => d.id === eggId);
+  if (idx < 0) return false;
+  const egg = state.ducks[idx];
+  const offer = rivalEggOffer(state, egg);
+  if (!offer) return false;
+  const rival = state.rivals.find((r) => r.id === offer.rivalId)!;
+  rival.lastEggDay = dayOf(state.clock);
+  state.money += offer.price;
+  state.ducks.splice(idx, 1);
+  state.stats.eggsSold += 1;
+  noteSale(state, egg, offer.price);
+  let kept = false;
+  if (rng.chance(EGG_ABSORB_CHANCE)) {
+    absorbGenome(rival, egg.genome);
+    kept = true;
+  }
+  chronicle(state, 'sale', `${rival.name} bought a hatching egg from the ${egg.lineage?.dam?.name ?? '?'} × ${egg.lineage?.sire?.name ?? '?'} pairing for ${offer.price} coins.`);
+  events.emit('toast', `${rival.name} paid ${offer.price} coins for the egg${kept ? ' — it will hatch on their pond' : ''}.`);
+  events.emit('purchase');
+  return true;
+}
+
+// Fold a genome into the rival's flock in place of its weakest bird.
+export function absorbGenome(rival: Rival, genome: Genome): void {
+  let weakest = 0;
+  for (let i = 1; i < rival.flock.length; i += 1) {
+    if (fitness(rival.specialty, rival.flock[i]) < fitness(rival.specialty, rival.flock[weakest])) weakest = i;
+  }
+  if (fitness(rival.specialty, genome) > fitness(rival.specialty, rival.flock[weakest])) {
+    rival.flock[weakest] = JSON.parse(JSON.stringify(genome)) as Genome;
+  }
 }
 
 // --- Stud service ---

@@ -16,6 +16,7 @@ import { MARKS } from '../sim/marks';
 import { canDrill, drillCoinsLeft, drillsLeft, drillsPerDay, TRAIN_STAT_META, TRAIN_STATS, trainingOf } from '../sim/training';
 import { DRILL_META, openDrill } from './trainingPanel';
 import { openPhoto } from './photo';
+import { rivalEggOffer, sellEggToRival } from '../sim/rivals';
 import { breedingValue, keepVerdict, verdictReason } from '../sim/advisor';
 import { breedKey, breedLabel, representativeGenome } from '../sim/breedBook';
 import { computePhenotype } from '../sim/genetics';
@@ -536,10 +537,67 @@ let pendingBuyerSellFor: string | null = null;
 
 // The sell block with its inline two-step confirm — native confirm() would
 // block the game loop. Shared by the Sell tab and the (short) egg card.
+// For eggs it also carries the hatching-egg market: any commission the
+// pairing fills, and the best rival's standing offer.
 function buildSellSection(ctx: PanelCtx, duck: import('../sim/duck').Duck): HTMLElement {
   const { game } = ctx;
   const price = sellPrice(game.state, duck);
   const sellSection = el('div', { class: 'section actions' });
+  if (duck.stage === 'egg') {
+    // Egg commissions this egg's parents satisfy.
+    for (const c of game.state.commissions.filter((x) => duckFits(duck, x))) {
+      sellSection.append(
+        el(
+          'button',
+          {
+            class: 'action-btn primary',
+            title: describeCommission(c),
+            onclick: () => {
+              if (pendingCommissionFor === `${duck.id}:${c.id}`) {
+                pendingCommissionFor = null;
+                fulfilCommission(game.state, c.id, duck.id);
+                ctx.close();
+              } else {
+                pendingCommissionFor = `${duck.id}:${c.id}`;
+                ctx.ui.refreshPanel();
+              }
+            },
+          },
+          pendingCommissionFor === `${duck.id}:${c.id}` ? `Really deliver this egg to ${c.client}?` : `Deliver the egg to ${c.client} `,
+          pendingCommissionFor === `${duck.id}:${c.id}` ? null : icon('coin', 12),
+          pendingCommissionFor === `${duck.id}:${c.id}` ? '' : ` ${c.reward}`,
+        ),
+      );
+    }
+    // The rivals' standing market: priced on the parents, never the shell's
+    // secret — and the buyer may fold the bloodline into their own flock.
+    const offer = rivalEggOffer(game.state, duck);
+    if (offer) {
+      sellSection.append(
+        el(
+          'button',
+          {
+            class: 'action-btn primary',
+            title: `${offer.rivalName} rates this pairing ${offer.score}/100 for their programme. A sold egg can hatch on their pond — coins now, a sharper rival later.`,
+            onclick: () => {
+              if (pendingBuyerSellFor === duck.id) {
+                pendingBuyerSellFor = null;
+                sellEggToRival(game.state, duck.id, game.rng);
+                ctx.close();
+              } else {
+                pendingBuyerSellFor = duck.id;
+                ctx.ui.refreshPanel();
+              }
+            },
+          },
+          pendingBuyerSellFor === duck.id ? `Really sell the egg to ${offer.rivalName}?` : `Sell to ${offer.rivalName} `,
+          pendingBuyerSellFor === duck.id ? null : icon('coin', 12),
+          pendingBuyerSellFor === duck.id ? '' : ` ${offer.price}`,
+        ),
+      );
+      sellSection.append(el('div', { class: 'muted small' }, `${offer.rivalName} wants this pairing (${offer.score}/100) — one egg a day per buyer, and the bloodline may hatch on their pond.`));
+    }
+  }
   // The sell-button conscience: an elder is close to an honoured passing —
   // say plainly what selling would forfeit before the coins change hands.
   if (duck.stage === 'elder') {

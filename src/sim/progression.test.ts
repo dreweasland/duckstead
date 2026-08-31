@@ -16,6 +16,11 @@ describe('commission demands keep growing', () => {
     for (let i = 0; i < 20; i += 1) {
       const c = makeCommission(state, rng);
       if (!c) continue;
+      if (c.eggFrom) {
+        // Egg contracts carry their own lighter demands.
+        state.commissions = [];
+        continue;
+      }
       expect(c.minGen).toBeLessThanOrEqual(5);
       expect(c.minStandard).toBe(90);
       expect(c.points).toBe(3 + 6 * 3);

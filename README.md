@@ -119,7 +119,12 @@ npm run dev        # open http://localhost:5173
   requests and growing demands as you fill them (sex, generation up to 5,
   standard % up to 90, pink bill) — the demands and the pay keep climbing
   with every three you fill. The rival ponds post here too, and the Board's
-  **stud service** lends you one of their drakes for a single clutch. Deliver from the duck's card for several times market price
+  **stud service** lends you one of their drakes for a single clutch. Rivals
+  also keep a standing offer on **hatching eggs** from pairings that suit
+  their programme — priced on the parents, never the egg's hidden genes; a
+  sold egg may hatch on their pond and sharpen next year's field — and the
+  Board sometimes posts **egg commissions** ("an egg from two Spotted
+  Mallard parents"), judged on the family tree. Deliver from the duck's card for several times market price
   plus Society points. If nobody on the pond fits, the card names the pair
   most likely to hatch one and the chance per egg. Open commissions also
   show under Goals.

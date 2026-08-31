@@ -112,7 +112,10 @@ export function deserialize(json: string): GameState {
   state.nextLifeEventId ??= 1;
   // Rival ponds arrived after the flock did: an old save meets them fresh.
   state.rivals ??= createRivals(createRng((state.rngState ^ 0x9e3779b9) >>> 0));
-  for (const r of state.rivals) for (const g of r.flock) completeGenome(g);
+  for (const r of state.rivals) {
+    for (const g of r.flock) completeGenome(g);
+    r.lastEggDay ??= -1;
+  }
   state.cup ??= null;
   state.drillPurse ??= { day: -1, earned: 0 };
   state.weather ??= { kind: 'clear', day: -1 };

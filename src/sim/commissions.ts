@@ -28,6 +28,9 @@ export interface Commission {
   minGen?: number;
   minStandard?: number; // percent
   pinkBill?: boolean;
+  // An egg contract: wants a nest egg whose PARENTS are both this breed
+  // (read from the family tree — the egg's own genes stay secret).
+  eggFrom?: boolean;
   reward: number;
   points: number;
   postedDay: number;
@@ -119,20 +122,28 @@ export function makeCommission(state: GameState, rng: Rng): Commission | null {
   const tier = tierFor(state);
   // The rival ponds post too, once they know you: a third of the board.
   const rivalClient = state.rivals.length > 0 && tier >= 1 && rng.chance(0.35) ? rng.pick(state.rivals).name : null;
+  // A quarter of contracts past the first tier ask for a hatching egg
+  // instead of a grown duck: both parents the breed, delivered unhatched.
+  const eggFrom = tier >= 1 && rng.chance(0.25);
   const c: Commission = {
     id: state.nextCommissionId,
     client: rivalClient ?? rng.pick(CLIENTS),
     key,
     reward: 0,
-    points: 3 + Math.min(6, tier) * 3,
+    points: eggFrom ? 2 + Math.min(6, tier) : 3 + Math.min(6, tier) * 3,
     postedDay: dayOf(state.clock),
     expiresDay: dayOf(state.clock) + COMMISSION_DAYS,
-    ...demandsFor(tier, rng),
+    ...(eggFrom ? { eggFrom: true, ...(tier >= 2 ? { minGen: Math.min(5, tier) } : {}) } : demandsFor(tier, rng)),
   };
   const rarity = computePhenotype(representativeGenome(key)).rarityScore;
   const base = BALANCE.adultBasePrice * (1 + rarity * BALANCE.rarityMultiplier);
-  const demandBonus = 1 + (c.sex ? 0.2 : 0) + (c.minGen ?? 0) * 0.3 + (c.minStandard ? c.minStandard / 100 : 0) + (c.pinkBill ? 0.8 : 0);
-  c.reward = Math.round(base * (3 + Math.min(6, tier)) * demandBonus);
+  if (c.eggFrom) {
+    // Below a duck contract (nothing to raise), above the rivals' market.
+    c.reward = Math.round(base * (1.5 + Math.min(6, tier) * 0.5) * (1 + (c.minGen ?? 0) * 0.2));
+  } else {
+    const demandBonus = 1 + (c.sex ? 0.2 : 0) + (c.minGen ?? 0) * 0.3 + (c.minStandard ? c.minStandard / 100 : 0) + (c.pinkBill ? 0.8 : 0);
+    c.reward = Math.round(base * (3 + Math.min(6, tier)) * demandBonus);
+  }
   state.nextCommissionId += 1;
   return c;
 }
@@ -157,6 +168,15 @@ export function tickCommissions(state: GameState, rng: Rng): void {
 }
 
 export function duckFits(duck: Duck, c: Commission): boolean {
+  if (c.eggFrom) {
+    // Judged on the family tree alone — checkable before it hatches.
+    if (duck.stage !== 'egg') return false;
+    const l = duck.lineage;
+    if (!l?.sire || !l.dam) return false;
+    if (breedKey(l.sire.genome) !== c.key || breedKey(l.dam.genome) !== c.key) return false;
+    if (c.minGen !== undefined && generationOf(duck) < c.minGen) return false;
+    return true;
+  }
   if (duck.stage === 'egg' || duck.stage === 'duckling') return false;
   if (breedKey(duck.genome) !== c.key) return false;
   if (c.sex && duck.sex !== c.sex) return false;
@@ -170,6 +190,7 @@ export function duckFits(duck: Duck, c: Commission): boolean {
 // Why a duck of the right breed doesn't fit — the demands it misses, in
 // plain words. Null when it fits (or isn't the breed at all).
 export function commissionGap(duck: Duck, c: Commission): string[] | null {
+  if (c.eggFrom) return null; // egg contracts either fit or say nothing
   if (breedKey(duck.genome) !== c.key) return null;
   const gaps: string[] = [];
   if (duck.stage === 'egg' || duck.stage === 'duckling') gaps.push('still a duckling');
@@ -202,6 +223,9 @@ export function fulfilCommission(state: GameState, commissionId: number, duckId:
 }
 
 export function describeCommission(c: Commission): string {
+  if (c.eggFrom) {
+    return `an egg from two ${breedLabel(c.key)} parents${c.minGen ? ` · gen ${c.minGen}+` : ''}`;
+  }
   const parts = [`a ${breedLabel(c.key)}${c.sex ? (c.sex === 'F' ? ' hen' : ' drake') : ''}`];
   if (c.minGen) parts.push(`gen ${c.minGen}+`);
   if (c.minStandard) parts.push(`${c.minStandard}% to standard`);
@@ -209,7 +233,7 @@ export function describeCommission(c: Commission): string {
   return parts.join(' · ');
 }
 
-// A specimen for the board's portrait.
+// A specimen for the board's portrait — an egg still for egg contracts.
 export function commissionSpecimen(c: Commission): Duck {
-  return createDuck(createRng(c.id + 99), { genome: representativeGenome(c.key), stage: 'adult', pos: { x: 0, y: 0 }, sex: c.sex ?? 'F', name: 'wanted' });
+  return createDuck(createRng(c.id + 99), { genome: representativeGenome(c.key), stage: c.eggFrom ? 'egg' : 'adult', pos: { x: 0, y: 0 }, sex: c.sex ?? 'F', name: 'wanted' });
 }
