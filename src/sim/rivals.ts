@@ -8,7 +8,7 @@ import type { GameState } from '../state';
 import type { Rng } from '../rng';
 import { createRng } from '../rng';
 import type { Duck } from './duck';
-import { createDuck } from './duck';
+import { createDuck, layEgg } from './duck';
 import { breed, computePhenotype, randomCommonGenome, type Genome } from './genetics';
 import { breedKey } from './breedBook';
 import { ALL_BREED_KEYS } from './breedBook';
@@ -20,8 +20,9 @@ import { dayOf, dayOfSeason, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR, yearOf } f
 import { TUNING } from './tuning';
 import { BALANCE, noteSale } from './economy';
 import { canBreedPair } from './needs';
+import { nestPos } from './pond';
 import { nestCapacity } from './economy';
-import { eggsIncubating, BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS } from './breeding';
+import { eggsIncubating, BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS, nestSlotOffset } from './breeding';
 
 export type RivalSpecialty = 'show' | 'racing' | 'rare';
 
@@ -35,6 +36,7 @@ export interface Rival {
   yearPoints: number; // Society-equivalent points this year (the Cup)
   lastSeason: number; // absolute season index last advanced
   lastEggDay?: number; // the day this rival last bought a hatching egg
+  lastEggSoldDay?: number; // ...and last sold one to the player
 }
 
 export interface RivalDef {
@@ -100,6 +102,7 @@ export function createRivals(rng: Rng): Rival[] {
     yearPoints: 0,
     lastSeason: 0,
     lastEggDay: -1,
+    lastEggSoldDay: -1,
   }));
 }
 
@@ -291,6 +294,71 @@ export function absorbGenome(rival: Rival, genome: Genome): void {
   if (fitness(rival.specialty, genome) > fitness(rival.specialty, rival.flock[weakest])) {
     rival.flock[weakest] = JSON.parse(JSON.stringify(genome)) as Genome;
   }
+}
+
+// --- Rivals' eggs for sale ---
+// The mirror of the market above: each rival will part with one egg a day
+// from a pairing of their own birds. The parents are on show (the Scope can
+// read them); the shell is the same gamble their buyers take from you. The
+// egg arrives gen 0 — their line, not yours.
+
+export interface RivalEggSale {
+  rivalId: string;
+  rivalName: string;
+  dam: Duck; // synthetic, for the portrait and the Scope
+  sire: Duck;
+  price: number;
+  soldToday: boolean;
+}
+
+// Deterministic per rival per day, so the day's offer holds still across
+// panel rebuilds: the dam is their best bird, the sire drawn from the rest.
+export function rivalEggsForSale(state: GameState): RivalEggSale[] {
+  const day = dayOf(state.clock);
+  return state.rivals.map((rival) => {
+    let h = 5;
+    for (const ch of `${rival.id}:${day}`) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    const seeded = createRng(h);
+    const damGenome = rivalBestGenome(rival);
+    const rest = rival.flock.filter((g) => g !== damGenome);
+    const sireGenome = rest.length > 0 ? rest[seeded.int(rest.length)] : damGenome;
+    const dam = rivalDuck(rival, 1, damGenome);
+    dam.sex = 'F';
+    const sire = rivalDuck(rival, 2, sireGenome);
+    sire.sex = 'M';
+    const avgRarity = (computePhenotype(damGenome).rarityScore + computePhenotype(sireGenome).rarityScore) / 2;
+    const strength = rivalStrength(state, rival);
+    const price = Math.round(BALANCE.adultBasePrice * (1 + avgRarity * BALANCE.rarityMultiplier) * (0.9 + strength * 0.9));
+    return { rivalId: rival.id, rivalName: rival.name, dam, sire, price, soldToday: rival.lastEggSoldDay === day };
+  });
+}
+
+// Buy the day's egg: it is laid straight into your nest, gen 0, with the
+// rival pair stamped on its family tree.
+export function buyRivalEgg(state: GameState, rng: Rng, rivalId: string): { ok: boolean; reason?: string } {
+  const sale = rivalEggsForSale(state).find((s) => s.rivalId === rivalId);
+  const rival = state.rivals.find((r) => r.id === rivalId);
+  if (!sale || !rival) return { ok: false, reason: 'No such offer' };
+  if (sale.soldToday) return { ok: false, reason: `${sale.rivalName} has no more eggs to spare today` };
+  if (eggsIncubating(state) + state.pendingClutches.length >= nestCapacity(state)) {
+    return { ok: false, reason: 'The nest is full — sell or hatch some eggs first' };
+  }
+  if (state.money < sale.price) return { ok: false, reason: `Need ${sale.price} coins` };
+  state.money -= sale.price;
+  rival.lastEggSoldDay = dayOf(state.clock);
+  const egg = layEgg(rng, sale.dam, sale.sire, { x: 0, y: 0 });
+  // Bought in, not bred here: the line starts at gen 0 on this pond.
+  if (egg.lineage) egg.lineage.gen = 0;
+  const nest = nestPos();
+  const offset = nestSlotOffset(state, rng);
+  egg.pos = { x: nest.x + offset.x, y: nest.y + offset.y };
+  egg.prevPos = { ...egg.pos };
+  egg.nestOffset = offset;
+  state.ducks.push(egg);
+  chronicle(state, 'sale', `A hatching egg from ${sale.rivalName}'s ${sale.dam.name} × ${sale.sire.name} pairing joined the nest for ${sale.price} coins.`);
+  events.emit('toast', `${sale.rivalName} hands over the egg — ${sale.dam.name} × ${sale.sire.name}, still warm.`);
+  events.emit('purchase');
+  return { ok: true };
 }
 
 // --- Stud service ---

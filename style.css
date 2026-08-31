@@ -4787,3 +4787,14 @@ body.text-large .toast {
   align-items: center;
   gap: 3px;
 }
+
+/* Rival egg sales: two parents' gene strips side by side. */
+.egg-sale-parents {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.egg-sale-label {
+  margin-bottom: 2px;
+}

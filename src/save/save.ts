@@ -115,6 +115,7 @@ export function deserialize(json: string): GameState {
   for (const r of state.rivals) {
     for (const g of r.flock) completeGenome(g);
     r.lastEggDay ??= -1;
+    r.lastEggSoldDay ??= -1;
   }
   state.cup ??= null;
   state.drillPurse ??= { day: -1, earned: 0 };

@@ -103,7 +103,7 @@ export function tickBreeding(state: GameState, rng: Rng): void {
 // Eggs settle into spread-out spots in the straw instead of a random pile —
 // a big egg landing on a small one made the back egg unclickable. Each new
 // egg takes the candidate spot farthest from every egg already in the nest.
-function nestSlotOffset(state: GameState, rng: Rng): { x: number; y: number } {
+export function nestSlotOffset(state: GameState, rng: Rng): { x: number; y: number } {
   const existing = state.ducks
     .filter((d) => d.stage === 'egg' && d.nestOffset)
     .map((d) => d.nestOffset!);

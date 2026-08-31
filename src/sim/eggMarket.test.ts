@@ -4,7 +4,9 @@ import { createNewGame } from '../state';
 import { layEgg } from './duck';
 import { breed, randomCommonGenome } from './genetics';
 import { makeCommission, describeCommission, duckFits, fulfilCommission } from './commissions';
-import { EGG_OFFER_THRESHOLD, rivalEggOffer, rivalFitness, sellEggToRival } from './rivals';
+import { buyRivalEgg, EGG_OFFER_THRESHOLD, rivalEggOffer, rivalEggsForSale, rivalFitness, sellEggToRival } from './rivals';
+import { nestCapacity } from './economy';
+import { TICKS_PER_DAY } from './time';
 import { sellPrice } from './economy';
 import { breedKey } from './breedBook';
 import { breedStandard } from './standards';
@@ -106,5 +108,67 @@ describe('egg commissions', () => {
     expect(state.money).toBe(money + c!.reward);
     expect(state.ducks.includes(egg)).toBe(false);
     void breed;
+  });
+});
+
+describe('the rivals\' eggs for sale', () => {
+  it('each rival offers one pairing a day, steady within the day, fresh the next', () => {
+    const { state } = createNewGame(210);
+    const today = rivalEggsForSale(state);
+    expect(today).toHaveLength(3);
+    const again = rivalEggsForSale(state);
+    expect(today.map((s) => `${s.dam.name}x${s.sire.name}:${s.price}`)).toEqual(again.map((s) => `${s.dam.name}x${s.sire.name}:${s.price}`));
+    for (const s of today) {
+      expect(s.dam.sex).toBe('F');
+      expect(s.sire.sex).toBe('M');
+      expect(s.soldToday).toBe(false);
+    }
+    state.clock.totalTicks += TICKS_PER_DAY;
+    const tomorrow = rivalEggsForSale(state);
+    // The dam stays their best bird; at least the price/sire mix can move.
+    expect(tomorrow).toHaveLength(3);
+  });
+
+  it('buying pays, lays a gen-0 egg in the nest with the pair on its tree, once a day', () => {
+    const { state, rng } = createNewGame(211);
+    state.money = 10_000;
+    const sale = rivalEggsForSale(state)[0];
+    const before = state.ducks.length;
+    expect(buyRivalEgg(state, rng, sale.rivalId).ok).toBe(true);
+    expect(state.money).toBe(10_000 - sale.price);
+    const egg = state.ducks[state.ducks.length - 1];
+    expect(state.ducks.length).toBe(before + 1);
+    expect(egg.stage).toBe('egg');
+    expect(egg.lineage?.gen).toBe(0);
+    expect(egg.lineage?.dam?.name).toBe(sale.dam.name);
+    expect(egg.lineage?.sire?.name).toBe(sale.sire.name);
+    expect(egg.parentRarity).toBeGreaterThanOrEqual(0);
+    // Every allele in the shell came from the pair (bar the 2% mutation).
+    let fromParents = 0;
+    let total = 0;
+    for (const key of Object.keys(egg.genome) as Array<keyof typeof egg.genome>) {
+      for (const a of egg.genome[key]) {
+        total += 1;
+        if (sale.dam.genome[key].includes(a) || sale.sire.genome[key].includes(a)) fromParents += 1;
+      }
+    }
+    expect(fromParents / total).toBeGreaterThan(0.9);
+    // One a day per rival.
+    const second = buyRivalEgg(state, rng, sale.rivalId);
+    expect(second.ok).toBe(false);
+    expect(second.reason).toMatch(/no more eggs/);
+  });
+
+  it('respects the nest and the purse', () => {
+    const { state, rng } = createNewGame(212);
+    state.money = 1;
+    const sale = rivalEggsForSale(state)[0];
+    expect(buyRivalEgg(state, rng, sale.rivalId).reason).toMatch(/coins/);
+    state.money = 10_000;
+    // Fill the nest.
+    const dam = state.ducks.find((d) => d.sex === 'F')!;
+    const sire = state.ducks.find((d) => d.sex === 'M')!;
+    for (let i = 0; i < nestCapacity(state); i += 1) state.ducks.push(layEgg(rng, dam, sire, { x: 0, y: 0 }));
+    expect(buyRivalEgg(state, rng, sale.rivalId).reason).toMatch(/nest is full/);
   });
 });

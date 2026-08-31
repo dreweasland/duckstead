@@ -124,7 +124,9 @@ npm run dev        # open http://localhost:5173
   their programme — priced on the parents, never the egg's hidden genes; a
   sold egg may hatch on their pond and sharpen next year's field — and the
   Board sometimes posts **egg commissions** ("an egg from two Spotted
-  Mallard parents"), judged on the family tree. Deliver from the duck's card for several times market price
+  Mallard parents"), judged on the family tree. The trade runs both ways:
+  each rival also **sells one egg a day** from a pairing of their own birds
+  — parents on show, shell a surprise, a gen-0 line for your pond. Deliver from the duck's card for several times market price
   plus Society points. If nobody on the pond fits, the card names the pair
   most likely to hatch one and the chance per egg. Open commissions also
   show under Goals.

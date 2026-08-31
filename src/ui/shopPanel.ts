@@ -35,7 +35,9 @@ import { advanceRank, canAdvance, hasPerk, nextRank, RANKS, rewardLabel, STYLES,
 import { createDuck } from '../sim/duck';
 import { randomCommonGenome, type Genome } from '../sim/genetics';
 import { FESTIVAL_NAMES, festivalTier, festivalToday, upcomingFestival } from '../sim/festivals';
-import { hireStud, rivalDef, rivalDuck, rivalStrength, studOffers } from '../sim/rivals';
+import { buyRivalEgg, hireStud, rivalDef, rivalDuck, rivalEggsForSale, rivalStrength, studOffers } from '../sim/rivals';
+import { eggsIncubating } from '../sim/breeding';
+import { nestCapacity } from '../sim/economy';
 import { canEnterCup, cupOpen, cupPrize, cupStandings, enterCup } from '../sim/cup';
 import { TUNING } from '../sim/tuning';
 import { canBreedPair } from '../sim/needs';
@@ -396,7 +398,66 @@ function boardTab(ctx: PanelCtx): HTMLElement {
     );
   }
   box.append(grid);
+  box.append(eggSaleSection(ctx));
   box.append(studSection(ctx));
+  return box;
+}
+
+// The rivals' egg baskets: one egg a day per rival, from a pairing of their
+// own birds — the parents on show, the shell a surprise, the line gen 0.
+function eggSaleSection(ctx: PanelCtx): HTMLElement {
+  const state = ctx.game.state;
+  const box = el('div', {}, el('div', { class: 'br-section-title' }, 'Hatching eggs for sale'));
+  const nestFull = eggsIncubating(state) + state.pendingClutches.length >= nestCapacity(state);
+  box.append(
+    el(
+      'div',
+      { class: 'muted small shop-tab-hint' },
+      `The rival ponds will each part with one egg a day from their own pairings. The parents are on show — the shell is the same gamble their buyers take from you. A bought egg starts a gen-0 line.${nestFull ? ' Your nest is full.' : ''}`,
+    ),
+  );
+  const grid = el('div', { class: 'shop-grid stud-grid' });
+  for (const sale of rivalEggsForSale(state)) {
+    const rival = state.rivals.find((r) => r.id === sale.rivalId)!;
+    grid.append(
+      el(
+        'div',
+        { class: 'stud-card' },
+        el(
+          'div',
+          { class: 'stud-head' },
+          duckPortrait(sale.dam, 44),
+          duckPortrait(sale.sire, 44),
+          el('div', {}, el('strong', {}, `${sale.dam.name} × ${sale.sire.name}`), el('div', { class: 'muted small' }, `${sale.rivalName} · ${rivalDef(rival.id).blurb}`)),
+        ),
+        el(
+          'div',
+          { class: 'egg-sale-parents' },
+          el('div', {}, el('div', { class: 'muted small egg-sale-label' }, `${sale.dam.name} (dam)`), buildGeneStrip(state, sale.dam)),
+          el('div', {}, el('div', { class: 'muted small egg-sale-label' }, `${sale.sire.name} (sire)`), buildGeneStrip(state, sale.sire)),
+        ),
+        sale.soldToday
+          ? el('button', { class: 'action-btn shop-buy owned', disabled: true }, 'Sold for today')
+          : el(
+              'button',
+              {
+                class: 'action-btn primary shop-buy',
+                disabled: nestFull || state.money < sale.price,
+                title: nestFull ? 'The nest is full' : state.money < sale.price ? `Need ${sale.price} coins` : `One egg from this pairing, laid straight into your nest`,
+                onclick: () => {
+                  const res = buyRivalEgg(state, ctx.game.rng, sale.rivalId);
+                  if (!res.ok && res.reason) ctx.ui.toast(res.reason);
+                  ctx.ui.refreshPanel();
+                },
+              },
+              'Buy the egg for ',
+              icon('coin', 11),
+              ` ${sale.price}`,
+            ),
+      ),
+    );
+  }
+  box.append(grid);
   return box;
 }
 
