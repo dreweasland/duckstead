@@ -73,6 +73,21 @@ describe('the rivals\' hatching-egg market', () => {
   });
 });
 
+describe('no buying your own line back', () => {
+  it('the seller never bids on an egg from its own birds; other rivals may', () => {
+    const { state, rng } = createNewGame(220);
+    state.money = 10_000;
+    const sale = rivalEggsForSale(state).find((s) => s.rivalId === 'reedy')!;
+    expect(buyRivalEgg(state, rng, 'reedy').ok).toBe(true);
+    const egg = state.ducks[state.ducks.length - 1];
+    const offer = rivalEggOffer(state, egg);
+    // The Reedy Sisters' rare-gene pairs score sky-high on their own scale —
+    // without the own-line rule they would always rebuy. Never the seller.
+    if (offer) expect(offer.rivalId).not.toBe('reedy');
+    void sale;
+  });
+});
+
 describe('egg commissions', () => {
   it('asks for an egg from two same-breed parents and pays on the family tree', () => {
     const { state, rng, dam, sire } = showPair(203);

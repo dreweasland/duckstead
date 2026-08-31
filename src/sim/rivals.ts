@@ -250,6 +250,11 @@ export function rivalEggOffer(state: GameState, egg: Duck): EggOffer | null {
   let best: EggOffer | null = null;
   for (const rival of state.rivals) {
     if (rival.lastEggDay === day) continue; // one egg per rival per day
+    // Nobody buys their own line back: an egg with one of this rival's
+    // birds among the parents (bought egg, or their stud's clutch) is
+    // theirs already. The other ponds may still bid on it.
+    const own = `rival:${rival.id}:`;
+    if (l.sire.id.startsWith(own) || l.dam.id.startsWith(own)) continue;
     const score = (fitness(rival.specialty, l.sire.genome) + fitness(rival.specialty, l.dam.genome)) / 2;
     if (score < EGG_OFFER_THRESHOLD) continue;
     const strength = rivalStrength(state, rival);
