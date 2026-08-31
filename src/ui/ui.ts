@@ -643,17 +643,24 @@ export class UI {
 
   refreshPanel(): void {
     if (this.pointerDownInPanel) return;
+    // Don't rebuild while the user is mid-entry in a panel field — a rebuild
+    // would replace the control and steal focus mid-keystroke (or mid-drag,
+    // for a slider). A focused checkbox doesn't count: its click *is* the
+    // change, and holding the rebuild would hide what it just toggled.
+    const midEntry = (node: Element | null): boolean => {
+      if (!node) return false;
+      if (node instanceof HTMLTextAreaElement || node instanceof HTMLSelectElement) return true;
+      return node instanceof HTMLInputElement && node.type !== 'checkbox' && node.type !== 'radio' && node.type !== 'button';
+    };
     const active0 = document.activeElement;
-    const typingInPin = active0 && this.pinned.some((p) => p.host.contains(active0)) && (active0 instanceof HTMLInputElement || active0 instanceof HTMLSelectElement);
+    const typingInPin = active0 && this.pinned.some((p) => p.host.contains(active0)) && midEntry(active0);
     if (!typingInPin) this.refreshPinned();
     if (!this.duckCardOpen && !this.openModalKind) return;
-    // Don't rebuild while the user is typing in a panel field — a rebuild
-    // would replace the input and steal focus mid-keystroke.
     const active = document.activeElement;
     if (
       active &&
       (this.panelHost.contains(active) || this.floatHost.contains(active) || this.modalHost.contains(active)) &&
-      (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement)
+      midEntry(active)
     ) {
       return;
     }
