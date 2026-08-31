@@ -598,6 +598,19 @@ function buildSellSection(ctx: PanelCtx, duck: import('../sim/duck').Duck): HTML
       sellSection.append(el('div', { class: 'muted small' }, `${offer.rivalName} wants this pairing (${offer.score}/100) — one egg a day per buyer, and the bloodline may hatch on their pond.`));
     }
   }
+  // The sell-button conscience, part one: a bond about to be broken.
+  if (duck.stage !== 'egg' && duck.friendId) {
+    const friend = game.state.ducks.find((d) => d.id === duck.friendId);
+    if (friend) {
+      sellSection.append(
+        el(
+          'div',
+          { class: 'muted small elder-note bond-note' },
+          `${duck.name} and ${friend.name} are inseparable — selling breaks ${friend.name}'s heart (−8 happiness, and the bond).`,
+        ),
+      );
+    }
+  }
   // The sell-button conscience: an elder is close to an honoured passing —
   // say plainly what selling would forfeit before the coins change hands.
   if (duck.stage === 'elder') {

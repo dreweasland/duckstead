@@ -149,6 +149,7 @@ export function buildGeneTable(ctx: PanelCtx, ducks: Duck[]): HTMLElement {
     });
     row.append(el('td', { class: 'pick-col' }, pick));
     const temper = personalityLabels(duck)[0] ?? '';
+    const friend = duck.friendId ? state.ducks.find((d) => d.id === duck.friendId) : undefined;
     row.append(
       el(
         'td',
@@ -158,7 +159,7 @@ export function buildGeneTable(ctx: PanelCtx, ducks: Duck[]): HTMLElement {
           'div',
           {},
           el('div', { class: 'gt-name' }, duck.stage === 'egg' ? icon('egg', 11) : sexBadge(duck.sex), ` ${duck.stage === 'egg' ? 'Egg' : duck.name}`),
-          el('div', { class: 'muted small' }, `${duck.stage}${generationOf(duck) > 0 ? ` · gen ${generationOf(duck)}` : ''}${duck.stage !== 'egg' && temper ? ` · ${temper}` : ''}`),
+          el('div', { class: 'muted small' }, `${duck.stage}${generationOf(duck) > 0 ? ` · gen ${generationOf(duck)}` : ''}${duck.stage !== 'egg' && temper ? ` · ${temper}` : ''}${friend ? ` · ♥ ${friend.name}` : ''}`),
         ),
       ),
       el('td', { class: 'gt-breed small' }, duck.stage === 'egg' && !scope ? '?' : breedLabel(breedKey(duck.genome))),

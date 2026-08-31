@@ -30,6 +30,8 @@ export const TUNING = {
     contagionChance: 0.01, // per sick pond-mate per hour
     nightScale: 0.3, // needs drift at 30% overnight
     winterHungerScale: 1.5,
+    // Best friends: a bonded (mutual) pair courts a little better.
+    bondedViabilityBonus: 0.05,
   },
   laying: {
     start: 7, // hour

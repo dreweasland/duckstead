@@ -342,10 +342,18 @@ export function eggViability(a: Duck, b: Duck, springBonus: boolean, pressure = 
   const happy = (a.needs.happiness + b.needs.happiness) / 2 / 100;
   const health = (a.needs.health + b.needs.health) / 2 / 100;
   return clamp(
-    happy * health + (springBonus ? BALANCE.springViabilityBonus : 0) - pressure * PRESSURE_VIABILITY_PENALTY,
+    happy * health
+      + (springBonus ? BALANCE.springViabilityBonus : 0)
+      + (bondedPair(a, b) ? TUNING.needs.bondedViabilityBonus : 0)
+      - pressure * PRESSURE_VIABILITY_PENALTY,
     0,
     1,
   );
+}
+
+// Best friends, mutually: the bond that fires the "inseparable" toast.
+export function bondedPair(a: Duck, b: Duck): boolean {
+  return a.friendId === b.id && b.friendId === a.id;
 }
 
 function getDuck(state: GameState, id: string): Duck | undefined {

@@ -11,6 +11,8 @@ import { createDuck } from '../sim/duck';
 import type { Allele, Genome, LocusId } from '../sim/genetics';
 import { computePhenotype, expressedAlleles, LOCI } from '../sim/genetics';
 import { eggsIncubating, nestPair, pairViability, clutchFather } from '../sim/breeding';
+import { bondedPair } from '../sim/needs';
+import { TUNING } from '../sim/tuning';
 import { TICKS_PER_MINUTE } from '../sim/time';
 import { breedReadiness, canBreedPair, eggSpeedFor, eggWarmth, tuckEgg } from '../sim/needs';
 import { breedingValue, keepVerdict } from '../sim/advisor';
@@ -275,6 +277,9 @@ function pairVerdict(ctx: PanelCtx, a: Duck, b: Duck): HTMLElement {
       { class: 'muted small' },
       'Happiness × health, rolled when the egg is laid — feed and pet the pair during the hour of courtship to raise it.',
     ),
+    bondedPair(a, b)
+      ? el('div', { class: 'br-blocker soft bonded' }, icon('heart', 12), `Inseparable — a bonded pair courts better (+${Math.round(TUNING.needs.bondedViabilityBonus * 100)}% viability).`)
+      : null,
     blocker ? el('div', { class: 'br-blocker' }, icon('warning', 12), blocker) : null,
     !blocker && crowded
       ? el('div', { class: 'br-blocker soft' }, icon('warning', 12), 'The pond is at capacity — the clutch will overcrowd it until you sell.')

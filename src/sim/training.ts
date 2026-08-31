@@ -4,7 +4,7 @@
 // kept, not just bred — and the Training Perch buys extra drills a day.
 import type { GameState } from '../state';
 import type { Duck } from './duck';
-import { clamp } from '../types';
+import { clamp, dist } from '../types';
 import { BALANCE, upgradeLevel } from './economy';
 import { dayOf, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 import { events } from '../events';
@@ -30,6 +30,9 @@ export const TRAINING = {
   gainMin: 4, // a fumbled drill
   gainMax: 14, // a perfect one
   minHunger: 30,
+  friendBonus: 1, // extra point when the duck's best friend watches the drill
+  friendRange: 110,
+  friendCheer: 3, // the watching friend enjoys the show
   // How far a full stat moves things.
   paddleSpeed: 0.15, // +15% race speed at 100 paddle
   staminaSpeed: 0.05, // +5% race speed at 100 stamina
@@ -93,7 +96,14 @@ export function train(state: GameState, duckId: string, stat: TrainStat, quality
   // Diminishing returns near the top: the last 20 points take real work.
   const headroom = 1 - (t[stat] / TRAINING.max) * 0.5;
   const raw = (TRAINING.gainMin + (TRAINING.gainMax - TRAINING.gainMin) * q) * trainingAptitude(duck, stat) * headroom;
-  const gain = Math.max(1, Math.round(raw));
+  let gain = Math.max(1, Math.round(raw));
+  // A training partner: the duck's best friend watching from close by is
+  // worth a point — and the friend enjoys the show.
+  const friend = duck.friendId ? state.ducks.find((d) => d.id === duck.friendId) : undefined;
+  if (friend && friend.stage !== 'egg' && !friend.penned && dist(duck.pos, friend.pos) <= TRAINING.friendRange) {
+    gain += TRAINING.friendBonus;
+    friend.needs.happiness = clamp(friend.needs.happiness + TRAINING.friendCheer, 0, 100);
+  }
   t[stat] = clamp(t[stat] + gain, 0, TRAINING.max);
   duck.needs.hunger = clamp(duck.needs.hunger - TRAINING.hungerCost, 0, 100);
   duck.needs.happiness = clamp(duck.needs.happiness + TRAINING.happiness, 0, 100);
