@@ -251,7 +251,7 @@ export function rivalEggOffer(state: GameState, egg: Duck): EggOffer | null {
     if (score < EGG_OFFER_THRESHOLD) continue;
     const strength = rivalStrength(state, rival);
     const price = Math.round(projectedValue(egg) * (EGG_OFFER_SHARE + (score / 100) * 0.35) * (0.8 + strength * 0.4));
-    if (!best || price > best.price) best = { rivalId: rival.id, rivalName: rival.name, price, score: Math.round(score) };
+    if (!best || price > best.price) best = { rivalId: rival.id, rivalName: rival.name, price, score: Math.min(100, Math.round(score)) };
   }
   return best;
 }
