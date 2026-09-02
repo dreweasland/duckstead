@@ -30,7 +30,7 @@ import { FOODS, type FoodKind } from '../sim/food';
 import type { GameState } from '../state';
 import { duckPortrait } from './portrait';
 import { bestPairFor, commissionGap, commissionSpecimen, commissionsUnlocked, duckFits, type Commission } from '../sim/commissions';
-import { breedLabel, recordBreed as recordBreedEntry } from '../sim/breedBook';
+import { breedKey, breedLabel, recordBreed as recordBreedEntry } from '../sim/breedBook';
 import { advanceRank, canAdvance, hasPerk, nextRank, RANKS, rewardLabel, STYLES, type StyleSlot } from '../sim/society';
 import { createDuck } from '../sim/duck';
 import { randomCommonGenome, type Genome } from '../sim/genetics';
@@ -41,11 +41,9 @@ import { nestCapacity } from '../sim/economy';
 import { canEnterCup, cupOpen, cupPrize, cupStandings, enterCup } from '../sim/cup';
 import { TUNING } from '../sim/tuning';
 import { canBreedPair } from '../sim/needs';
-import { buildGeneStrip } from './geneticsCard';
+import { buildGeneStrip, carriedTraits } from './geneticsCard';
+import type { Duck } from '../sim/duck';
 import { yearOf } from '../sim/time';
-
-// Which hen the stud picker has selected, per rival; survives rebuilds.
-let studHen: Record<string, string> = {};
 
 type Tab = 'supplies' | 'upgrades' | 'decor' | 'sell' | 'board' | 'society';
 const TABS: Array<{ id: Tab; label: string; icon: IconName }> = [
@@ -143,7 +141,11 @@ export function renderShopPanel(ctx: PanelCtx): HTMLElement {
 
 function tabBadge(state: GameState, tab: Tab): string | null {
   if (tab === 'sell' && state.inventory.eggs > 0) return String(state.inventory.eggs);
-  if (tab === 'board' && state.commissions.length > 0) return String(state.commissions.length);
+  if (tab === 'board' && commissionsUnlocked(state)) {
+    // Open commissions plus the rivals' eggs still in the basket today.
+    const n = state.commissions.length + rivalEggsForSale(state).filter((s) => !s.soldToday).length;
+    if (n > 0) return String(n);
+  }
   if (tab === 'society' && canAdvance(state).ok) return '↑';
   if (tab === 'decor' && state.decorations.length > 0) return String(state.decorations.length);
   if (tab === 'upgrades') {
@@ -358,14 +360,58 @@ function hintFor(state: GameState, c: Commission): string {
   return `Nobody fits yet. ${pair.dam.name} × ${pair.sire.name} could hatch one (${Math.round(pair.chance * 100)}% per egg)${extra.length ? `; it must also reach ${extra.join(', ')}` : ''}.`;
 }
 
+// The Board: three markets, one at a time. Commissions are what the tab was
+// named for; the rivals' egg baskets and stud service arrived later and
+// stacked underneath into one long scroll. A row of pills up top picks the
+// market, and every rival card is the same shape — portraits, a line about
+// the breeder, a handful of trait chips, the price button pinned to the
+// bottom — with the full gene readout folded away behind "Read the genes".
+type BoardSection = 'commissions' | 'eggs' | 'stud';
+let boardSection: BoardSection = 'commissions';
+
 function boardTab(ctx: PanelCtx): HTMLElement {
   const state = ctx.game.state;
-  const today = dayOf(state.clock);
   const box = el('div', {});
   if (!commissionsUnlocked(state)) {
     box.append(el('div', { class: 'muted small shop-tab-hint' }, 'Breeders post commissions here once your pond has hatched a few ducklings.'));
     return box;
   }
+  const ready = state.commissions.filter((c) => state.ducks.some((d) => duckFits(d, c))).length;
+  const eggsLeft = rivalEggsForSale(state).filter((s) => !s.soldToday).length;
+  const sections: Array<{ id: BoardSection; label: string; icon: IconName; count: number; hot: boolean }> = [
+    { id: 'commissions', label: 'Commissions', icon: 'flag', count: state.commissions.length, hot: ready > 0 },
+    { id: 'eggs', label: 'Eggs for sale', icon: 'egg', count: eggsLeft, hot: false },
+    { id: 'stud', label: 'Stud service', icon: 'duck', count: studOffers(state).length, hot: false },
+  ];
+  const pills = el('div', { class: 'board-pills' });
+  for (const s of sections) {
+    pills.append(
+      el(
+        'button',
+        {
+          class: `board-pill${boardSection === s.id ? ' active' : ''}`,
+          onclick: () => {
+            boardSection = s.id;
+            ctx.ui.refreshPanel();
+          },
+        },
+        icon(s.icon, 12),
+        s.label,
+        s.count > 0 ? el('span', { class: `shop-tab-badge${s.hot ? ' full' : ''}` }, String(s.count)) : null,
+      ),
+    );
+  }
+  box.append(pills);
+  if (boardSection === 'commissions') box.append(commissionsSection(ctx));
+  else if (boardSection === 'eggs') box.append(eggSaleSection(ctx));
+  else box.append(studSection(ctx));
+  return box;
+}
+
+function commissionsSection(ctx: PanelCtx): HTMLElement {
+  const state = ctx.game.state;
+  const today = dayOf(state.clock);
+  const box = el('div', {});
   box.append(
     el(
       'div',
@@ -398,62 +444,110 @@ function boardTab(ctx: PanelCtx): HTMLElement {
     );
   }
   box.append(grid);
-  box.append(eggSaleSection(ctx));
-  box.append(studSection(ctx));
   return box;
+}
+
+// What stands out about a rival's bird, in a few chips: its breed, anything
+// rare or extreme, and — with the Scope — what it carries unseen.
+function traitChips(state: GameState, duck: Duck): HTMLElement[] {
+  const p = duck.phenotype;
+  const chips: Array<{ text: string; cls?: string }> = [{ text: breedLabel(breedKey(duck.genome)) }];
+  if (p.rarityScore >= 4) chips.push({ text: 'rare', cls: 'chip-rare' });
+  if (p.sizeScale >= 1.15) chips.push({ text: 'grand' });
+  else if (p.sizeScale <= 0.9) chips.push({ text: 'petite' });
+  if (p.vigor >= 0.75) chips.push({ text: 'hardy' });
+  if (p.boldness >= 0.7) chips.push({ text: 'bold' });
+  else if (p.boldness <= 0.3) chips.push({ text: 'timid' });
+  if (upgradeLevel(state, 'pedigreeScope') > 0) {
+    for (const name of carriedTraits(duck)) chips.push({ text: `carries ${name}`, cls: 'chip-carrier' });
+  }
+  return chips.map((c) => el('span', { class: `shop-chip${c.cls ? ` ${c.cls}` : ''}` }, c.text));
+}
+
+// Which cards have their gene readout open; survives rebuilds.
+const openGenes = new Set<string>();
+
+// The shared shape for a rival's offer: head, traits, a folded gene readout,
+// the price pinned to the bottom.
+function marketCard(key: string, head: HTMLElement, traits: HTMLElement, genes: HTMLElement, foot: HTMLElement[], wide = false): HTMLElement {
+  const open = openGenes.has(key);
+  genes.classList.add('market-genes');
+  genes.hidden = !open;
+  const toggle = el('button', { class: 'genes-toggle' }, open ? 'Hide the genes' : 'Read the genes');
+  const card = el('div', { class: `market-card${wide ? ' wide' : ''}${open ? ' open' : ''}` }, head, traits, toggle, genes, el('div', { class: 'shop-card-foot' }, ...foot));
+  toggle.onclick = () => {
+    const now = genes.hidden;
+    genes.hidden = !now;
+    card.classList.toggle('open', now);
+    toggle.textContent = now ? 'Hide the genes' : 'Read the genes';
+    if (now) openGenes.add(key);
+    else openGenes.delete(key);
+  };
+  return card;
+}
+
+function marketHead(portraits: Element[], title: string, rivalId: string, rivalName: string): HTMLElement {
+  return el(
+    'div',
+    { class: 'market-head' },
+    el('span', { class: 'market-portraits' }, ...portraits),
+    el('div', { class: 'market-title' }, el('strong', {}, title), el('div', { class: 'muted small' }, `${rivalName} · ${rivalDef(rivalId).blurb}`)),
+  );
 }
 
 // The rivals' egg baskets: one egg a day per rival, from a pairing of their
 // own birds — the parents on show, the shell a surprise, the line gen 0.
 function eggSaleSection(ctx: PanelCtx): HTMLElement {
   const state = ctx.game.state;
-  const box = el('div', {}, el('div', { class: 'br-section-title' }, 'Hatching eggs for sale'));
+  const box = el('div', {});
   const nestFull = eggsIncubating(state) + state.pendingClutches.length >= nestCapacity(state);
   box.append(
     el(
       'div',
       { class: 'muted small shop-tab-hint' },
-      `The rival ponds will each part with one egg a day from their own pairings. The parents are on show — the shell is the same gamble their buyers take from you. A bought egg starts a gen-0 line.${nestFull ? ' Your nest is full.' : ''}`,
+      `Each rival pond parts with one egg a day from its own pairing. The parents are on show; the shell is the same gamble their buyers take from you. A bought egg starts a gen-0 line.${nestFull ? ' Your nest is full.' : ''}`,
     ),
   );
-  const grid = el('div', { class: 'shop-grid stud-grid' });
+  const grid = el('div', { class: 'shop-grid market-grid' });
   for (const sale of rivalEggsForSale(state)) {
-    const rival = state.rivals.find((r) => r.id === sale.rivalId)!;
+    const traits = el(
+      'div',
+      { class: 'market-traits' },
+      el('div', { class: 'market-row' }, el('span', { class: 'market-row-label' }, 'dam'), ...traitChips(state, sale.dam)),
+      el('div', { class: 'market-row' }, el('span', { class: 'market-row-label' }, 'sire'), ...traitChips(state, sale.sire)),
+    );
+    const genes = el(
+      'div',
+      { class: 'market-parents' },
+      el('div', {}, el('div', { class: 'muted small' }, `${sale.dam.name} (dam)`), buildGeneStrip(state, sale.dam)),
+      el('div', {}, el('div', { class: 'muted small' }, `${sale.sire.name} (sire)`), buildGeneStrip(state, sale.sire)),
+    );
+    const button = sale.soldToday
+      ? el('button', { class: 'action-btn shop-buy owned', disabled: true }, 'Sold for today')
+      : el(
+          'button',
+          {
+            class: 'action-btn primary shop-buy',
+            disabled: nestFull || state.money < sale.price,
+            title: nestFull ? 'The nest is full' : state.money < sale.price ? `Need ${sale.price} coins` : 'One egg from this pairing, laid straight into your nest',
+            onclick: () => {
+              const res = buyRivalEgg(state, ctx.game.rng, sale.rivalId);
+              if (!res.ok && res.reason) ctx.ui.toast(res.reason);
+              ctx.ui.refreshPanel();
+            },
+          },
+          'Buy the egg for ',
+          icon('coin', 11),
+          ` ${sale.price}`,
+        );
     grid.append(
-      el(
-        'div',
-        { class: 'stud-card' },
-        el(
-          'div',
-          { class: 'stud-head' },
-          duckPortrait(sale.dam, 44),
-          duckPortrait(sale.sire, 44),
-          el('div', {}, el('strong', {}, `${sale.dam.name} × ${sale.sire.name}`), el('div', { class: 'muted small' }, `${sale.rivalName} · ${rivalDef(rival.id).blurb}`)),
-        ),
-        el(
-          'div',
-          { class: 'egg-sale-parents' },
-          el('div', {}, el('div', { class: 'muted small egg-sale-label' }, `${sale.dam.name} (dam)`), buildGeneStrip(state, sale.dam)),
-          el('div', {}, el('div', { class: 'muted small egg-sale-label' }, `${sale.sire.name} (sire)`), buildGeneStrip(state, sale.sire)),
-        ),
-        sale.soldToday
-          ? el('button', { class: 'action-btn shop-buy owned', disabled: true }, 'Sold for today')
-          : el(
-              'button',
-              {
-                class: 'action-btn primary shop-buy',
-                disabled: nestFull || state.money < sale.price,
-                title: nestFull ? 'The nest is full' : state.money < sale.price ? `Need ${sale.price} coins` : `One egg from this pairing, laid straight into your nest`,
-                onclick: () => {
-                  const res = buyRivalEgg(state, ctx.game.rng, sale.rivalId);
-                  if (!res.ok && res.reason) ctx.ui.toast(res.reason);
-                  ctx.ui.refreshPanel();
-                },
-              },
-              'Buy the egg for ',
-              icon('coin', 11),
-              ` ${sale.price}`,
-            ),
+      marketCard(
+        `egg:${sale.rivalId}`,
+        marketHead([duckPortrait(sale.dam, 44), duckPortrait(sale.sire, 44)], `${sale.dam.name} × ${sale.sire.name}`, sale.rivalId, sale.rivalName),
+        traits,
+        genes,
+        [button],
+        true,
       ),
     );
   }
@@ -461,52 +555,69 @@ function eggSaleSection(ctx: PanelCtx): HTMLElement {
   return box;
 }
 
+// Which hen the stud service courts; one choice for every offer.
+let studHenId: string | null = null;
+
 // Stud service: hire a rival pond's best drake for one clutch with a hen of
 // yours. His genes are on show (the Scope reads them), the courtship runs
 // like any other, and the egg's lineage remembers him.
 function studSection(ctx: PanelCtx): HTMLElement {
   const state = ctx.game.state;
-  const box = el('div', {}, el('div', { class: 'br-section-title' }, 'Stud service'));
+  const box = el('div', {});
   box.append(el('div', { class: 'muted small shop-tab-hint' }, 'The rival ponds will lend a drake for one clutch — a way in to genes your flock lacks. The hen courts as usual; the egg is yours.'));
   const hens = state.ducks.filter((d) => d.sex === 'F' && d.stage === 'adult' && !d.penned);
-  const grid = el('div', { class: 'shop-grid stud-grid' });
+  const hen = hens.find((h) => h.id === studHenId) ?? hens[0];
+  const picker = el('select', {
+    class: 'stud-hen-pick',
+    onchange: (e) => {
+      studHenId = (e.target as HTMLSelectElement).value;
+      ctx.ui.refreshPanel();
+    },
+  });
+  for (const h of hens) {
+    const opt = el('option', { value: h.id }, h.name) as HTMLOptionElement;
+    if (h.id === hen?.id) opt.selected = true;
+    picker.append(opt);
+  }
+  box.append(
+    el(
+      'label',
+      { class: 'stud-hen-bar' },
+      icon('heart', 12),
+      el('span', {}, 'Hen to court:'),
+      hens.length > 0 ? picker : el('span', { class: 'muted small' }, 'no adult hen is free to court'),
+    ),
+  );
+  const grid = el('div', { class: 'shop-grid market-grid' });
   for (const offer of studOffers(state)) {
     const rival = state.rivals.find((r) => r.id === offer.rivalId)!;
-    const henId = studHen[offer.rivalId] ?? hens[0]?.id;
-    const hen = hens.find((h) => h.id === henId);
     const gate = hen ? canBreedPair(hen, offer.drake) : { ok: false, reason: 'No adult hen free to court' };
-    const picker = el('select', { class: 'stud-hen-pick', onchange: (e) => { studHen = { ...studHen, [offer.rivalId]: (e.target as HTMLSelectElement).value }; ctx.ui.refreshPanel(); } });
-    for (const h of hens) {
-      const opt = el('option', { value: h.id }, h.name) as HTMLOptionElement;
-      if (h.id === henId) opt.selected = true;
-      picker.append(opt);
-    }
-    const body = el(
-      'div',
-      { class: 'stud-card' },
-      el('div', { class: 'stud-head' }, duckPortrait(offer.drake, 56), el('div', {}, el('strong', {}, offer.drake.name), el('div', { class: 'muted small' }, `${rival.name} · ${rivalDef(rival.id).blurb}`))),
-      buildGeneStrip(state, offer.drake),
-      el('label', { class: 'muted small stud-hen-row' }, 'With hen: ', picker),
-      el(
-        'button',
-        {
-          class: 'action-btn primary shop-buy',
-          disabled: !gate.ok || state.money < offer.cost || !hen,
-          title: !hen ? 'No adult hen free to court' : gate.ok ? '' : gate.reason ?? '',
-          onclick: () => {
-            if (!hen) return;
-            const res = hireStud(state, offer.rivalId, hen.id);
-            if (!res.ok && res.reason) ctx.ui.toast(res.reason);
-            ctx.ui.refreshPanel();
-          },
+    const button = el(
+      'button',
+      {
+        class: 'action-btn primary shop-buy',
+        disabled: !gate.ok || state.money < offer.cost || !hen,
+        title: !hen ? 'No adult hen free to court' : gate.ok ? `${hen.name} courts ${offer.drake.name}; the egg is yours` : gate.reason ?? '',
+        onclick: () => {
+          if (!hen) return;
+          const res = hireStud(state, offer.rivalId, hen.id);
+          if (!res.ok && res.reason) ctx.ui.toast(res.reason);
+          ctx.ui.refreshPanel();
         },
-        'Hire for ',
-        icon('coin', 11),
-        ` ${offer.cost}`,
-      ),
-      !gate.ok && hen ? el('div', { class: 'muted small warn-text' }, gate.reason ?? '') : null,
+      },
+      hen ? `Hire for ${hen.name} · ` : 'Hire for ',
+      icon('coin', 11),
+      ` ${offer.cost}`,
     );
-    grid.append(body);
+    grid.append(
+      marketCard(
+        `stud:${offer.rivalId}`,
+        marketHead([duckPortrait(offer.drake, 56)], offer.drake.name, rival.id, rival.name),
+        el('div', { class: 'market-traits' }, el('div', { class: 'market-row' }, ...traitChips(state, offer.drake))),
+        buildGeneStrip(state, offer.drake),
+        [button, !gate.ok && hen ? el('span', { class: 'shop-note warn-text' }, gate.reason ?? '') : el('span')],
+      ),
+    );
   }
   box.append(grid);
   return box;

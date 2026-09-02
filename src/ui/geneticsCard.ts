@@ -133,16 +133,8 @@ function buildScopeReadout(duck: Duck): HTMLElement {
   }
 
   // Hidden recessives worth breeding for.
-  const carried = new Set<string>();
-  for (const { id } of MENDELIAN_LOCI) {
-    const expressed = expressedAlleles(duck.genome, id);
-    for (const allele of duck.genome[id]) {
-      if (expressed.includes(allele)) continue;
-      const name = CARRIER_NAMES[id]?.[allele];
-      if (name) carried.add(name);
-    }
-  }
-  if (carried.size > 0) {
+  const carried = carriedTraits(duck);
+  if (carried.length > 0) {
     const line = el('div', { class: 'carrier-line' }, el('span', { class: 'muted small' }, 'carries '));
     for (const name of carried) {
       line.append(el('span', { class: 'chip chip-carrier' }, name));
@@ -156,6 +148,21 @@ function buildScopeReadout(duck: Duck): HTMLElement {
 // swatches, trait tags, mini gauges, and — with the Scope — allele tiles for
 // the Breed Book loci plus carrier chips. Without the Scope, the hidden side
 // stays hidden; the chooser's "+N new" badge is the honest hint instead.
+// Traits a duck carries without showing: the recessive alleles its dominant
+// partners mask, named for what they'd give a clutch.
+export function carriedTraits(duck: Duck): string[] {
+  const carried = new Set<string>();
+  for (const { id } of MENDELIAN_LOCI) {
+    const expressed = expressedAlleles(duck.genome, id);
+    for (const allele of duck.genome[id]) {
+      if (expressed.includes(allele)) continue;
+      const name = CARRIER_NAMES[id]?.[allele];
+      if (name) carried.add(name);
+    }
+  }
+  return [...carried];
+}
+
 export function buildGeneStrip(state: GameState, duck: Duck): HTMLElement {
   const p = duck.phenotype;
   const strip = el('div', { class: 'gene-strip' });
@@ -187,16 +194,8 @@ export function buildGeneStrip(state: GameState, duck: Duck): HTMLElement {
       grid.append(row);
     }
     strip.append(grid);
-    const carried = new Set<string>();
-    for (const { id } of MENDELIAN_LOCI) {
-      const expressed = expressedAlleles(duck.genome, id);
-      for (const allele of duck.genome[id]) {
-        if (expressed.includes(allele)) continue;
-        const name = CARRIER_NAMES[id]?.[allele];
-        if (name) carried.add(name);
-      }
-    }
-    if (carried.size > 0) {
+    const carried = carriedTraits(duck);
+    if (carried.length > 0) {
       const line = el('div', { class: 'carrier-line' }, el('span', { class: 'muted small' }, 'carries '));
       for (const name of carried) line.append(el('span', { class: 'chip chip-carrier' }, name));
       strip.append(line);

@@ -4249,12 +4249,10 @@ body.feeding #pond-canvas {
 }
 
 /* --- Rivals, stud service, the Cup, more drills --- */
-.stud-grid,
 .rivals-grid {
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 
-.stud-card,
 .rival-card {
   display: flex;
   flex-direction: column;
@@ -4265,16 +4263,149 @@ body.feeding #pond-canvas {
   border: 1px solid #34434f;
 }
 
-.stud-head {
+/* The Board: a row of pills picks one market at a time. */
+.board-pills {
+  display: flex;
+  gap: 4px;
+  margin: -2px 0 10px;
+}
+
+.board-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #1a2430;
+  border: 1px solid #2a3642;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.board-pill:hover {
+  color: var(--ink);
+}
+
+.board-pill.active {
+  background: #26313d;
+  border-color: #3a4a5c;
+  color: var(--ink);
+}
+
+/* A rival's offer — an egg or a stud — in one shape: head, trait chips, the
+   gene readout folded away, the price pinned to the bottom. */
+.market-grid {
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-auto-rows: auto;
+  align-items: start;
+}
+
+/* An egg card with its parents' genes open takes the whole row, so the two
+   readouts sit side by side at full size. */
+.market-card.open.wide {
+  grid-column: 1 / -1;
+}
+
+.market-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  background: #1f2a33;
+  border: 1px solid #34434f;
+  min-width: 0;
+}
+
+.market-head {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.stud-hen-row {
+.market-portraits {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.market-portraits > * + * {
+  margin-left: -10px;
+}
+
+.market-title {
+  min-width: 0;
+}
+
+.market-title .small {
+  line-height: 1.3;
+}
+
+.market-traits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.market-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.market-row-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  width: 28px;
+}
+
+.genes-toggle {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--lilac);
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+
+.market-genes {
+  padding-top: 2px;
+}
+
+.market-genes[hidden] {
+  display: none;
+}
+
+.market-parents {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.market-card .shop-card-foot {
+  margin-top: 4px;
+}
+
+.market-card .shop-buy.owned {
+  opacity: 0.6;
+}
+
+/* One hen for every stud offer. */
+.stud-hen-bar {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin: -4px 0 10px;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .stud-hen-pick {
@@ -4773,16 +4904,6 @@ body.text-large .toast {
 }
 
 /* Rival egg sales: two parents' gene strips side by side. */
-.egg-sale-parents {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.egg-sale-label {
-  margin-bottom: 2px;
-}
-
 /* Companion: peek/play mode bar, attention dot, "right now" cards */
 .comp-modebar {
   display: flex;
