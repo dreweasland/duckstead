@@ -4782,3 +4782,93 @@ body.text-large .toast {
 .egg-sale-label {
   margin-bottom: 2px;
 }
+
+/* Companion: peek/play mode bar, attention dot, "right now" cards */
+.comp-modebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  background: rgba(16, 22, 30, 0.9);
+  border-bottom: 1px solid var(--line);
+}
+
+.comp-modebar.live {
+  color: var(--ink);
+  background: rgba(74, 122, 78, 0.22);
+}
+
+.comp-modebar.warn {
+  color: var(--amber);
+}
+
+.comp-modebar-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comp-btn.small {
+  min-height: 32px;
+  padding: 5px 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.comp-nav-btn {
+  position: relative;
+}
+
+.comp-nav-dot {
+  position: absolute;
+  top: 8px;
+  right: calc(50% - 26px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 2px rgba(16, 22, 30, 0.97);
+}
+
+.comp-card-wide {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #1a222c;
+  border: 1px solid #b08a3f;
+  border-radius: 12px;
+}
+
+.comp-now-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.comp-choices .comp-btn {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
+
+.comp-line-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.comp-line.urgent {
+  border-left: 3px solid var(--amber);
+}

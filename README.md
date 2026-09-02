@@ -257,19 +257,30 @@ cloud sync → Link a device**: the desktop mints a one-time pairing code
 (8 characters, 10-minute expiry) and starts pushing its save to the cloud.
 On a phone (or any other browser), open **`/companion`** and enter the code.
 
-- `/companion` is the **pocket pond**: the full simulation running behind a
-  touch UI — feed, pet, clean, treats, medicine, quick drills, tuck and hatch
+- `/companion` is the **pocket pond**: the full simulation behind a touch
+  UI — feed, pet, clean, treats, medicine, quick drills, tuck and hatch
   eggs, **nest a pair**, fill the trough, skim the pond, gather pickups, sell
   the egg basket, restock supplies, **buy upgrades**, browse the **Breed Book
-  and Chronicle**, and read the dawn report, goals, and commissions. Time passes
-  while it's open, exactly as on the desktop. It installs to the home screen
-  as a PWA.
-- Only one device plays at a time (the same rule as two desktop tabs): the
-  last device to open the pond owns the save, and the other shows a takeover
-  screen with a "Play here instead" button. Writes are guarded server-side
-  by a compare-and-swap counter, so a stale device can never overwrite fresh
-  play. If both sides somehow end up with unsynced progress, the game asks
-  which copy to keep — and the cloud retains the replaced copy in an undo
+  and Chronicle**, read the dawn report, goals, and commissions, and settle
+  the day's **life event**, treat a **wild visitor**, or see that a festival
+  needs the desktop before it packs up. It installs to the home screen as a
+  PWA.
+- The companion is a visitor, not a second player. Opened, it **peeks**: it
+  shows the cloud's latest copy (the desktop pushes every autosave) and
+  touches nothing, so the desktop keeps running. Tap **Take the reins** (or
+  any care button) and the phone claims the pond and runs the simulation —
+  the desktop pauses behind a notice. Put the phone down (switch apps, lock
+  it, close the tab) and it pushes its play and **hands the pond back**;
+  the desktop notices within about 15 seconds and picks up on its own,
+  carrying on from what the phone did. Time passes only while a device is
+  actually playing.
+- Two desktop tabs still follow the old rule: the last one opened owns the
+  save and the other shows a takeover screen. Across devices the same guard
+  applies — writes are checked server-side by a compare-and-swap counter, so
+  a stale device can never overwrite fresh play — and the desktop notice
+  keeps a "Take it back now" button for when the phone was lost down the
+  sofa. If both sides somehow end up with unsynced progress, the game asks
+  which copy to keep, and the cloud retains the replaced copy in an undo
   slot.
 - Anyone holding a pairing code (or the linked device) can play your pond —
   share codes like house keys. Unlinking a device never deletes the cloud

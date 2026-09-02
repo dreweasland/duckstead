@@ -57,12 +57,15 @@ export function upcomingFestival(clock: GameClock): { kind: FestivalKind; inDays
   return { kind: BY_SEASON[next], inDays: 6 - today + FESTIVAL_DAY };
 }
 
+// Evening: a festival that was never finished packs up at this hour.
+export const FESTIVAL_PACKUP_HOUR = 20;
+
 export function tickFestivals(state: GameState): void {
   const tickOfDay = state.clock.totalTicks % TICKS_PER_DAY;
   // Evening: a festival that was never finished packs up. This is what spends
   // a sponsorship (and closes a market left with buyers waiting), so a paid
   // tier can't hang around forever.
-  if (tickOfDay === 20 * TICKS_PER_HOUR) {
+  if (tickOfDay === FESTIVAL_PACKUP_HOUR * TICKS_PER_HOUR) {
     const today = festivalToday(state.clock);
     if (today && !festivalEnteredToday(state, today)) {
       if (today === 'marketDay' && state.market?.day === dayOf(state.clock)) {

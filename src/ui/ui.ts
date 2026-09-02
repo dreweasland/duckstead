@@ -178,6 +178,14 @@ export class UI {
       if (this.duckCardOpen) this.refreshPanel();
     });
     events.on('takeover', (payload) => this.showTakeoverOverlay(Boolean((payload as { remote?: boolean } | undefined)?.remote)));
+    // The companion put the pond down: the state was reloaded from the cloud
+    // and play may carry on where the phone left it.
+    events.on('resumed', () => {
+      this.root.querySelector('.takeover-overlay')?.remove();
+      this.closePanel();
+      this.setSpeed(1);
+      this.toast('The pond is back — carrying on from where the other device left it.');
+    });
     events.on('life-event', () => this.openLifeEvent());
 
     // Never rebuild the panel mid-press: a rebuild between pointerdown and
@@ -1048,12 +1056,12 @@ export class UI {
           'div',
           { class: 'takeover-card' },
           icon('duck', 34),
-          el('strong', {}, remote ? 'Pond opened on another device' : 'Pond opened in another tab'),
+          el('strong', {}, remote ? 'The pond is on another device' : 'Pond opened in another tab'),
           el(
             'div',
             { class: 'muted' },
             remote
-              ? 'This device has stopped playing and saving so the two copies cannot overwrite each other.'
+              ? 'This device has paused so the two copies cannot overwrite each other. When the other device puts the pond down, play picks up here on its own.'
               : 'This tab has stopped playing and saving so the two tabs cannot overwrite each other.',
           ),
           el(
@@ -1065,7 +1073,7 @@ export class UI {
                 else location.reload();
               },
             },
-            remote ? 'Play here instead' : 'Play in this tab instead',
+            remote ? 'Take it back now' : 'Play in this tab instead',
           ),
         ),
       ),

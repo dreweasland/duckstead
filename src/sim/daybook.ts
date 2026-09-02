@@ -51,7 +51,13 @@ function plural(n: number, word: string, suffix = 's'): string {
   return `${n} ${word}${n === 1 ? '' : suffix}`;
 }
 
-export function dawnReport(state: GameState): DawnReport {
+// Where the report is read: a few details point at desktop-only controls
+// (the festival chip, a duck card's deliver button) and read differently on
+// the companion, which has neither.
+export type DawnAudience = 'desktop' | 'companion';
+
+export function dawnReport(state: GameState, audience: DawnAudience = 'desktop'): DawnReport {
+  const pocket = audience === 'companion';
   const season = seasonOf(state.clock);
   const seasonName = season.charAt(0).toUpperCase() + season.slice(1);
   const active = flock(state);
@@ -86,7 +92,11 @@ export function dawnReport(state: GameState): DawnReport {
   }
 
   if (today) {
-    opportunities.push({ icon: 'flag', text: `It's the ${FESTIVAL_NAMES[today]}!`, detail: 'Open the festival chip in the top bar to take part.' });
+    opportunities.push({
+      icon: 'flag',
+      text: `It's the ${FESTIVAL_NAMES[today]}!`,
+      detail: pocket ? 'Festivals are played at the desktop.' : 'Open the festival chip in the top bar to take part.',
+    });
   }
   if (state.request) {
     const want = describeRequest(state.request);
@@ -98,7 +108,7 @@ export function dawnReport(state: GameState): DawnReport {
       duck: match,
       text: `A buyer wants ${want.endsWith('duck') ? want : `a ${want} duck`} — ${state.request.multiplier.toFixed(1)}× price.`,
       detail: match
-        ? `${match.name} fits the bill — ${requestPrice(state, match)} coins if you sell.`
+        ? `${match.name} fits the bill — ${requestPrice(state, match)} coins if you sell${pocket ? ' from the desktop' : ''}.`
         : 'Nobody on the pond matches yet; breed toward it or let it pass.',
     });
   }
@@ -110,7 +120,7 @@ export function dawnReport(state: GameState): DawnReport {
       duck: fits[0],
       text: `${c.client} wants ${describeCommission(c)} — ${c.reward} coins.`,
       detail: fits.length > 0
-        ? `${fits[0].name} fits — deliver from the card. ${left} day${left === 1 ? '' : 's'} left.`
+        ? `${fits[0].name} fits — ${pocket ? 'deliver from the desktop' : 'deliver from the card'}. ${left} day${left === 1 ? '' : 's'} left.`
         : (() => {
             const pair = bestPairFor(state, c.key);
             return pair

@@ -182,7 +182,7 @@ function linkDeviceSection(ctx: PanelCtx): HTMLElement {
       el(
         'div',
         { class: 'muted small' },
-        'Link a phone (or another computer) to carry the pond with you. The companion at /companion handles feeding, petting, egg care and the basket — anyone with the code can play your pond, so share it like a house key.',
+        'Link a phone (or another computer) to check on the pond from anywhere. The companion at /companion watches the pond while you play here, and can take the reins for feeding, petting, egg care and the day\'s decisions — then hands it back when you put the phone down. Anyone with the code can play your pond, so share it like a house key.',
       ),
       el(
         'button',

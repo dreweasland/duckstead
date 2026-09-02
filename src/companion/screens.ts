@@ -1,5 +1,7 @@
-// The companion's three tabs plus the duck care sheet. Every button calls an
-// existing pure sim function — this file is UI only.
+// The companion's tabs plus the duck care sheet. Every button calls an
+// existing pure sim function — this file is UI only. Anything that changes
+// the pond goes through `ctx.act`, which the shell uses to gate actions on
+// holding the pond (peeking prompts for the reins) and to redraw at once.
 import { clamp } from '../types';
 import type { Game } from '../game';
 import { el } from '../ui/dom';
@@ -33,10 +35,20 @@ import { ALL_BREED_KEYS } from '../sim/breedBook';
 import { representativeGenome } from '../sim/breedBook';
 import { createDuck } from '../sim/duck';
 import { createRng } from '../rng';
-import { TICKS_PER_MINUTE } from '../sim/time';
+import { hourOf, TICKS_PER_MINUTE } from '../sim/time';
 import { canDrill, drillsLeft, train, TRAIN_STATS, trainingOf } from '../sim/training';
 import { MARKS } from '../sim/marks';
 import { personalityLabels } from '../sim/behavior';
+import { describeLifeEvent, lifeEventChoices, resolveLifeEvent } from '../sim/lifeEvents';
+import { treatVisitor, TREATS_TO_RECRUIT, visitorInFlight } from '../sim/visitors';
+import { festivalEnteredToday, festivalToday, FESTIVAL_NAMES, FESTIVAL_PACKUP_HOUR } from '../sim/festivals';
+
+export interface Ctx {
+  game: Game;
+  // Wrap a pond-changing handler: runs it when this device holds the pond,
+  // otherwise offers the reins. Either way the screen redraws right after.
+  act: (fn: () => unknown) => () => void;
+}
 
 const bar = (value: number, cls = ''): HTMLElement =>
   el(
@@ -47,6 +59,9 @@ const bar = (value: number, cls = ''): HTMLElement =>
 
 const needRow = (label: string, value: number): HTMLElement =>
   el('div', { class: 'comp-need' }, el('span', { class: 'comp-need-label' }, label), bar(value, value < 35 ? 'low' : ''));
+
+// "in 12m" for a cooldown measured in ticks.
+const inMinutes = (ticks: number): string => `${Math.max(1, Math.ceil(ticks / TICKS_PER_MINUTE))}m`;
 
 // What (if anything) this duck needs right now, as hand-drawn icon badges.
 function careBadges(duck: Duck): HTMLElement[] {
@@ -65,9 +80,22 @@ function careBadges(duck: Duck): HTMLElement[] {
   return badges;
 }
 
+// Is there something on the pond that wants a decision right now? Drives
+// the dot on the Day tab.
+export function attentionCount(game: Game): number {
+  const s = game.state;
+  let n = 0;
+  if (s.lifeEvent) n += 1;
+  if (s.visitor && !visitorInFlight(s.visitor)) n += 1;
+  const fest = festivalToday(s.clock);
+  if (fest && !festivalEnteredToday(s, fest) && hourOf(s.clock) < FESTIVAL_PACKUP_HOUR) n += 1;
+  return n;
+}
+
 // ---- Flock ----------------------------------------------------------------
 
-export function flockScreen(game: Game, openDuck: (id: string) => void): HTMLElement {
+export function flockScreen(ctx: Ctx, openDuck: (id: string) => void): HTMLElement {
+  const game = ctx.game;
   const grid = el('div', { class: 'comp-grid' });
   const ducks = [...game.state.ducks].sort((a, b) => (a.stage === 'egg' ? 1 : 0) - (b.stage === 'egg' ? 1 : 0));
   for (const duck of ducks) {
@@ -93,13 +121,10 @@ export function flockScreen(game: Game, openDuck: (id: string) => void): HTMLEle
 
 // ---- Duck care sheet ------------------------------------------------------
 
-export function duckScreen(game: Game, duckId: string, back: () => void): HTMLElement {
+// The shell only calls this for a duck that exists (see Shell.renderScreen).
+export function duckScreen(ctx: Ctx, duck: Duck, back: () => void): HTMLElement {
+  const { game, act } = ctx;
   const state = game.state;
-  const duck = state.ducks.find((d) => d.id === duckId);
-  if (!duck) {
-    back();
-    return el('div');
-  }
   const box = el('div', { class: 'comp-duck' });
   box.append(
     el(
@@ -112,31 +137,24 @@ export function duckScreen(game: Game, duckId: string, back: () => void): HTMLEl
     el('div', { class: 'comp-duck-portrait' }, duckPortrait(duck, 120)),
   );
 
-  const act = (label: string, ok: boolean, fn: () => boolean | unknown, note = ''): HTMLElement =>
-    el(
-      'button',
-      {
-        class: 'comp-btn',
-        disabled: !ok,
-        onclick: () => {
-          fn();
-        },
-      },
-      label + (note ? ` ${note}` : ''),
-    );
+  const btn = (label: string, ok: boolean, fn: () => unknown): HTMLElement =>
+    el('button', { class: 'comp-btn', disabled: !ok, onclick: act(fn) }, label);
 
   if (duck.stage === 'egg') {
     const pct = Math.min(100, Math.round((duck.incubationTicks / eggIncubationTicks(state)) * 100));
     const warmth = Math.round(eggWarmth(duck));
+    const tuckWait = duck.petCooldownTicks;
     box.append(
       needRow(`Incubation ${pct}%`, pct),
       needRow(`Warmth ${warmth}%`, warmth),
       el(
         'div',
         { class: 'comp-actions' },
-        act('Tuck into the straw', warmth < 95, () => tuckEgg(state, duck.id)),
-        pct >= 100
-          ? act('Hatch!', true, () => claimHatch(state, game.rng, duck.id))
+        duck.readyToHatch
+          ? btn('Hatch!', true, () => claimHatch(state, game.rng, duck.id))
+          : btn(tuckWait > 0 ? `Tucked in · again in ${inMinutes(tuckWait)}` : 'Tuck into the straw', tuckWait === 0 && warmth < 95, () => tuckEgg(state, duck.id)),
+        duck.readyToHatch
+          ? el('span')
           : el('span', { class: 'comp-muted small' }, 'Keep it warm — cold eggs incubate slowly.'),
       ),
     );
@@ -158,56 +176,49 @@ export function duckScreen(game: Game, duckId: string, back: () => void): HTMLEl
     const gate = canDrill(state, duck);
     const drills = el('div', { class: 'comp-actions' });
     for (const stat of TRAIN_STATS) {
-      drills.append(
-        el(
-          'button',
-          { class: 'comp-btn', disabled: !gate.ok, title: gate.reason ?? '', onclick: () => { train(state, duck.id, stat, 0.4); } },
-          `Drill ${stat} (${Math.round(t[stat])})`,
-        ),
-      );
+      drills.append(btn(`Drill ${stat} (${Math.round(t[stat])})`, gate.ok, () => train(state, duck.id, stat, 0.4)));
     }
+    const left = drillsLeft(state, duck);
     box.append(
-      el('section', { class: 'comp-section' }, el('h2', {}, `Training · ${drillsLeft(state, duck)} drill${drillsLeft(state, duck) === 1 ? '' : 's'} left today`), el('div', { class: 'comp-muted small' }, 'Pocket drills go through the motions at modest form; the desktop drills earn far more.'), drills),
+      el(
+        'section',
+        { class: 'comp-section' },
+        el('h2', {}, `Training · ${left} drill${left === 1 ? '' : 's'} left today`),
+        // Tooltips never show on touch: the reason a drill is off goes in the text.
+        el('div', { class: 'comp-muted small' }, gate.ok ? 'Pocket drills go through the motions at modest form; the desktop drills earn far more.' : gate.reason ?? 'No drills right now.'),
+        drills,
+      ),
     );
   }
 
   const inv = state.inventory;
-  const iconAct = (
-    iconName: Parameters<typeof icon>[0],
-    label: string,
-    ok: boolean,
-    fn: () => unknown,
-    note = '',
-  ): HTMLElement =>
-    el(
-      'button',
-      { class: 'comp-btn', disabled: !ok, onclick: () => { fn(); } },
-      icon(iconName, 14),
-      `${label}${note ? ` ${note}` : ''}`,
-    );
+  const iconBtn = (iconName: Parameters<typeof icon>[0], label: string, ok: boolean, fn: () => unknown): HTMLElement =>
+    el('button', { class: 'comp-btn', disabled: !ok, onclick: act(fn) }, icon(iconName, 14), label);
   const treatBtn = (kind: 'peas' | 'worms' | 'berries'): HTMLElement => {
     const fav = favouriteTreat(duck) === kind && duck.favouriteKnown;
     const dot = el('span', { class: 'treat-dot' });
     dot.style.background = FOODS[kind].color;
     return el(
       'button',
-      { class: 'comp-btn', disabled: stockOf(state, kind) === 0, onclick: () => { feedDuckDirectly(state, duck.id, kind); } },
+      { class: 'comp-btn', disabled: stockOf(state, kind) === 0, onclick: act(() => feedDuckDirectly(state, duck.id, kind)) },
       dot,
       `${FOODS[kind].name}${fav ? ' ★' : ''} (${stockOf(state, kind)})`,
     );
   };
+  const petWait = duck.petCooldownTicks;
   box.append(
     el(
       'div',
       { class: 'comp-actions' },
-      iconAct('wheat', 'Feed', inv.feed > 0, () => feedDuckDirectly(state, duck.id, false), `(${inv.feed})`),
-      iconAct('sparkle', 'Premium', inv.premiumFeed > 0, () => feedDuckDirectly(state, duck.id, true), `(${inv.premiumFeed})`),
-      iconAct('hand', 'Pet', true, () => petDuck(state, duck.id)),
-      iconAct('bubbles', 'Clean', duck.needs.cleanliness < 100, () => cleanDuck(state, duck.id)),
+      iconBtn('wheat', `Feed (${inv.feed})`, inv.feed > 0, () => feedDuckDirectly(state, duck.id, false)),
+      iconBtn('sparkle', `Premium (${inv.premiumFeed})`, inv.premiumFeed > 0, () => feedDuckDirectly(state, duck.id, true)),
+      // petDuck refuses inside its cooldown; say so instead of a dead button.
+      iconBtn('hand', petWait > 0 ? `Petted · ${inMinutes(petWait)}` : 'Pet', petWait === 0, () => petDuck(state, duck.id)),
+      iconBtn('bubbles', 'Clean', duck.needs.cleanliness < 100, () => cleanDuck(state, duck.id)),
       treatBtn('peas'),
       treatBtn('worms'),
       treatBtn('berries'),
-      duck.sick ? iconAct('pill', 'Medicine', inv.medicine > 0, () => medicateDuck(state, duck.id), `(${inv.medicine})`) : el('span'),
+      duck.sick ? iconBtn('pill', `Medicine (${inv.medicine})`, inv.medicine > 0, () => medicateDuck(state, duck.id)) : el('span'),
     ),
   );
   return box;
@@ -215,7 +226,8 @@ export function duckScreen(game: Game, duckId: string, back: () => void): HTMLEl
 
 // ---- Nest (breeding) -------------------------------------------------------
 
-export function nestScreen(game: Game, pick: string | null, setPick: (id: string | null) => void): HTMLElement {
+export function nestScreen(ctx: Ctx, pick: string | null, setPick: (id: string | null) => void): HTMLElement {
+  const { game, act } = ctx;
   const state = game.state;
   const box = el('div', { class: 'comp-pond' });
   const adults = state.ducks.filter((d) => d.stage === 'adult' && !d.penned);
@@ -230,24 +242,24 @@ export function nestScreen(game: Game, pick: string | null, setPick: (id: string
     const ready = breedReadiness(duck);
     const pairOk = first && first.id !== duck.id ? canBreedPair(first, duck) : null;
     const odds = first && pairOk?.ok ? Math.round(pairViability(state, first, duck) * 100) : null;
+    const note = odds !== null ? `${odds}% odds` : first && pairOk && !pairOk.ok ? pairOk.reason ?? '' : ready.ok ? `${duck.sex === 'M' ? '♂' : '♀'} ready` : ready.reason ?? '';
     grid.append(
       el(
         'button',
         {
           class: `comp-card${first?.id === duck.id ? ' needs-care' : ''}`,
           disabled: first ? first.id === duck.id ? false : !pairOk?.ok : !ready.ok,
-          title: first && pairOk && !pairOk.ok ? pairOk.reason ?? '' : ready.reason ?? '',
-          onclick: () => {
+          onclick: act(() => {
             if (!first) return setPick(duck.id);
             if (first.id === duck.id) return setPick(null);
             const res = nestPair(state, first.id, duck.id);
             if (!res.ok && res.reason) events.emit('toast', res.reason);
             setPick(null);
-          },
+          }),
         },
         duckPortrait(duck, 56),
         el('div', { class: 'comp-card-name' }, duck.name),
-        el('div', { class: 'comp-muted small' }, odds !== null ? `${odds}% odds` : ready.ok ? `${duck.sex === 'M' ? '♂' : '♀'} ready` : ready.reason ?? ''),
+        el('div', { class: 'comp-muted small' }, note),
       ),
     );
   }
@@ -270,9 +282,13 @@ export function nestScreen(game: Game, pick: string | null, setPick: (id: string
       const pct = Math.min(100, Math.round((egg.incubationTicks / eggIncubationTicks(state)) * 100));
       list.append(
         egg.readyToHatch
-          ? el('button', { class: 'comp-btn', onclick: () => claimHatch(state, game.rng, egg.id) }, `Hatch! (${egg.name === 'Egg' ? 'egg' : egg.name})`)
-          : el('button', { class: 'comp-btn', disabled: egg.petCooldownTicks > 0, onclick: () => tuckEgg(state, egg.id) }, `Tuck in · ${pct}% · warmth ${Math.round(eggWarmth(egg))}%`),
-        el('button', { class: 'comp-btn ghost', onclick: () => { sellDuck(state, egg.id); events.emit('purchase'); } }, `Sell egg · ${sellPrice(state, egg)}`),
+          ? el('button', { class: 'comp-btn', onclick: act(() => claimHatch(state, game.rng, egg.id)) }, `Hatch! (${egg.name === 'Egg' ? 'egg' : egg.name})`)
+          : el(
+              'button',
+              { class: 'comp-btn', disabled: egg.petCooldownTicks > 0, onclick: act(() => tuckEgg(state, egg.id)) },
+              egg.petCooldownTicks > 0 ? `Tucked · ${pct}% · again in ${inMinutes(egg.petCooldownTicks)}` : `Tuck in · ${pct}% · warmth ${Math.round(eggWarmth(egg))}%`,
+            ),
+        el('button', { class: 'comp-btn ghost', onclick: act(() => { sellDuck(state, egg.id); events.emit('purchase'); }) }, `Sell egg · ${sellPrice(state, egg)}`),
       );
     }
     sec.append(list);
@@ -283,7 +299,8 @@ export function nestScreen(game: Game, pick: string | null, setPick: (id: string
 
 // ---- Shop (upgrades) --------------------------------------------------------
 
-export function shopScreen(game: Game): HTMLElement {
+export function shopScreen(ctx: Ctx): HTMLElement {
+  const { game, act } = ctx;
   const state = game.state;
   const box = el('div', { class: 'comp-pond' });
   const sec = el('section', { class: 'comp-section' }, el('h2', {}, `Upgrades · ${state.money} coins`));
@@ -295,7 +312,7 @@ export function shopScreen(game: Game): HTMLElement {
     list.append(
       el(
         'button',
-        { class: 'comp-btn comp-upgrade', disabled: maxed || state.money < cost, title: def.description, onclick: () => { buyUpgrade(state, def.id); } },
+        { class: 'comp-btn comp-upgrade', disabled: maxed || state.money < cost, onclick: act(() => { buyUpgrade(state, def.id); events.emit('purchase'); }) },
         el('strong', {}, def.name + (def.maxLevel > 1 ? ` ${level}/${def.maxLevel}` : '')),
         el('span', { class: 'comp-muted small' }, maxed ? 'owned' : `${cost} coins`),
         el('span', { class: 'comp-muted small' }, def.description),
@@ -309,8 +326,8 @@ export function shopScreen(game: Game): HTMLElement {
 
 // ---- Book ------------------------------------------------------------------
 
-export function bookScreen(game: Game): HTMLElement {
-  const state = game.state;
+export function bookScreen(ctx: Ctx): HTMLElement {
+  const state = ctx.game.state;
   const box = el('div', { class: 'comp-pond' });
   const found = Object.keys(state.breedBook).length;
   const sec = el('section', { class: 'comp-section' }, el('h2', {}, `Breed Book · ${found}/${ALL_BREED_KEYS.length}`));
@@ -352,32 +369,35 @@ const PICKUPS: Record<string, { icon: Parameters<typeof icon>[0]; label: string 
   dragonfly: { icon: 'sparkle', label: 'Dragonfly' },
 };
 
-export function pondScreen(game: Game): HTMLElement {
+export function pondScreen(ctx: Ctx): HTMLElement {
+  const { game, act } = ctx;
   const state = game.state;
   const box = el('div', { class: 'comp-pond' });
 
-  // Trough
+  // Trough — fillFeeder is a no-op without the upgrade, so say so rather
+  // than show a button that does nothing.
   const cap = feederCapacity(state);
   const level = state.feeder.food;
+  const hasTrough = upgradeLevel(state, 'feedingTrough') > 0;
   box.append(
     el(
       'section',
       { class: 'comp-section' },
       el('h2', {}, 'Feed trough'),
-      needRow(`${level}/${cap} pellets`, (level / cap) * 100),
-      el(
-        'div',
-        { class: 'comp-actions' },
-        el(
-          'button',
-          {
-            class: 'comp-btn',
-            disabled: state.inventory.feed === 0 || level >= cap,
-            onclick: () => fillFeeder(state),
-          },
-          `Fill trough (feed: ${state.inventory.feed})`,
-        ),
-      ),
+      hasTrough
+        ? needRow(`${level}/${cap} pellets`, (level / cap) * 100)
+        : el('div', { class: 'comp-muted small' }, 'No trough yet — the Feeding Trough upgrade in the Shop tab lets the flock feed itself.'),
+      hasTrough
+        ? el(
+            'div',
+            { class: 'comp-actions' },
+            el(
+              'button',
+              { class: 'comp-btn', disabled: state.inventory.feed === 0 || level >= cap, onclick: act(() => fillFeeder(state)) },
+              `Fill trough (feed: ${state.inventory.feed})`,
+            ),
+          )
+        : el('span'),
     ),
   );
 
@@ -391,7 +411,7 @@ export function pondScreen(game: Game): HTMLElement {
       el(
         'div',
         { class: 'comp-actions' },
-        el('button', { class: 'comp-btn', disabled: !isPondDirty(state), onclick: () => cleanPond(state) }, 'Skim the pond'),
+        el('button', { class: 'comp-btn', disabled: !isPondDirty(state), onclick: act(() => cleanPond(state)) }, 'Skim the pond'),
       ),
     ),
   );
@@ -408,7 +428,7 @@ export function pondScreen(game: Game): HTMLElement {
         { class: 'comp-actions' },
         el(
           'button',
-          { class: 'comp-btn', disabled: state.inventory.eggs === 0, onclick: () => { sellEggBasket(state); events.emit('purchase'); } },
+          { class: 'comp-btn', disabled: state.inventory.eggs === 0, onclick: act(() => { sellEggBasket(state); events.emit('purchase'); }) },
           'Sell the basket',
         ),
       ),
@@ -427,10 +447,10 @@ export function pondScreen(game: Game): HTMLElement {
           'button',
           {
             class: 'comp-btn',
-            onclick: () => {
+            onclick: act(() => {
               const got = catchBugAt(state, bug.pos.x, bug.pos.y);
               if (got?.kind === 'duckweed') events.emit('toast', `Duckweed! +${DUCKWEED_FEED} feed`);
-            },
+            }),
           },
           icon(PICKUPS[bug.kind]?.icon ?? 'bug', 14),
           PICKUPS[bug.kind]?.label ?? bug.kind,
@@ -453,13 +473,13 @@ export function pondScreen(game: Game): HTMLElement {
         {
           class: 'comp-btn',
           disabled: state.money < cost,
-          onclick: () => {
+          onclick: act(() => {
             if (state.money < cost) return;
             state.money -= cost;
             if (item.id === 'medicine') state.inventory.medicine += 1;
             else state.inventory[item.id as 'feed' | 'premiumFeed' | 'peas' | 'worms' | 'berries'] += 10;
             events.emit('purchase');
-          },
+          }),
         },
         `${item.name} · ${cost}`,
       ),
@@ -470,20 +490,97 @@ export function pondScreen(game: Game): HTMLElement {
   return box;
 }
 
-// ---- Day (report + goals) --------------------------------------------------
+// ---- Day (right now + report + goals) ---------------------------------------
 
-export function dayScreen(game: Game): HTMLElement {
+export function dayScreen(ctx: Ctx, openDuck: (id: string) => void): HTMLElement {
+  const { game, act } = ctx;
   const state = game.state;
-  const report = dawnReport(state);
+  const report = dawnReport(state, 'companion');
   const box = el('div', { class: 'comp-day' });
   box.append(
     el('h2', {}, report.dayLabel),
     el('div', { class: 'comp-muted' }, report.greeting),
     report.festivalChip ? el('div', { class: 'comp-festival' }, report.festivalChip) : el('span'),
   );
+
+  // Things waiting on a decision — the reason to open the phone at all.
+  const now = el('section', { class: 'comp-section comp-now' }, el('h2', {}, 'Right now'));
+  let anything = false;
+  const ev = state.lifeEvent;
+  if (ev) {
+    anything = true;
+    const { title, text } = describeLifeEvent(state, ev);
+    const duck = state.ducks.find((d) => d.id === ev.duckId);
+    const other = state.ducks.find((d) => d.id === ev.otherId);
+    const card = el(
+      'div',
+      { class: 'comp-card-wide' },
+      el('div', { class: 'comp-now-head' }, duck ? duckPortrait(duck, 44) : el('span'), other ? duckPortrait(other, 44) : el('span'), el('strong', {}, title)),
+      el('div', { class: 'comp-muted small' }, text),
+    );
+    const choices = el('div', { class: 'comp-actions comp-choices' });
+    for (const c of lifeEventChoices(state, ev)) {
+      choices.append(
+        el(
+          'button',
+          { class: 'comp-btn', disabled: !c.ok, onclick: act(() => resolveLifeEvent(state, game.rng, c.id)) },
+          el('strong', {}, c.label),
+          el('span', { class: 'comp-muted small' }, c.ok ? c.blurb : c.reason ?? c.blurb),
+        ),
+      );
+    }
+    card.append(choices, el('div', { class: 'comp-muted small' }, 'Left alone, the flock settles it by evening.'));
+    now.append(card);
+  }
+  const v = state.visitor;
+  if (v && !visitorInFlight(v)) {
+    anything = true;
+    now.append(
+      el(
+        'div',
+        { class: 'comp-card-wide' },
+        el('div', { class: 'comp-now-head' }, duckPortrait(v.duck, 44), el('strong', {}, `${v.duck.name}, a wild duck, is on the bank`)),
+        el('div', { class: 'comp-muted small' }, `${v.treatsGiven}/${TREATS_TO_RECRUIT} treats so far — premium feed wins it over before it flies on.`),
+        el(
+          'div',
+          { class: 'comp-actions' },
+          el(
+            'button',
+            { class: 'comp-btn', disabled: state.inventory.premiumFeed === 0, onclick: act(() => treatVisitor(state)) },
+            icon('sparkle', 14),
+            `Offer a treat (${state.inventory.premiumFeed})`,
+          ),
+        ),
+      ),
+    );
+  }
+  const fest = festivalToday(state.clock);
+  if (fest && !festivalEnteredToday(state, fest) && hourOf(state.clock) < FESTIVAL_PACKUP_HOUR) {
+    anything = true;
+    now.append(
+      el(
+        'div',
+        { class: 'comp-card-wide' },
+        el('div', { class: 'comp-now-head' }, icon('flag', 18), el('strong', {}, `${FESTIVAL_NAMES[fest]} today`)),
+        el('div', { class: 'comp-muted small' }, `Festivals are played at the desktop. It packs up at ${FESTIVAL_PACKUP_HOUR}:00 pond time${state.sponsored[fest] ? ' — and your sponsorship is spent then' : ''}.`),
+      ),
+    );
+  }
+  if (!anything) now.append(el('div', { class: 'comp-muted small' }, 'Nothing needs deciding. The flock is getting on with it.'));
+  box.append(now);
+
   for (const section of report.sections) {
     const sec = el('section', { class: 'comp-section' }, el('h2', {}, section.title));
-    for (const line of section.lines) sec.append(el('div', { class: 'comp-line' }, line.text));
+    for (const line of section.lines) {
+      const text = line.detail ? `${line.text} ${line.detail}` : line.text;
+      // Lines about a particular duck open that duck.
+      const duck = line.duck && state.ducks.some((d) => d.id === line.duck!.id) ? line.duck : undefined;
+      sec.append(
+        duck
+          ? el('button', { class: `comp-line comp-line-btn${line.urgent ? ' urgent' : ''}`, onclick: () => openDuck(duck.id) }, duckPortrait(duck, 28), el('span', {}, text))
+          : el('div', { class: `comp-line${line.urgent ? ' urgent' : ''}` }, text),
+      );
+    }
     box.append(sec);
   }
   const goals = pendingGoals(state).slice(0, 6);
