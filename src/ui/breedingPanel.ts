@@ -33,6 +33,11 @@ let slotB: string | null = null;
 let choosing: 'A' | 'B' | null = null;
 let breedingTab: 'pairing' | 'nest' = 'pairing';
 
+// Land on a tab from outside (the Goals panel's "Show me").
+export function showBreedingTab(tab: string): void {
+  if (tab === 'pairing' || tab === 'nest') breedingTab = tab;
+}
+
 // Called when a duck on the pond is clicked while this panel is open: fill
 // the slot being chosen, else the first empty one, else the slot of the same
 // sex. Returns false if the duck can't take a slot (not an adult).

@@ -2,6 +2,7 @@
 // lists on a 24x24 viewBox and inherit color from CSS via currentColor.
 
 export type IconName =
+  | 'check'
   | 'duck'
   | 'coin'
   | 'wheat'
@@ -164,6 +165,9 @@ const ICONS: Record<IconName, Shape[]> = {
     { t: 'path', a: { d: 'M12 3.5L22 20H2z', ...stroke2 } },
     { t: 'path', a: { d: 'M12 9.5v4.5', ...stroke2 } },
     { t: 'circle', a: { cx: '12', cy: '17', r: '1.2', ...fillCur } },
+  ],
+  check: [
+    { t: 'path', a: { d: 'M4.5 12.5l5 5L19.5 6.5', ...stroke2 } },
   ],
   cross: [
     { t: 'path', a: { d: 'M9.2 3.5h5.6v5.7h5.7v5.6h-5.7v5.7H9.2v-5.7H3.5V9.2h5.7z', ...fillCur } },

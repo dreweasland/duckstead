@@ -2,7 +2,7 @@ import type { Game } from '../game';
 import type { Renderer } from '../render/renderer';
 import { events } from '../events';
 import { formatClock } from '../sim/time';
-import { goalProgress, goalUnlocking, pendingGoals, tickGoals } from '../sim/goals';
+import { chapterProgress, CHAPTERS, currentChapter, goalProgress, goalUnlocking, tickGoals, widgetGoals, type ChapterDef, type GoalGo } from '../sim/goals';
 import type { Unlockable } from '../sim/unlocks';
 import { describeRequest, matchesRequest } from '../sim/visitors';
 import { FESTIVAL_NAMES, festivalEnteredToday, festivalToday, festivalTitle, upcomingFestival } from '../sim/festivals';
@@ -13,6 +13,7 @@ import { dawnReport } from '../sim/daybook';
 import { FOODS, TREATS, type FoodKind, type TreatKind } from '../sim/food';
 import { describeCommission, duckFits } from '../sim/commissions';
 import { isUnlocked, UNLOCK_LABELS, UNLOCKABLES } from '../sim/unlocks';
+import type { GameState } from '../state';
 import { duckPortrait } from './portrait';
 import { cleanPond, FEEDER_POS, isInPond, nestPos } from '../sim/pond';
 import { GROUND_TOP, WORLD_H, WORLD_W } from '../state';
@@ -24,12 +25,13 @@ import { icon } from './icons';
 import { railSignature, renderCardRail } from './cardRail';
 import { backToPondRow, eventCard } from './eventCard';
 import { renderDuckPanel } from './duckPanel';
-import { renderBreedingPanel } from './breedingPanel';
-import { renderShopPanel } from './shopPanel';
+import { renderBreedingPanel, showBreedingTab } from './breedingPanel';
+import { renderShopPanel, showShopTab } from './shopPanel';
 import { renderRosterPanel } from './rosterPanel';
 import { renderSavePanel, resetSavePanelState } from './savePanel';
 import { claimAndReload } from '../sync/sync';
-import { renderBookPanel } from './bookPanel';
+import { renderBookPanel, showBookTab } from './bookPanel';
+import { renderGoalsPanel } from './goalsPanel';
 import { renderSettingsPanel } from './settingsPanel';
 import { buildHud } from './hud';
 import { bindCanvasInput } from './canvasInput';
@@ -41,7 +43,7 @@ import { WEATHER_NAMES, weatherOf } from '../sim/weather';
 import { openRacePanel } from './racePanel';
 import { describeLifeEvent, lifeEventChoices, resolveLifeEvent, type LifeEvent } from '../sim/lifeEvents';
 
-export type PanelKind = 'duck' | 'breeding' | 'shop' | 'roster' | 'save' | 'book' | 'settings';
+export type PanelKind = 'duck' | 'breeding' | 'shop' | 'roster' | 'save' | 'book' | 'settings' | 'goals';
 
 // UI preference, not game state — deliberately outside the save file.
 const CARDS_PREF_KEY = 'ducksim:ui:cards';
@@ -74,6 +76,8 @@ export class UI {
   private hudReady = false; // first HUD refresh seeds unlockedSeen silently
   private railHost!: HTMLElement;
   private goalsHost!: HTMLElement;
+  private requestsHost!: HTMLElement;
+  private sideHost!: HTMLElement;
   private floatHost!: HTMLElement;
   private modalHost!: HTMLElement;
   private festivalChip!: HTMLElement;
@@ -119,9 +123,11 @@ export class UI {
     this.bannerHost = el('div', { class: 'banner-host' });
     this.railHost = el('div', { class: 'rail-host' });
     this.goalsHost = el('div', { class: 'goals-widget' });
+    this.requestsHost = el('div', { class: 'requests-widget' });
+    this.sideHost = el('div', { class: 'side-widgets' }, this.goalsHost, this.requestsHost);
     this.floatHost = el('div', { class: 'float-host' });
     this.modalHost = el('div', { class: 'modal-host' });
-    this.root.append(this.railHost, this.goalsHost, this.panelHost, this.modalHost, this.floatHost, this.bannerHost, this.toastHost);
+    this.root.append(this.railHost, this.sideHost, this.panelHost, this.modalHost, this.floatHost, this.bannerHost, this.toastHost);
     this.bindFloatDrag();
     this.railHost.addEventListener('pointerdown', () => {
       this.pointerDownInRail = true;
@@ -177,6 +183,7 @@ export class UI {
       this.lifeBanner('passing', duck, `Farewell, ${duck.name}`, lines);
       if (this.duckCardOpen) this.refreshPanel();
     });
+    events.on('chapter-done', (payload) => this.chapterBanner(payload as ChapterDef));
     events.on('takeover', (payload) => this.showTakeoverOverlay(Boolean((payload as { remote?: boolean } | undefined)?.remote)));
     // The companion put the pond down: the state was reloaded from the cloud
     // and play may carry on where the phone left it.
@@ -710,6 +717,9 @@ export class UI {
         case 'settings':
           panel = renderSettingsPanel(ctx);
           break;
+        case 'goals':
+          panel = renderGoalsPanel(ctx);
+          break;
       }
       if (panel) {
         panel.classList.add('modal');
@@ -744,61 +754,80 @@ export class UI {
     // Breeding at once and the goal would sit at 4/4 until time resumed.
     // Settle them here whenever the clock isn't running.
     if (this.game.speed === 0 && !this.game.stale) tickGoals(this.game.state);
-    const pending = pendingGoals(this.game.state);
-    const request = this.game.state.request;
-    const commissions = this.game.state.commissions;
-    if (pending.length === 0 && !request && commissions.length === 0) {
+    const state = this.game.state;
+    this.refreshGoalsWidget(state);
+    this.refreshRequestsWidget(state);
+  }
+
+  // The current chapter, doable goals first; click anywhere to open the
+  // full Goals panel with its hints.
+  private refreshGoalsWidget(state: GameState): void {
+    const rows = widgetGoals(state, 5);
+    const chapter = currentChapter(state);
+    const progress = chapterProgress(state, chapter.id);
+    if (rows.length === 0) {
       this.goalsHost.replaceChildren();
       return;
     }
-    const SHOWN = 6;
-    // Goals that open part of the game come first and look like gates —
-    // they're the early tutorial, not side quests.
-    const gates = (g: (typeof pending)[number]) => Boolean(g.unlocks && !isUnlocked(this.game.state, g.unlocks));
-    const ordered = [...pending].sort((a, b) => Number(gates(b)) - Number(gates(a)));
-    const anyGate = ordered.some(gates);
-    const rows = ordered.slice(0, SHOWN).map((goal) => {
-      const progress = goalProgress(this.game.state, goal);
-      const isGate = gates(goal);
-      const row = el(
+    const open = () => this.openPanel('goals');
+    const children: HTMLElement[] = [
+      el(
+        'button',
+        { class: 'goals-head', title: 'Open the Goals panel: every chapter, with hints', onclick: open },
+        el('span', { class: 'goals-title' }, 'Goals'),
+        el('span', { class: 'goals-chapter' }, `Chapter ${CHAPTERS.findIndex((c) => c.id === chapter.id) + 1} · ${chapter.title}`),
+        el('span', { class: 'goals-count' }, `${progress.done}/${progress.total}`),
+      ),
+    ];
+    let dividerShown = false;
+    for (const row of rows) {
+      const { goal, later, upNext } = row;
+      if (upNext && !dividerShown) {
+        dividerShown = true;
+        children.push(el('div', { class: 'goals-upnext' }, 'Up next'));
+      }
+      const isGate = Boolean(goal.unlocks && !isUnlocked(state, goal.unlocks));
+      const done = goalProgress(state, goal);
+      const line = el(
         'div',
-        { class: `goal-row${isGate ? ' unlock' : ''}`, title: isGate ? `Completing this opens the ${UNLOCK_LABELS[goal.unlocks!]} button in the top bar` : '' },
+        {
+          class: `goal-row${isGate ? ' unlock' : ''}${later ? ' later' : ''}`,
+          title: later ? `${later}. ${goal.hint}` : goal.hint,
+          onclick: open,
+        },
         isGate ? el('span', { class: 'goal-lock' }, icon('lock', 10)) : el('span', { class: 'goal-dot' }),
         el(
           'span',
           { class: 'goal-label' },
           goal.label,
-          isGate
-            ? el('span', { class: 'goal-unlock' }, `unlocks ${UNLOCK_LABELS[goal.unlocks!]}`)
-            : null,
+          isGate ? el('span', { class: 'goal-unlock' }, `unlocks ${UNLOCK_LABELS[goal.unlocks!]}`) : null,
+          later ? el('span', { class: 'goal-later' }, later) : null,
         ),
-        goal.target > 1
-          ? el('span', { class: 'goal-progress' }, `${progress}/${goal.target}`)
-          : null,
+        goal.target > 1 ? el('span', { class: 'goal-progress' }, `${done}/${goal.target}`) : null,
         el('span', { class: 'goal-reward with-icon' }, icon('coin', 10), `${goal.reward}`),
       );
       if (goal.target > 1) {
         const fill = el('div', { class: 'goal-bar-fill' });
-        fill.style.width = `${(progress / goal.target) * 100}%`;
-        row.append(el('div', { class: 'goal-bar' }, fill));
+        fill.style.width = `${(done / goal.target) * 100}%`;
+        line.append(el('div', { class: 'goal-bar' }, fill));
       }
-      return row;
-    });
-    const children: Array<HTMLElement> = [];
-    if (rows.length > 0) {
-      children.push(
-        el('div', { class: 'goals-title' }, 'Goals', anyGate ? el('span', { class: 'goals-sub' }, ' · locked goals open the pond') : null),
-        ...rows,
-      );
-      if (pending.length > SHOWN) {
-        children.push(el('div', { class: 'muted goals-more' }, `+${pending.length - SHOWN} more to come`));
-      }
+      children.push(line);
     }
+    children.push(el('button', { class: 'goals-more', onclick: open }, 'All chapters and hints…'));
+    this.goalsHost.replaceChildren(...children);
+  }
+
+  // Commissions and the buyer request: offers, not goals, so they keep
+  // their own strip under the path.
+  private refreshRequestsWidget(state: GameState): void {
+    const request = state.request;
+    const commissions = state.commissions;
+    const children: Array<HTMLElement> = [];
     if (commissions.length > 0) {
-      const today = dayOf(this.game.state.clock);
+      const today = dayOf(state.clock);
       children.push(el('div', { class: 'goals-title request-title' }, 'Commissions'));
       for (const c of commissions) {
-        const fits = this.game.state.ducks.some((d) => duckFits(d, c));
+        const fits = state.ducks.some((d) => duckFits(d, c));
         const left = Math.max(0, c.expiresDay - today);
         children.push(
           el(
@@ -812,13 +841,13 @@ export class UI {
       }
     }
     if (request) {
-      const daysLeft = Math.max(0, request.expiresDay - dayOf(this.game.state.clock));
+      const daysLeft = Math.max(0, request.expiresDay - dayOf(state.clock));
       children.push(
         el('div', { class: 'goals-title request-title' }, 'Buyer request'),
         el(
           'div',
           { class: 'goal-row', title: 'A buyer pays this multiple of the sell price for any matching duck — sell from the duck\'s card' },
-          el('span', { class: `goal-dot request-dot${this.game.state.ducks.some((d) => matchesRequest(d, request)) ? ' fits' : ''}` }),
+          el('span', { class: `goal-dot request-dot${state.ducks.some((d) => matchesRequest(d, request)) ? ' fits' : ''}` }),
           el('span', { class: 'goal-label' }, `wants a ${describeRequest(request)} duck`),
           el('span', { class: 'goal-reward' }, `×${request.multiplier}`),
         ),
@@ -829,7 +858,64 @@ export class UI {
         ),
       );
     }
-    this.goalsHost.replaceChildren(...children);
+    this.requestsHost.replaceChildren(...children);
+  }
+
+  // "Show me": land where a goal is done. Locked panels explain themselves.
+  goTo(go: GoalGo): void {
+    this.closeModal();
+    switch (go.panel) {
+      case 'care':
+        this.toggleCareMenu();
+        return;
+      case 'race':
+        if (!this.gate('race')) return;
+        this.openRace();
+        return;
+      case 'shop':
+        if (go.tab) showShopTab(go.tab);
+        break;
+      case 'book':
+        if (go.tab) showBookTab(go.tab);
+        break;
+      case 'breeding':
+        if (go.tab) showBreedingTab(go.tab);
+        break;
+      default:
+        break;
+    }
+    this.togglePanel(go.panel);
+  }
+
+  // A chapter closing is a moment, not a toast.
+  private chapterBanner(ch: ChapterDef): void {
+    while (this.bannerHost.children.length >= 3) this.bannerHost.firstElementChild!.remove();
+    const idx = CHAPTERS.findIndex((c) => c.id === ch.id);
+    const next = CHAPTERS[idx + 1];
+    const node = el(
+      'div',
+      { class: 'life-banner chapter' },
+      el('span', { class: 'life-portrait chapter-icon' }, icon('flag', 26)),
+      el(
+        'div',
+        { class: 'life-text' },
+        el('div', { class: 'life-title' }, `Chapter complete: ${ch.title}`),
+        el('div', { class: 'life-line' }, `+${ch.reward} coins for the purse.`),
+        el('div', { class: 'life-line' }, next ? `Next: ${next.title} — ${next.blurb}` : 'Every chapter done. The pond is yours.'),
+      ),
+    );
+    const dismiss = () => {
+      if (!node.isConnected) return;
+      node.classList.remove('show');
+      setTimeout(() => node.remove(), 400);
+    };
+    node.addEventListener('click', () => {
+      dismiss();
+      this.openPanel('goals');
+    });
+    this.bannerHost.append(node);
+    setTimeout(() => node.classList.add('show'), 10);
+    setTimeout(dismiss, 10_000);
   }
 
   private refreshHud(): void {

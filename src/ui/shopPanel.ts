@@ -57,6 +57,11 @@ const TABS: Array<{ id: Tab; label: string; icon: IconName }> = [
 // Persists across the panel's periodic rebuilds.
 let activeTab: Tab = 'supplies';
 
+// Land on a tab from outside (the Goals panel's "Show me").
+export function showShopTab(tab: string): void {
+  if (TABS.some((t) => t.id === tab)) activeTab = tab as Tab;
+}
+
 // Per-item presentation: icon, terse blurb, and stat chips.
 const SUPPLY_META: Record<ShopItemDef['id'], { icon: IconName; blurb: string; chips: string[]; food?: FoodKind }> = {
   feed: { icon: 'wheat', blurb: 'Everyday pellets.', chips: ['+40 hunger'], food: 'feed' },

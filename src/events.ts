@@ -2,6 +2,7 @@ type Handler = (payload?: unknown) => void;
 
 export type GameEvent =
   | 'toast'
+  | 'chapter-done' // a goal chapter's last goal landed; payload is the ChapterDef
   | 'dawn' // 06:00 — the day's briefing
   | 'favourite-found' // a duck ate its favourite treat for the first time
   | 'egg-hatched'

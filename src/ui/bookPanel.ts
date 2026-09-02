@@ -24,6 +24,11 @@ import { describeStandard } from '../sim/standards';
 type Tab = 'breeds' | 'chronicle' | 'records';
 let activeTab: Tab = 'breeds';
 
+// Land on a tab from outside (the Goals panel's "Show me").
+export function showBookTab(tab: string): void {
+  if (tab === 'breeds' || tab === 'chronicle' || tab === 'records') activeTab = tab;
+}
+
 export function renderBookPanel(ctx: PanelCtx): HTMLElement {
   const state = ctx.game.state;
   const discovered = breedsDiscovered(state);

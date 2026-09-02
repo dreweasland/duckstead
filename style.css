@@ -2675,10 +2675,20 @@ body.feeding #pond-canvas {
 }
 
 /* Goals widget */
-.goals-widget {
+/* The left-hand strip: the goals path on top, offers underneath. */
+.side-widgets {
   position: absolute;
   top: 60px;
   left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 250px;
+  pointer-events: none;
+}
+
+.goals-widget,
+.requests-widget {
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -2686,19 +2696,36 @@ body.feeding #pond-canvas {
   border: 1px solid rgba(60, 76, 94, 0.6);
   border-radius: 10px;
   padding: 10px 12px;
-  max-width: 240px;
   backdrop-filter: blur(3px);
   font-size: 12px;
-  pointer-events: none;
 }
 
-.goals-more {
-  font-size: 10px;
-  margin-top: 2px;
+.goals-widget {
+  pointer-events: auto;
 }
 
-.goals-widget:empty {
+.goals-widget:empty,
+.requests-widget:empty {
   display: none;
+}
+
+.goals-head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0;
+  margin-bottom: 2px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.goals-head:hover .goals-title {
+  color: var(--ink);
 }
 
 .goals-title {
@@ -2709,10 +2736,61 @@ body.feeding #pond-canvas {
   color: var(--muted);
 }
 
+.goals-chapter {
+  font-size: 11px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.goals-count {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.goals-upnext {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.goals-more {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 10px;
+  color: var(--lilac);
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+
 .goal-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 7px;
+}
+
+.goals-widget .goal-row {
+  cursor: pointer;
+  border-radius: 6px;
+  margin: 0 -4px;
+  padding: 1px 4px;
+}
+
+.goals-widget .goal-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.goal-row.later {
+  opacity: 0.55;
 }
 
 .goal-dot {
@@ -2727,13 +2805,15 @@ body.feeding #pond-canvas {
   flex: 1;
 }
 
+.goal-later {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+}
+
 .goal-reward {
   color: var(--gold);
   font-weight: 700;
-}
-
-.goal-row {
-  flex-wrap: wrap;
 }
 
 .goal-progress {
@@ -2758,8 +2838,13 @@ body.feeding #pond-canvas {
 }
 
 .request-title {
-  margin-top: 6px;
+  margin-top: 0;
   color: var(--lilac);
+}
+
+.request-title + .request-title,
+.goal-row + .request-title {
+  margin-top: 6px;
 }
 
 .request-dot {
@@ -2769,6 +2854,232 @@ body.feeding #pond-canvas {
 .request-expiry {
   font-size: 10px;
   margin-left: 14px;
+}
+
+/* The Goals panel: chapters that fold, a hint on every goal. */
+.panel.goals-panel {
+  width: min(620px, calc(100vw - 32px));
+}
+
+.goals-overview {
+  color: var(--gold);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.goals-total-bar {
+  margin: 8px 0 10px;
+  height: 5px;
+}
+
+.chapter {
+  border: 1px solid #2a3642;
+  border-radius: 10px;
+  background: var(--surface);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.chapter.open {
+  border-color: #3a4a5c;
+}
+
+.chapter-head {
+  display: grid;
+  grid-template-columns: 22px 1fr auto auto 14px;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chapter-head:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.chapter-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #24313f;
+  color: var(--ink-dim);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.chapter-head.current .chapter-num {
+  background: rgba(232, 184, 58, 0.25);
+  color: var(--gold);
+}
+
+.chapter-head.done .chapter-num {
+  background: rgba(127, 195, 110, 0.2);
+  color: #9fe58a;
+}
+
+.chapter-title {
+  font-weight: 700;
+}
+
+.chapter-head.done .chapter-title {
+  color: var(--muted);
+}
+
+.chapter-count {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chapter-reward {
+  font-size: 11px;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.chapter-reward.paid {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.chapter-caret {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.chapter-bar {
+  margin: 0;
+  border-radius: 0;
+  height: 3px;
+}
+
+.chapter-blurb {
+  padding: 8px 12px 0;
+}
+
+.chapter-goals {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 6px 8px;
+}
+
+.goal-line {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 8px;
+  align-items: start;
+  padding: 7px 6px;
+  border-radius: 8px;
+}
+
+.goal-line + .goal-line {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.goal-line.done {
+  opacity: 0.55;
+}
+
+.goal-line.later .goal-name {
+  color: var(--ink-dim);
+}
+
+.goal-status {
+  width: 12px;
+  height: 12px;
+  margin-top: 3px;
+  border: 1.5px solid var(--steel);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.goal-status.done {
+  border-color: #9fe58a;
+  color: #9fe58a;
+}
+
+.goal-status.lock {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.goal-status.later {
+  border-style: dashed;
+}
+
+.goal-body {
+  min-width: 0;
+}
+
+.goal-name {
+  font-weight: 600;
+}
+
+.goal-line .goal-unlock {
+  margin-left: 0;
+}
+
+.goal-hint {
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.goal-later-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px dashed var(--steel);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.goal-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.goal-progress-row .goal-bar {
+  flex: 1;
+  margin: 0;
+}
+
+.goal-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.goal-reward.paid {
+  color: var(--muted);
+}
+
+/* A chapter closing shares the life-banner card. */
+.life-banner.chapter .chapter-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(232, 184, 58, 0.2);
+  color: var(--gold);
 }
 
 /* Pond Derby race minigame */
