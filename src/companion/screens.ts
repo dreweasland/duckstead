@@ -161,13 +161,13 @@ export function duckScreen(game: Game, duckId: string, back: () => void): HTMLEl
       drills.append(
         el(
           'button',
-          { class: 'comp-btn', disabled: !gate.ok, title: gate.reason ?? '', onclick: () => { train(state, duck.id, stat, 0.6); } },
+          { class: 'comp-btn', disabled: !gate.ok, title: gate.reason ?? '', onclick: () => { train(state, duck.id, stat, 0.4); } },
           `Drill ${stat} (${Math.round(t[stat])})`,
         ),
       );
     }
     box.append(
-      el('section', { class: 'comp-section' }, el('h2', {}, `Training · ${drillsLeft(state, duck)} drill${drillsLeft(state, duck) === 1 ? '' : 's'} left today`), el('div', { class: 'comp-muted small' }, 'Pocket drills run at steady form; the desktop minigames can do better.'), drills),
+      el('section', { class: 'comp-section' }, el('h2', {}, `Training · ${drillsLeft(state, duck)} drill${drillsLeft(state, duck) === 1 ? '' : 's'} left today`), el('div', { class: 'comp-muted small' }, 'Pocket drills go through the motions at modest form; the desktop drills earn far more.'), drills),
     );
   }
 

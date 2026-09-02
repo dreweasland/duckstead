@@ -4242,6 +4242,12 @@ body.feeding #pond-canvas {
   padding: 4px 0;
 }
 
+/* How the drill went, in a sentence, on the results card. */
+.drill-detail {
+  text-align: center;
+  font-size: 0.95em;
+}
+
 /* --- Rivals, stud service, the Cup, more drills --- */
 .stud-grid,
 .rivals-grid {
@@ -4284,28 +4290,6 @@ body.feeding #pond-canvas {
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
-}
-
-/* Stamina drill: the meter is a fatigue bar that fills from the left. */
-.race-meter.fatigue::before,
-.race-meter.fatigue::after {
-  display: none;
-}
-
-.race-meter.fatigue .race-meter-marker {
-  width: 4px;
-  background: #ff9b6a;
-}
-
-/* Poise drill: the target zone shrinks each round. */
-.race-meter.poise::before {
-  width: var(--zone, 22%);
-  left: calc(50% - var(--zone, 22%));
-}
-
-.race-meter.poise::after {
-  width: var(--zone, 22%);
-  left: 50%;
 }
 
 /* --- Settings, tooltips, focus, motion, text size --- */

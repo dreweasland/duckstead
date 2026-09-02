@@ -27,8 +27,8 @@ export const TRAINING = {
   perchDrills: 1, // ...plus this per Training Perch level
   hungerCost: 8,
   happiness: 3, // drills are play
-  gainMin: 4, // a fumbled drill
-  gainMax: 14, // a perfect one
+  gainMin: 2, // a fumbled drill
+  gainMax: 16, // a perfect one — form is most of the gain
   minHunger: 30,
   friendBonus: 1, // extra point when the duck's best friend watches the drill
   friendRange: 110,
