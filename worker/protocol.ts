@@ -67,3 +67,14 @@ export function decideWrite(
 export function decideClaim(meta: SaveMeta, deviceId: string): SaveMeta {
   return { ...meta, owner: deviceId };
 }
+
+export type ReleaseDecision = { ok: true; meta: SaveMeta } | { ok: false; reason: 'not-owner' };
+
+// Releasing hands the pond back: the owner steps aside (owner null) so the
+// device that lost the save can pick it up again without a human clicking.
+// Only the current owner may release — a stale device letting go of a save it
+// no longer holds would kick out whoever took it. seq is untouched.
+export function decideRelease(meta: SaveMeta, deviceId: string): ReleaseDecision {
+  if (meta.owner !== null && meta.owner !== deviceId) return { ok: false, reason: 'not-owner' };
+  return { ok: true, meta: { ...meta, owner: null } };
+}

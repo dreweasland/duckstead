@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planBoot, planPoll, planPush, type CloudMeta } from './syncPlan';
+import { planBoot, planPoll, planPush, planResume, type CloudMeta } from './syncPlan';
 
 const cloud = (over: Partial<CloudMeta> = {}): CloudMeta => ({
   exists: true,
@@ -82,5 +82,17 @@ describe('cloud blob validation', () => {
     expect(isReadableSave('{"version":1,"state":{"broken":true}}')).toBe(false);
     expect(isReadableSave('not json at all')).toBe(false);
     expect(isReadableSave('{"version":99,"state":{}}')).toBe(false);
+  });
+});
+
+describe('planResume', () => {
+  it('waits while another device holds the pond', () => {
+    expect(planResume(cloud({ owner: 'phone' }), 'desktop')).toBe('wait');
+  });
+
+  it('reclaims once the pond is released, returned, or gone', () => {
+    expect(planResume(cloud({ owner: null }), 'desktop')).toBe('reclaim');
+    expect(planResume(cloud({ owner: 'desktop' }), 'desktop')).toBe('reclaim');
+    expect(planResume(cloud({ exists: false, owner: 'phone' }), 'desktop')).toBe('reclaim');
   });
 });

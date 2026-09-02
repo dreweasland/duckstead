@@ -6,13 +6,23 @@ vi.mock('./syncClient', () => ({
   pullSave: vi.fn(),
   pullMeta: vi.fn(),
   claimSave: vi.fn(),
+  releaseSave: vi.fn(),
 }));
 
 import { pushSave } from './syncClient';
 import { attachCloudSync, detachCloudSync } from './sync';
 import { SYNC_META_KEY } from './syncMeta';
-import { SAVE_KEY } from '../save/save';
+import { SAVE_KEY, serialize } from '../save/save';
+import { createNewGame } from '../state';
 import type { Game } from '../game';
+
+// Pushes refuse unreadable blobs, so the fixtures must be real saves; the
+// money makes the two distinguishable.
+const realBlob = (money: number): string => {
+  const { state } = createNewGame(1);
+  state.money = money;
+  return serialize(state);
+};
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
@@ -36,7 +46,9 @@ describe('push re-queue', () => {
       removeItem: (k: string) => void map.delete(k),
     };
     map.set(SYNC_META_KEY, JSON.stringify({ syncId: 's', secret: 'x', deviceId: 'd', lastSyncedSeq: 1, dirty: false }));
-    map.set(SAVE_KEY, 'blob-1');
+    const blob1 = realBlob(1);
+    const blob2 = realBlob(2);
+    map.set(SAVE_KEY, blob1);
 
     let resolveFirst!: (v: { kind: 'accepted'; seq: number }) => void;
     vi.mocked(pushSave)
@@ -46,7 +58,7 @@ describe('push re-queue', () => {
     attachCloudSync({ stale: false, save: () => {}, speed: 1 } as unknown as Game);
     events.emit('saved'); // starts push #1 (in flight)
     await flush();
-    map.set(SAVE_KEY, 'blob-2');
+    map.set(SAVE_KEY, blob2);
     events.emit('saved'); // lands mid-flight: must be chased, not dropped
     await flush();
     expect(vi.mocked(pushSave)).toHaveBeenCalledTimes(1);
@@ -56,6 +68,6 @@ describe('push re-queue', () => {
     await flush();
     // The follow-up push carried the newer blob.
     expect(vi.mocked(pushSave)).toHaveBeenCalledTimes(2);
-    expect(vi.mocked(pushSave).mock.calls[1][1]).toBe('blob-2');
+    expect(vi.mocked(pushSave).mock.calls[1][1]).toBe(blob2);
   });
 });

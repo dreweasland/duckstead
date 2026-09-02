@@ -53,6 +53,17 @@ export function planPoll(cloud: CloudMeta, deviceId: string): PollDecision {
   return 'ok';
 }
 
+export type ResumeDecision = 'reclaim' | 'wait';
+
+// A device that lost the pond to another one keeps polling. Once nobody
+// holds the save (the other device released it) — or it somehow came back
+// to us — it may pick the pond up again on its own; while someone else still
+// holds it, keep waiting.
+export function planResume(cloud: CloudMeta, deviceId: string): ResumeDecision {
+  if (!cloud.exists || cloud.owner === null || cloud.owner === deviceId) return 'reclaim';
+  return 'wait';
+}
+
 export type PushResult =
   | { kind: 'accepted'; seq: number }
   | { kind: 'rejected'; reason: 'not-owner' | 'stale-seq'; seq: number }

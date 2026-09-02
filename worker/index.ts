@@ -89,8 +89,8 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
     });
   }
 
-  // /api/save/:syncId[/meta|/claim]
-  const match = path.match(/^\/api\/save\/([0-9a-f-]{36})(?:\/(meta|claim))?$/);
+  // /api/save/:syncId[/meta|/claim|/release]
+  const match = path.match(/^\/api\/save\/([0-9a-f-]{36})(?:\/(meta|claim|release))?$/);
   if (match) {
     const secret = bearer(request);
     if (!secret) return json({ error: 'unauthorized' }, 401);
@@ -101,11 +101,11 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
     if (request.method === 'GET' && sub === 'meta') {
       return saveStub(env, syncId, { op: 'meta', secret });
     }
-    if (request.method === 'POST' && sub === 'claim') {
+    if (request.method === 'POST' && (sub === 'claim' || sub === 'release')) {
       if (tooLarge(request)) return json({ error: 'too-large' }, 413);
       const { deviceId } = (await request.json().catch(() => ({}))) as { deviceId?: unknown };
       if (typeof deviceId !== 'string' || !DEVICE_ID_RE.test(deviceId)) return json({ error: 'bad-request' }, 400);
-      return saveStub(env, syncId, { op: 'claim', secret, deviceId });
+      return saveStub(env, syncId, { op: sub, secret, deviceId });
     }
     if (request.method === 'PUT' && sub === undefined) {
       if (tooLarge(request)) return json({ error: 'too-large' }, 413);
@@ -113,10 +113,12 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
         deviceId?: string;
         baseSeq?: number;
         blob?: string;
+        release?: unknown;
       } | null;
       if (!body?.deviceId || !DEVICE_ID_RE.test(body.deviceId) || typeof body.baseSeq !== 'number' || typeof body.blob !== 'string') {
         return json({ error: 'bad-request' }, 400);
       }
+      if (body.release !== undefined && typeof body.release !== 'boolean') return json({ error: 'bad-request' }, 400);
       if (body.blob.length > 1_500_000) return json({ error: 'too-large' }, 413);
       return saveStub(env, syncId, {
         op: 'put',
@@ -124,6 +126,7 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
         deviceId: body.deviceId,
         baseSeq: body.baseSeq,
         blob: body.blob,
+        release: body.release === true,
       });
     }
   }

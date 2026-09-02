@@ -6,9 +6,9 @@ import { events } from '../events';
 import { el } from '../ui/dom';
 import type { Game } from '../game';
 import { deserialize, SAVE_KEY } from '../save/save';
-import { claimSave, pullSave, pullMeta, pushSave } from './syncClient';
+import { claimSave, pullSave, pullMeta, pushSave, type CloudSave } from './syncClient';
 import { isSyncConfigured, loadSyncMeta, saveSyncMeta } from './syncMeta';
-import { planBoot, planPoll, planPush } from './syncPlan';
+import { planBoot, planPoll, planPush, planResume } from './syncPlan';
 
 export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'stale';
 
@@ -36,6 +36,14 @@ export function isReadableSave(blob: string): boolean {
 function adoptBlob(blob: string | null): boolean {
   if (!blob || !isReadableSave(blob)) return false;
   localStorage.setItem(SAVE_KEY, blob);
+  return true;
+}
+
+// Adopt a cloud blob into a running game: localStorage and the live state
+// both move to it. Returns false (touching nothing) when the blob is bad.
+function adoptIntoGame(game: Game, blob: string | null): boolean {
+  if (!adoptBlob(blob)) return false;
+  game.loadState(deserialize(blob!));
   return true;
 }
 
@@ -148,10 +156,24 @@ function askConflict(cloudSavedAt: number): Promise<boolean> {
 // secret, and would keep pushing to the previous sync and write its stale
 // credentials back over the new ones.
 let detachCurrent: (() => void) | null = null;
+let handoffCurrent: ((keepalive: boolean) => Promise<boolean>) | null = null;
 
 export function detachCloudSync(): void {
   detachCurrent?.();
   detachCurrent = null;
+  handoffCurrent = null;
+}
+
+// Push whatever is local and hand the pond back in the same write, then
+// detach. This is how a device "puts the pond down": the other device's poll
+// sees nobody holding the save and picks it up without a human clicking.
+// Resolves true when the cloud accepted the handoff. A failed push leaves the
+// device dirty and still (nominally) the owner — releasing anyway would let
+// the other side reclaim and strand this device's unsynced play.
+export function handoffCloudSync(keepalive = false): Promise<boolean> {
+  if (!handoffCurrent) return Promise.resolve(false);
+  const run = handoffCurrent;
+  return run(keepalive);
 }
 
 export function attachCloudSync(game: Game): void {
@@ -161,31 +183,46 @@ export function attachCloudSync(game: Game): void {
 
   let pushing = false;
   let pendingPush = false;
+  // True after another *device* took the pond (as opposed to another tab in
+  // this browser, which is settled by reload). Only this flavour of stale can
+  // resolve itself: the poll keeps running and reclaims once the other device
+  // lets go.
+  let remoteStale = false;
+  // releasing: a handoff was asked for and hasn't landed yet — every push
+  // until it does carries the release flag. handedOff: it landed; this
+  // attachment is finished (a late autosave must not take the pond back).
+  let releasing = false;
+  let handedOff = false;
+  let quiet = false; // suppress the 'saved' listener during handoff's own save
 
   const markStale = (): void => {
     if (game.stale) return;
     game.stale = true;
     game.speed = 0;
+    remoteStale = true;
     setStatus('stale');
     events.emit('takeover', { remote: true });
   };
 
-  const pushOnce = async (keepalive: boolean): Promise<void> => {
+  const pushOnce = async (opts: { keepalive: boolean; release: boolean }): Promise<boolean> => {
     const blob = localStorage.getItem(SAVE_KEY);
-    if (!blob) return;
+    if (!blob) return false;
+    // Never push a blob the other device could not load — it would replace
+    // a good cloud copy with one that trips the corrupt-save path over there.
+    if (!isReadableSave(blob)) return false;
     setStatus('syncing');
     let result;
     try {
-      result = await pushSave(meta, blob, { keepalive });
+      result = await pushSave(meta, blob, opts);
     } catch {
       result = null;
     }
-    if (game.stale || !isSyncConfigured()) return; // unlinked or superseded mid-flight
+    if (game.stale || !isSyncConfigured()) return false; // unlinked or superseded mid-flight
     if (result === null) {
       meta.dirty = true;
       saveSyncMeta(meta);
       setStatus('offline');
-      return;
+      return false;
     }
     switch (planPush(result)) {
       case 'synced':
@@ -193,19 +230,20 @@ export function attachCloudSync(game: Game): void {
         meta.dirty = false;
         saveSyncMeta(meta);
         setStatus('synced');
-        break;
+        if (opts.release) handedOff = true;
+        return true;
       case 'stale':
         meta.dirty = true;
         saveSyncMeta(meta);
         markStale();
-        break;
+        return false;
       case 'retry-offline':
-        break;
+        return false;
     }
   };
 
   const push = async (keepalive = false): Promise<void> => {
-    if (game.stale) return;
+    if (game.stale || handedOff) return;
     if (pushing) {
       // A save landed while a push was in flight: the blob being sent is
       // already stale. Chase it with a follow-up once this push settles —
@@ -214,7 +252,7 @@ export function attachCloudSync(game: Game): void {
       return;
     }
     pushing = true;
-    await pushOnce(keepalive);
+    await pushOnce({ keepalive, release: releasing });
     pushing = false;
     if (pendingPush) {
       pendingPush = false;
@@ -225,38 +263,90 @@ export function attachCloudSync(game: Game): void {
   };
 
   // Every local save (30s autosave, purchase, hatch, sleep) becomes a push.
-  const offSaved = events.on('saved', () => void push());
+  const offSaved = events.on('saved', () => {
+    if (!quiet) void push();
+  });
+
+  // The other device let go: take the pond back, adopt what it did, and
+  // carry on. The UI hears 'resumed' and drops its takeover overlay.
+  const reclaim = async (): Promise<void> => {
+    const cloud = await claimSave(meta);
+    const adopted = adoptIntoGame(game, cloud.blob);
+    meta.lastSyncedSeq = cloud.seq;
+    meta.dirty = !adopted;
+    saveSyncMeta(meta);
+    game.stale = false;
+    remoteStale = false;
+    setStatus(adopted ? 'synced' : 'offline');
+    events.emit('resumed', { remote: true, savedAt: cloud.savedAt });
+    if (!adopted) void push();
+  };
 
   // Poll ownership: another device claiming shows up here within ~15s even
-  // between autosaves. Doubles as the offline-recovery probe.
+  // between autosaves. Doubles as the offline-recovery probe, and — once the
+  // pond has been taken — as the watch for it being handed back.
   const poll = async (): Promise<void> => {
-    if (game.stale || !isSyncConfigured()) return;
+    if (!isSyncConfigured() || handedOff) return;
+    if (game.stale && !remoteStale) return; // another tab in this browser: reload settles it
     try {
       const cloud = await pullMeta(meta);
+      if (remoteStale) {
+        if (planResume(cloud, meta.deviceId) === 'reclaim') await reclaim();
+        return;
+      }
       if (planPoll(cloud, meta.deviceId) === 'lost-ownership') {
         markStale();
         return;
       }
-      if (meta.dirty) void push(); // reconnected with unsynced local play
+      if (meta.dirty || releasing) void push(); // reconnected with unsynced play, or a release still owed
       else setStatus('synced');
     } catch {
-      setStatus('offline');
+      if (!remoteStale) setStatus('offline');
     }
   };
   const pollId = setInterval(() => void poll(), POLL_MS);
 
-  // Best effort on the way out; keepalive bodies cap at ~64KB so this is a
-  // bonus, not a guarantee — the 30s cadence bounds what could be lost.
-  const onPagehide = (): void => {
+  const handoff = async (keepalive: boolean): Promise<boolean> => {
+    if (game.stale || handedOff) return false;
+    releasing = true;
+    quiet = true;
     game.save();
-    void push(true);
+    quiet = false;
+    // Wait out an in-flight push: its blob is older than the one just saved
+    // and its response would otherwise land after ours and rewind the seq.
+    while (pushing) await new Promise((r) => setTimeout(r, 25));
+    pushing = true;
+    const ok = await pushOnce({ keepalive, release: true });
+    pushing = false;
+    // On failure the device stays dirty and still owns the pond; the poll's
+    // retry pushes carry the release until one lands.
+    return ok;
+  };
+  handoffCurrent = handoff;
+
+  // On the way out, push and hand the pond back so a companion (or this
+  // device tomorrow) finds it free. keepalive bodies are capped (see
+  // pushSave), so this is best effort — the 30s cadence bounds the loss.
+  // If the page comes back from the bfcache, the next autosave simply takes
+  // the pond again (a released save accepts the first writer).
+  const onPagehide = (): void => {
+    void handoff(true);
+  };
+  const onPageshow = (e: PageTransitionEvent): void => {
+    if (e.persisted && (handedOff || releasing)) {
+      handedOff = false;
+      releasing = false;
+      void push();
+    }
   };
   window.addEventListener('pagehide', onPagehide);
+  window.addEventListener('pageshow', onPageshow);
 
   detachCurrent = () => {
     offSaved();
     clearInterval(pollId);
     window.removeEventListener('pagehide', onPagehide);
+    window.removeEventListener('pageshow', onPageshow);
   };
 
   setStatus(meta.dirty ? 'offline' : 'synced');
@@ -275,4 +365,58 @@ export async function claimAndReload(): Promise<void> {
   meta.lastSyncedSeq = cloud.seq;
   saveSyncMeta(meta);
   location.reload();
+}
+
+// ---- peeking (companion) ---------------------------------------------------
+
+export interface Peek {
+  seq: number;
+  owner: string | null;
+  savedAt: number;
+  // True when this call adopted a newer blob (into localStorage, and into
+  // `game` when given).
+  changed: boolean;
+}
+
+// Look at the pond without touching it: pull the cloud head and adopt it if
+// it moved on, claiming nothing — whoever is playing keeps playing. The
+// companion's resting state. Throws when the cloud is unreachable.
+export async function peekCloud(game: Game | null): Promise<Peek> {
+  const meta = loadSyncMeta();
+  if (!meta) throw new Error('sync not configured');
+  const head = await pullMeta(meta);
+  let changed = false;
+  if (head.exists && head.seq !== meta.lastSyncedSeq) {
+    const cloud: CloudSave = await pullSave(meta);
+    changed = game ? adoptIntoGame(game, cloud.blob) : adoptBlob(cloud.blob);
+    if (changed) {
+      meta.lastSyncedSeq = cloud.seq;
+      meta.dirty = false;
+      saveSyncMeta(meta);
+    }
+    return { seq: cloud.seq, owner: cloud.owner, savedAt: cloud.savedAt, changed };
+  }
+  return { seq: head.seq, owner: head.owner, savedAt: head.savedAt, changed };
+}
+
+// Take the pond: claim it, adopt whatever the cloud holds, and start the
+// live attachment so this device's play is pushed. Resolves with the cloud
+// head's savedAt (how fresh the copy we took over is).
+export async function takeCloud(game: Game): Promise<number> {
+  const meta = loadSyncMeta();
+  if (!meta) throw new Error('sync not configured');
+  const cloud = await claimSave(meta);
+  if (cloud.seq !== meta.lastSyncedSeq) {
+    if (adoptIntoGame(game, cloud.blob)) {
+      meta.lastSyncedSeq = cloud.seq;
+      meta.dirty = false;
+    } else {
+      meta.lastSyncedSeq = cloud.seq;
+      meta.dirty = true;
+    }
+  }
+  saveSyncMeta(meta);
+  game.stale = false;
+  attachCloudSync(game);
+  return cloud.savedAt;
 }

@@ -8,6 +8,7 @@ import { json, secretsMatch } from './http';
 import {
   codeValid,
   decideClaim,
+  decideRelease,
   decideWrite,
   PAIR_TTL_MS,
   type PairRecord,
@@ -23,7 +24,7 @@ interface SaveRow extends Record<string, number | string | null> {
   seq: number;
   owner: string | null;
   savedAt: number;
-  blob: string;
+  blob: string | null; // null only in rows left by older builds' empty claims
 }
 
 export class DuckSyncDO extends DurableObject<Env> {
@@ -105,15 +106,26 @@ export class DuckSyncDO extends DurableObject<Env> {
     const meta: SaveMeta = row
       ? { seq: row.seq, owner: row.owner, savedAt: row.savedAt }
       : { seq: 0, owner: null, savedAt: 0 };
+    // A row with no blob (a claim recorded before the first push ever
+    // landed) is not a save the client can load.
+    const exists = row !== null && row.blob !== null;
     switch (op) {
       case 'meta':
-        return json({ exists: row !== null, ...meta });
+        return json({ exists, ...meta });
       case 'pull':
-        return json({ exists: row !== null, ...meta, blob: row?.blob ?? null });
+        return json({ exists, ...meta, blob: row?.blob ?? null });
       case 'claim': {
         const claimed = decideClaim(meta, body.deviceId as string);
-        this.writeMeta(claimed, row?.blob ?? null);
-        return json({ exists: row !== null, ...claimed, blob: row?.blob ?? null });
+        // Nothing to own yet: the first push sets the owner. Persisting the
+        // claim here would leave a blob-less row behind.
+        if (row) this.writeMeta(claimed, row.blob);
+        return json({ exists, ...claimed, blob: row?.blob ?? null });
+      }
+      case 'release': {
+        const decision = decideRelease(meta, body.deviceId as string);
+        if (!decision.ok) return json({ error: decision.reason, seq: meta.seq, owner: meta.owner }, 409);
+        if (row) this.writeMeta(decision.meta, row.blob);
+        return json({ exists, ...decision.meta });
       }
       case 'put': {
         const decision = decideWrite(meta, {
@@ -123,9 +135,13 @@ export class DuckSyncDO extends DurableObject<Env> {
         if (!decision.ok) {
           return json({ error: decision.reason, seq: meta.seq, owner: meta.owner }, 409);
         }
+        // A write may hand the pond back in the same breath (release: true)
+        // — the companion putting the phone down. Doing both in one DO call
+        // means the other device can never reclaim between the push and the
+        // release and strand this write behind a not-owner rejection.
         const next: SaveMeta = {
           seq: meta.seq + 1,
-          owner: body.deviceId as string,
+          owner: body.release === true ? null : (body.deviceId as string),
           savedAt: Date.now(),
         };
         // Keep the previous accepted write in slot 1 before overwriting slot 0.

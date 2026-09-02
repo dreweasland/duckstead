@@ -80,17 +80,27 @@ export type PushOutcome =
   | { kind: 'accepted'; seq: number }
   | { kind: 'rejected'; reason: 'not-owner' | 'stale-seq'; seq: number };
 
+// Browsers cap keepalive request bodies (Chrome: 64KB in flight); a mature
+// save blows past that and the fetch rejects before it leaves the device.
+// Under the cap keepalive is the reliable way to push on the way out; over
+// it a plain fetch is the only option, and a visibilitychange push (where
+// the page is still alive) is what actually lands.
+export const KEEPALIVE_BODY_LIMIT = 60_000;
+
 export async function pushSave(
   meta: SyncMeta,
   blob: string,
-  opts: { keepalive?: boolean } = {},
+  // release: hand the pond back in the same write (see decideRelease) —
+  // nobody can slip in between the push and the release.
+  opts: { keepalive?: boolean; release?: boolean } = {},
   fetchFn: Fetch = fetch,
 ): Promise<PushOutcome> {
+  const payload = JSON.stringify({ deviceId: meta.deviceId, baseSeq: meta.lastSyncedSeq, blob, release: opts.release === true });
   const res = await fetchFn(`/api/save/${meta.syncId}`, {
     method: 'PUT',
-    keepalive: opts.keepalive,
+    keepalive: opts.keepalive && payload.length <= KEEPALIVE_BODY_LIMIT,
     headers: { 'content-type': 'application/json', ...auth(meta.secret) },
-    body: JSON.stringify({ deviceId: meta.deviceId, baseSeq: meta.lastSyncedSeq, blob }),
+    body: payload,
   });
   if (res.status === 409) {
     const body = (await res.json()) as { error: 'not-owner' | 'stale-seq'; seq: number };
@@ -99,4 +109,20 @@ export async function pushSave(
   if (!res.ok) throw new Error(`push failed: ${res.status}`);
   const body = (await res.json()) as { seq: number };
   return { kind: 'accepted', seq: body.seq };
+}
+
+// Step aside without writing: the pond has nothing new from this device.
+// 409 means another device already holds it, which is the same outcome.
+export async function releaseSave(
+  meta: SyncMeta,
+  opts: { keepalive?: boolean } = {},
+  fetchFn: Fetch = fetch,
+): Promise<void> {
+  const res = await fetchFn(`/api/save/${meta.syncId}/release`, {
+    method: 'POST',
+    keepalive: opts.keepalive,
+    headers: { 'content-type': 'application/json', ...auth(meta.secret) },
+    body: JSON.stringify({ deviceId: meta.deviceId }),
+  });
+  if (!res.ok && res.status !== 409) throw new Error(`release failed: ${res.status}`);
 }

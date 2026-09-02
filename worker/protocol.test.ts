@@ -4,6 +4,7 @@ import {
   CODE_LENGTH,
   codeValid,
   decideClaim,
+  decideRelease,
   decideWrite,
   generateCode,
   MAX_PAIR_ATTEMPTS,
@@ -85,5 +86,16 @@ describe('write CAS', () => {
     });
     // The new owner writes fine.
     expect(decideWrite(claimed, { deviceId: 'desktop', baseSeq: 5 })).toEqual({ ok: true });
+  });
+
+  it('release hands the pond back only from the owner; the next writer takes it', () => {
+    expect(decideRelease(meta(), 'desktop')).toEqual({ ok: false, reason: 'not-owner' });
+    const released = decideRelease(meta(), 'phone');
+    expect(released).toEqual({ ok: true, meta: { seq: 5, owner: null, savedAt: 0 } });
+    if (!released.ok) return;
+    // Releasing an unowned save is a harmless no-op.
+    expect(decideRelease(released.meta, 'anyone')).toEqual({ ok: true, meta: released.meta });
+    // With nobody holding it, the desktop's next autosave lands on the same seq.
+    expect(decideWrite(released.meta, { deviceId: 'desktop', baseSeq: 5 })).toEqual({ ok: true });
   });
 });
