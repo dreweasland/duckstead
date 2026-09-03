@@ -5,10 +5,13 @@ import {
   COUNT_IN_BEATS,
   DRILL_TAPS,
   FATIGUE_RATE,
+  FIRST_GUST_MS,
   GLANCE_MS,
   GLANCES,
   glanceTimes,
   gradeTap,
+  GUST_GAP_MIN,
+  GUST_GAP_SPREAD,
   gustStrength,
   HOLD_SPEED,
   IDLE_SPEED,
@@ -110,7 +113,7 @@ function balance(seed: number, player: { reactionMs: number; threshold: number }
   const glances = glanceTimes(rand);
   const samples: Array<{ score: number; weight: number }> = [];
   const phase = [rand() * 6, rand() * 6];
-  let nextGust = 1800 + rand() * 800;
+  let nextGust = FIRST_GUST_MS + rand() * 600;
   let lastTap = -Infinity;
   let steady = 0;
   let topples = 0;
@@ -121,7 +124,7 @@ function balance(seed: number, player: { reactionMs: number; threshold: number }
     const breeze = Math.sin(t * 1.7 + phase[0]) * 0.6 + Math.sin(t * 3.1 + phase[1]) * 0.4;
     if (now >= nextGust && !wasToppled) {
       b.velocity += (rand() < 0.5 ? -1 : 1) * gustStrength(now, rand());
-      nextGust = now + 1400 + rand() * 1200;
+      nextGust = now + GUST_GAP_MIN + rand() * GUST_GAP_SPREAD;
     }
     if (player) {
       const leaning = Math.abs(b.wobble) > player.threshold;
@@ -172,13 +175,17 @@ describe('poise drill: balance', () => {
     for (const seed of [1, 2, 3, 4, 5]) {
       const alone = balance(seed, null);
       expect(alone.topples).toBeGreaterThanOrEqual(1);
-      expect(alone.quality).toBeLessThan(0.45);
+      expect(alone.quality).toBeLessThan(0.55);
       const attentive = balance(seed, { reactionMs: 250, threshold: 0.15 });
       expect(attentive.topples).toBe(0);
-      expect(attentive.quality).toBeGreaterThan(0.6);
+      expect(attentive.quality).toBeGreaterThan(0.8);
       expect(attentive.quality).toBeGreaterThan(alone.quality);
       const slow = balance(seed, { reactionMs: 600, threshold: 0.35 });
       expect(slow.quality).toBeLessThan(attentive.quality);
+      // A person's pace — half a second to notice a lean — still earns good form.
+      const person = balance(seed, { reactionMs: 500, threshold: 0.25 });
+      expect(person.topples).toBe(0);
+      expect(person.quality).toBeGreaterThan(0.6);
     }
   });
 });

@@ -26,10 +26,13 @@ import {
   COUNT_IN_BEATS,
   DRILL_TAPS,
   FATIGUE_RATE,
+  FIRST_GUST_MS,
   GLANCE_MS,
   GLANCE_WEIGHT,
   glanceTimes,
   gradeTap,
+  GUST_GAP_MIN,
+  GUST_GAP_SPREAD,
   gustStrength,
   HOLD_SPEED,
   IDLE_SPEED,
@@ -507,7 +510,7 @@ function runPoise(s: DrillScaffold, duck: Duck): void {
   const glances = glanceTimes(Math.random);
   const pops: Pop[] = [];
   const phase = [Math.random() * 6, Math.random() * 6];
-  let nextShove = 1800 + Math.random() * 800;
+  let nextShove = FIRST_GUST_MS + Math.random() * 600;
   let glancesSeen = 0;
   let steadyTime = 0;
   let liveTime = 0;
@@ -557,7 +560,7 @@ function runPoise(s: DrillScaffold, duck: Duck): void {
         const dir = Math.random() < 0.5 ? -1 : 1;
         b.velocity += dir * gustStrength(elapsed, Math.random());
         pops.push({ text: dir < 0 ? '← gust' : 'gust →', color: '#c8d0d8', at: now, x: PEDESTAL_X + dir * 120, y: 70 });
-        nextShove = elapsed + 1400 + Math.random() * 1200;
+        nextShove = elapsed + GUST_GAP_MIN + Math.random() * GUST_GAP_SPREAD;
       }
       stepBalance(b, dt, gust, elapsed, now);
       if (!wasToppled && now < b.toppledUntil) {

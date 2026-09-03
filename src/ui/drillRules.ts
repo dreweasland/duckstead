@@ -69,9 +69,13 @@ export function staminaQuality(lengths: number): number {
 
 // --- Poise: balance ---
 export const POISE_TIME_MS = 12_000;
-export const MARK_HALF = 0.28; // the mark: a wobble this far either side still reads as steady
+export const MARK_HALF = 0.34; // the mark: a wobble this far either side still reads as steady
 export const TOPPLE_AT = 1; // past this the duck flaps and rights itself
-export const NUDGE = 0.7; // a tap's kick to the wobble's velocity: a gust takes one to three taps to answer
+export const TOPPLE_MS = 1200; // ...taking this long, scoring nothing meanwhile
+export const NUDGE = 0.75; // a tap's kick to the wobble's velocity: one tap answers most of a gust
+export const GUST_GAP_MIN = 2000; // ms between gusts, at least
+export const GUST_GAP_SPREAD = 1400; // ...plus up to this much
+export const FIRST_GUST_MS = 2200;
 export const GLANCE_MS = 1300;
 export const GLANCE_WEIGHT = 3; // a judged moment counts this many times over
 export const GLANCES = 4;
@@ -97,14 +101,15 @@ export interface Balance {
 // the panel's business: it adds them straight to the velocity.
 export function stepBalance(b: Balance, dt: number, gust: number, elapsed: number, now: number): void {
   if (now < b.toppledUntil) return;
-  const instability = 0.9 + (elapsed / POISE_TIME_MS) * 1.1;
-  b.velocity += (gust * 0.8 + b.wobble * instability) * dt;
+  const instability = 0.75 + (elapsed / POISE_TIME_MS) * 0.75;
+  b.velocity += (gust * 0.6 + b.wobble * instability) * dt;
   b.velocity *= Math.pow(0.12, dt); // heavy damping: a kick moves it about half its size, then settles
   b.wobble += b.velocity * dt;
   if (Math.abs(b.wobble) >= TOPPLE_AT) {
-    b.wobble = 0;
+    // It rights itself, but still leaning the way it fell: a tap is owed.
+    b.wobble = Math.sign(b.wobble) * 0.45;
     b.velocity = 0;
-    b.toppledUntil = now + 900;
+    b.toppledUntil = now + TOPPLE_MS;
   }
 }
 
@@ -113,9 +118,10 @@ export function nudge(b: Balance, dir: -1 | 1, now: number): void {
   b.velocity += dir * NUDGE;
 }
 
-// A gust: a shove that grows a little as the drill goes on.
+// A gust: a shove that grows a little as the drill goes on. Never more
+// than a tap and a half can answer.
 export function gustStrength(elapsed: number, rand: number): number {
-  return 0.9 + rand * 0.7 + (elapsed / POISE_TIME_MS) * 0.4;
+  return 0.55 + rand * 0.35 + (elapsed / POISE_TIME_MS) * 0.25;
 }
 
 // How steady a moment reads. Inside the mark is good form, a touch better
@@ -124,7 +130,7 @@ export function poiseSample(wobble: number): number {
   const w = Math.abs(wobble);
   if (w <= MARK_HALF) return 1 - 0.3 * (w / MARK_HALF);
   const over = Math.min(1, (w - MARK_HALF) / (TOPPLE_AT - MARK_HALF));
-  return 0.6 * (1 - over) * (1 - over);
+  return 0.45 * (1 - over) * (1 - over);
 }
 
 // Time-weighted form over the drill; judged moments weigh more.
