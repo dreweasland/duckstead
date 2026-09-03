@@ -370,7 +370,7 @@ function hintFor(state: GameState, c: Commission): string {
 // stacked underneath into one long scroll. A row of pills up top picks the
 // market, and every rival card is the same shape — portraits, a line about
 // the breeder, a handful of trait chips, the price button pinned to the
-// bottom — with the full gene readout folded away behind "Read the genes".
+// bottom — with the full gene readout underneath.
 type BoardSection = 'commissions' | 'eggs' | 'stud';
 let boardSection: BoardSection = 'commissions';
 
@@ -469,26 +469,12 @@ function traitChips(state: GameState, duck: Duck): HTMLElement[] {
   return chips.map((c) => el('span', { class: `shop-chip${c.cls ? ` ${c.cls}` : ''}` }, c.text));
 }
 
-// Which cards have their gene readout open; survives rebuilds.
-const openGenes = new Set<string>();
-
-// The shared shape for a rival's offer: head, traits, a folded gene readout,
-// the price pinned to the bottom.
-function marketCard(key: string, head: HTMLElement, traits: HTMLElement, genes: HTMLElement, foot: HTMLElement[], wide = false): HTMLElement {
-  const open = openGenes.has(key);
+// The shared shape for a rival's offer: head, traits, the gene readout,
+// the price pinned to the bottom. An egg card is wide — two parents' strips
+// side by side — so it takes the whole row.
+function marketCard(head: HTMLElement, traits: HTMLElement, genes: HTMLElement, foot: HTMLElement[], wide = false): HTMLElement {
   genes.classList.add('market-genes');
-  genes.hidden = !open;
-  const toggle = el('button', { class: 'genes-toggle' }, open ? 'Hide the genes' : 'Read the genes');
-  const card = el('div', { class: `market-card${wide ? ' wide' : ''}${open ? ' open' : ''}` }, head, traits, toggle, genes, el('div', { class: 'shop-card-foot' }, ...foot));
-  toggle.onclick = () => {
-    const now = genes.hidden;
-    genes.hidden = !now;
-    card.classList.toggle('open', now);
-    toggle.textContent = now ? 'Hide the genes' : 'Read the genes';
-    if (now) openGenes.add(key);
-    else openGenes.delete(key);
-  };
-  return card;
+  return el('div', { class: `market-card${wide ? ' wide' : ''}` }, head, traits, genes, el('div', { class: 'shop-card-foot' }, ...foot));
 }
 
 function marketHead(portraits: Element[], title: string, rivalId: string, rivalName: string): HTMLElement {
@@ -547,7 +533,6 @@ function eggSaleSection(ctx: PanelCtx): HTMLElement {
         );
     grid.append(
       marketCard(
-        `egg:${sale.rivalId}`,
         marketHead([duckPortrait(sale.dam, 44), duckPortrait(sale.sire, 44)], `${sale.dam.name} × ${sale.sire.name}`, sale.rivalId, sale.rivalName),
         traits,
         genes,
@@ -616,7 +601,6 @@ function studSection(ctx: PanelCtx): HTMLElement {
     );
     grid.append(
       marketCard(
-        `stud:${offer.rivalId}`,
         marketHead([duckPortrait(offer.drake, 56)], offer.drake.name, rival.id, rival.name),
         el('div', { class: 'market-traits' }, el('div', { class: 'market-row' }, ...traitChips(state, offer.drake))),
         buildGeneStrip(state, offer.drake),
