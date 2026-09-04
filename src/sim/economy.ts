@@ -1,13 +1,16 @@
 import type { GameState } from '../state';
+import type { Vec2 } from '../types';
 import type { Duck } from './duck';
 import { events } from '../events';
-import { festivalToday } from './festivals';
+import { festivalToday } from './calendar';
 import { isPureBred, pedigreeScore } from './pedigree';
 import { generationOf } from './lineage';
 import { chronicle } from './chronicle';
 import { hasPerk } from './society';
 import { heritagePondBonus } from './heritage';
 import { TUNING } from './tuning';
+import { plural } from '../text';
+import { duckById } from '../state';
 
 // Rates, chances and thresholds live in tuning.ts; re-exported here so the
 // two tables are found together.
@@ -74,7 +77,7 @@ export type UpgradeId =
   | 'vetClinic'
   | 'bachelorPen';
 
-export interface UpgradeDef {
+interface UpgradeDef {
   id: UpgradeId;
   name: string;
   description: string;
@@ -360,7 +363,7 @@ export function sellEggBasket(state: GameState): number {
   state.money += earned;
   state.inventory.eggs = 0;
   state.stats.henEggsSold += n;
-  events.emit('toast', `Sold ${n} egg${n === 1 ? '' : 's'} for ${earned} coins`);
+  events.emit('toast', `Sold ${plural(n, 'egg')} for ${earned} coins`);
   return earned;
 }
 
@@ -391,13 +394,28 @@ export function noteSale(state: GameState, duck: Duck, price: number): void {
     }
   }
   if (duck.stage !== 'egg' && duck.friendId) {
-    const friend = state.ducks.find((d) => d.id === duck.friendId);
+    const friend = duckById(state, duck.friendId);
     if (friend) {
       chronicle(state, 'sale', `${friend.name} watched the cart take ${duck.name} away.`);
       friend.needs.happiness = Math.max(0, friend.needs.happiness - 8);
       delete friend.friendId;
     }
   }
+}
+
+// Buy and set down a decoration. The UI has already checked the spot; this
+// is the spend, so it persists the placement like any other purchase.
+export function placeDecoration(
+  state: GameState,
+  kind: DecorKind,
+  pos: Vec2,
+): { ok: true } | { ok: false; reason: string } {
+  const def = DECOR_ITEMS.find((d) => d.kind === kind)!;
+  if (state.money < def.cost) return { ok: false, reason: 'Not enough coins any more!' };
+  state.money -= def.cost;
+  state.decorations.push({ kind, pos: { x: pos.x, y: pos.y } });
+  events.emit('purchase');
+  return { ok: true };
 }
 
 export function buyUpgrade(state: GameState, id: UpgradeId): boolean {

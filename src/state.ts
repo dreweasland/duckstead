@@ -1,13 +1,8 @@
 import type { Season, Vec2 } from './types';
 import type { Duck } from './sim/duck';
-import { createStarterDuck, DUCK_NAMES, freshName } from './sim/duck';
-import { recordBreed } from './sim/breedBook';
 import type { UpgradeId } from './sim/economy';
-import { BALANCE } from './sim/economy';
 import type { GameClock } from './sim/time';
 import type { PendingClutch } from './sim/breeding';
-import { createRng, type Rng } from './rng';
-import { createRivals } from './sim/rivals';
 
 // The world height is fixed; the width adapts to the window's aspect ratio so
 // the scene fills the screen with no letterboxing. ES-module live bindings let
@@ -18,25 +13,30 @@ export const WORLD_H = 600;
 export const GROUND_TOP = 225;
 export let WORLD_W = 960;
 
-// The garden of remembrance is dear, but unbounded it bloats every autosave
-// and cloud push (each entry carries a full genome; at 16x ducks die
-// continuously). Keep the newest MEMORIAL_CAP, but never evict the record
-// holders the Book celebrates.
 // The hatched flock — the predicate everyone was inlining (a dead helper,
 // isWaterfowlActive, once documented the same idea in duck.ts).
 export function flock(state: GameState): Duck[] {
   return state.ducks.filter((d) => d.stage !== 'egg');
 }
 
+export function duckById(state: GameState, id: string | null | undefined): Duck | undefined {
+  return id ? state.ducks.find((d) => d.id === id) : undefined;
+}
+
+// The garden of remembrance is dear, but unbounded it bloats every autosave
+// and cloud push (each entry carries a full genome; at 16x ducks die
+// continuously). Keep the newest MEMORIAL_CAP, but never evict the record
+// holders the Book celebrates.
 export const MEMORIAL_CAP = 80;
 
 export function trimMemorial(memorial: DuckSummary[]): DuckSummary[] {
   if (memorial.length <= MEMORIAL_CAP) return memorial;
   const longest = memorial.reduce((best, m) => ((m.ageDays ?? 0) > (best.ageDays ?? -1) ? m : best));
   const most = memorial.reduce((best, m) => ((m.descendants ?? 0) > (best.descendants ?? 0) ? m : best));
-  const tail = memorial.slice(-MEMORIAL_CAP);
-  const keepers = [longest, most].filter((m, i, arr) => !tail.includes(m) && arr.indexOf(m) === i);
-  return [...keepers, ...tail];
+  // The record holders, when they fall outside the newest entries, take a
+  // slot each from the tail so the result never exceeds the cap.
+  const keepers = [longest, most].filter((m, i, arr) => !memorial.slice(-MEMORIAL_CAP).includes(m) && arr.indexOf(m) === i);
+  return [...keepers, ...memorial.slice(-(MEMORIAL_CAP - keepers.length))];
 }
 
 export function fitWorldToWindow(): void {
@@ -44,7 +44,7 @@ export function fitWorldToWindow(): void {
   WORLD_W = Math.round(Math.min(2200, Math.max(700, WORLD_H * aspect)));
 }
 
-export interface FoodPellet {
+interface FoodPellet {
   id: number;
   pos: Vec2;
   premium: boolean; // legacy flag; `kind` is authoritative when present
@@ -220,74 +220,4 @@ export interface GameState {
   drillPurse: { day: number; earned: number };
   // Today's weather (see weather.ts); rolled at dawn.
   weather: import('./sim/weather').Weather;
-}
-
-// The RNG is re-created from serialized state each tick boundary; Game owns a
-// live Rng and writes its state back into GameState so saves stay deterministic.
-export function createNewGame(seed: number): { state: GameState; rng: Rng } {
-  const rng = createRng(seed);
-  const state: GameState = {
-    version: STATE_VERSION,
-    rngState: seed,
-    clock: { totalTicks: 7 * 600 }, // start at 07:00, day 1 of spring
-    seasonCache: 'spring',
-    money: BALANCE.startingMoney,
-    ducks: [],
-    memorial: [],
-    chronicle: [],
-    awards: {},
-    society: { rank: 0, points: 0, lifetimePoints: 0, unlockedStyles: [], style: {}, perks: [] },
-    commissions: [],
-    festivalWins: {},
-    league: { tier: 0, wins: 0, losses: 0 },
-    visitorLure: false,
-    heritage: 0,
-    sponsored: {},
-    market: null,
-    lastFestival: null,
-    nextCommissionId: 1,
-    commissionsDone: 0,
-    foodPellets: [],
-    nextPelletId: 1,
-    pendingClutches: [],
-    upgrades: {},
-    inventory: { feed: 10, premiumFeed: 3, peas: 5, worms: 0, berries: 0, medicine: 1, eggs: 0 },
-    pond: { cleanliness: 100 },
-    feeder: { food: 0 },
-    bugs: [],
-    nextBugId: 1,
-    featherAlbum: {},
-    goals: {},
-    breedBook: {},
-    request: null,
-    visitor: null,
-    festivalDone: {},
-    decorations: [],
-    stats: defaultStats(),
-    lifeEvent: null,
-    nextLifeEventId: 1,
-    rivals: createRivals(rng),
-    cup: null,
-    drillPurse: { day: -1, earned: 0 },
-    weather: { kind: 'clear', day: 0 },
-  };
-
-  // Starter flock: two pairs so breeding is possible from minute one.
-  const cx = WORLD_W / 2;
-  const spots: Vec2[] = [
-    { x: cx - 100, y: 380 },
-    { x: cx + 80, y: 400 },
-    { x: cx - 20, y: 330 },
-    { x: cx + 40, y: 440 },
-  ];
-  const sexes: Array<'M' | 'F'> = ['M', 'F', 'M', 'F'];
-  for (let i = 0; i < 4; i += 1) {
-    const duck = createStarterDuck(rng, spots[i], sexes[i]);
-    duck.name = freshName(rng, state.ducks.map((d) => d.name), DUCK_NAMES);
-    duck.bornDay = 0;
-    state.ducks.push(duck);
-    recordBreed(state, duck, true); // starters seed the book quietly
-  }
-  state.rngState = rng.getState();
-  return { state, rng };
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { advanceTicks, newGameWithPair } from '../testFixtures';
 import { createStarterDuck } from './duck';
 import { drakePressure, flockBalance, HENS_PER_DRAKE } from './flockBalance';
 import { eggViability, tickNeeds } from './needs';
@@ -18,7 +19,7 @@ describe('flock balance', () => {
   });
 
   it('surplus drakes harry the hens, cut viability, and suppress laying', () => {
-    const { state, rng } = createNewGame(91);
+    const { state, rng, hen, drake } = newGameWithPair(91);
     // 2 drakes, 2 hens: a pair of drakes is always tolerated.
     expect(flockBalance(state).excess).toBe(0);
     for (let i = 0; i < 4; i += 1) state.ducks.push(createStarterDuck(rng, { x: 0, y: 0 }, 'M'));
@@ -26,8 +27,6 @@ describe('flock balance', () => {
     expect(b.drakes).toBe(6);
     expect(b.excess).toBe(4);
     expect(b.status).toBe('rowdy');
-    const hen = state.ducks.find((d) => d.sex === 'F')!;
-    const drake = state.ducks.find((d) => d.sex === 'M')!;
     hen.needs.happiness = 100;
     for (let i = 0; i < TICKS_PER_HOUR; i += 1) tickNeeds(state, rng);
     expect(hen.needs.happiness).toBeLessThan(100 - 2 - 2); // base 2/h plus harried drain
@@ -40,7 +39,7 @@ describe('flock balance', () => {
       state.bugs = [];
       for (const d of state.ducks) delete d.lastLayDay;
       state.clock.totalTicks = 7 * TICKS_PER_HOUR + trial * 24 * TICKS_PER_HOUR;
-      for (let i = 0; i < 10 * TICKS_PER_HOUR; i += 1) { state.clock.totalTicks += 1; tickLaying(state, rng); }
+      advanceTicks(state, rng, 10 * TICKS_PER_HOUR, [tickLaying]);
       eggs += state.bugs.filter((x) => x.kind === 'henEgg').length;
     }
     expect(eggs).toBeLessThan(20); // 2 hens × 20 days = 40 possible

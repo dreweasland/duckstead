@@ -4,7 +4,7 @@
 import type { GameState } from '../state';
 import type { Duck } from './duck';
 import { personality } from './behavior';
-import { BALANCE, upgradeLevel } from './economy';
+import { BALANCE } from './economy';
 import { chronicle } from './chronicle';
 import { addSocietyPoints } from './society';
 import { recordLeagueResult } from './league';
@@ -14,6 +14,7 @@ import { events } from '../events';
 import { raceMarkScale, upbringingOf } from './marks';
 import { raceTrainingScale } from './training';
 import { TUNING } from './tuning';
+import { duckById } from '../state';
 
 // Paddle power for a meter position in [0, 1]; sweet spot is 0.5.
 export function boostPower(meterVal: number): number {
@@ -51,7 +52,7 @@ export function raceEligible(state: GameState): Duck[] {
 
 // Pay the entry fee and mark the duck as having raced today.
 export function enterRace(state: GameState, duckId: string, fee: number, ignoreDailyLimit = false): boolean {
-  const duck = state.ducks.find((d) => d.id === duckId);
+  const duck = duckById(state, duckId);
   if (!duck || state.money < fee) return false;
   state.money -= fee;
   if (!ignoreDailyLimit) duck.lastRaceDay = dayOf(state.clock);
@@ -60,7 +61,7 @@ export function enterRace(state: GameState, duckId: string, fee: number, ignoreD
   return true;
 }
 
-export interface RaceSettlement {
+interface RaceSettlement {
   duckId: string;
   place: number; // 0-based
   prizes: readonly number[];
@@ -75,7 +76,7 @@ export function settleRace(state: GameState, r: RaceSettlement): { prize: number
   state.money += prize;
   let notice: string | null = null;
   if (r.league) notice = recordLeagueResult(state, r.place);
-  const duck = state.ducks.find((d) => d.id === r.duckId);
+  const duck = duckById(state, r.duckId);
   const name = duck?.name ?? 'A duck';
   if (r.place === 0) {
     state.stats.racesWon += 1;
@@ -95,10 +96,4 @@ export function settleRace(state: GameState, r: RaceSettlement): { prize: number
   // like a shop transaction — on mobile, beforeunload often never fires.
   events.emit('purchase');
   return { prize, notice };
-}
-
-// The Training Perch's old flat speed bonus, kept for the shop copy to
-// reference the drill count instead.
-export function perchLevel(state: GameState): number {
-  return upgradeLevel(state, 'trainingPerch');
 }

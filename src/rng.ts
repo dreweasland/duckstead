@@ -28,20 +28,32 @@ export function createRng(seed: number): Rng {
   };
 }
 
-let idCounter = 0;
+// Small deterministic string hashes for choices that must stay stable for a
+// duck across sessions (personality jitter, favourite treat, animation
+// phase, epitaph). Multiplier and seed are parameters on purpose: saves
+// depend on the exact values — a favourite treat or a breed standard would
+// silently change under a different hash — so each caller keeps its own.
+export function hashString(s: string, mult = 31, seed = 0): number {
+  let h = seed;
+  for (let i = 0; i < s.length; i += 1) h = (h * mult + s.charCodeAt(i)) >>> 0;
+  return h;
+}
 
-// Unique-enough id for ducks; embeds a counter so ids created in the same
-// millisecond stay distinct.
+// 32-bit FNV-1a, for the callers that need better mixing.
+export function fnv1a(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
 // Ids come from the game RNG so a seeded game is fully reproducible (ids
 // seed personality, favourite treat, and animation phase): two 32-bit draws
-// make collisions within one pond vanishingly unlikely. Without an RNG,
-// fall back to a clock + counter.
-export function makeId(rng?: Rng): string {
-  if (rng) {
-    const a = Math.floor(rng.next() * 0xffffffff).toString(36);
-    const b = Math.floor(rng.next() * 0xffffffff).toString(36);
-    return `d${a}${b}`;
-  }
-  idCounter += 1;
-  return `d${Date.now().toString(36)}${idCounter.toString(36)}`;
+// make collisions within one pond vanishingly unlikely.
+export function makeId(rng: Rng): string {
+  const a = Math.floor(rng.next() * 0xffffffff).toString(36);
+  const b = Math.floor(rng.next() * 0xffffffff).toString(36);
+  return `d${a}${b}`;
 }

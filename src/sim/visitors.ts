@@ -17,6 +17,7 @@ import { ALL_BREED_KEYS } from './breedBook';
 import { breedStandard } from './standards';
 import { LOCI } from './genetics';
 import { hasPerk } from './society';
+import { TUNING } from './tuning';
 
 export interface BuyerRequest {
   wants: { pattern?: 'solid' | 'spotted' | 'capped'; colorKey?: string; crested?: boolean };
@@ -105,7 +106,7 @@ export function tickVisitors(state: GameState, rng: Rng): void {
       active.length > 0 ? active.reduce((sum, d) => sum + d.needs.happiness, 0) / active.length : 0;
     // Decorations make the pond easier to fall for.
     const charm = Math.min(state.decorations.length, 5) * 3;
-    const inviting = state.pond.cleanliness > 70 - charm && avgHappy > 60 - charm && !isOvercrowded(state);
+    const inviting = state.pond.cleanliness > TUNING.visitors.inviteCleanliness - charm && avgHappy > 60 - charm && !isOvercrowded(state);
     // The very first wild duck is guaranteed on day 2 so a fresh flock gets a
     // rare gene to breed toward before the Breed Book looks like a mirage.
     const firstVisit = state.stats.wildVisits === 0 && day >= 1;
@@ -120,7 +121,7 @@ export function tickVisitors(state: GameState, rng: Rng): void {
   }
 }
 
-export function makeRequest(rng: Rng, day: number, state?: GameState): BuyerRequest {
+function makeRequest(rng: Rng, day: number, state?: GameState): BuyerRequest {
   const wants: BuyerRequest['wants'] = {};
   wants.pattern = rng.pick(['solid', 'spotted', 'capped'] as const);
   // Blue joins the buyers' vocabulary once it exists on the pond.

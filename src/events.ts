@@ -1,6 +1,6 @@
 type Handler = (payload?: unknown) => void;
 
-export type GameEvent =
+type GameEvent =
   | 'toast'
   | 'chapter-done' // a goal chapter's last goal landed; payload is the ChapterDef
   | 'dawn' // 06:00 — the day's briefing
@@ -10,7 +10,6 @@ export type GameEvent =
   | 'duck-died' // payload { duck, descendants, honoured, ageDays } for the farewell banner
   | 'life-event' // a life event needs a decision; payload LifeEvent
   | 'purchase'
-  | 'duck-selected'
   | 'saved' // a local save just landed in localStorage (cloud sync pushes on it)
   | 'sync-status' // cloud sync state changed: 'synced' | 'syncing' | 'offline' | 'stale'
   | 'takeover' // another tab or device opened the game and owns the save now

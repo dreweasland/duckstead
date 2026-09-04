@@ -7,6 +7,11 @@ import { TICKS_PER_HOUR, TICKS_PER_MINUTE } from './time';
 export const TUNING = {
   // Feed effects live here (not in BALANCE) because food.ts builds its table
   // at module load, and economy.ts sits inside an import cycle with it.
+  visitors: {
+    // Wild ducks only drop in on a clean pond; the HUD, the daybook, and the
+    // dawn card all quote this so the number lives here.
+    inviteCleanliness: 70,
+  },
   food: {
     feedRestore: 40,
     premiumFeedRestore: 60,

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { pushEgg } from '../testFixtures';
 import { createDuck } from './duck';
 import { breedStandard } from './standards';
 import { consumableCost, sellPrice, SHOP_ITEMS } from './economy';
@@ -139,13 +140,7 @@ describe('egg show', () => {
   it('runs a full field, ranks entries, and pays by placement once', () => {
     const { state, rng } = createNewGame(45);
     onDay(state, FESTIVAL_DAY - 1); // spring egg show day
-    const egg = createDuck(rng, {
-      genome: randomCommonGenome(rng),
-      stage: 'egg',
-      pos: { x: 0, y: 0 },
-      name: 'Egg',
-    });
-    state.ducks.push(egg);
+    const egg = pushEgg(state, rng, { name: 'Egg' });
     const money = state.money;
     const result = runEggShow(state, egg.id, rng);
     expect(result).not.toBeNull();
@@ -169,13 +164,7 @@ describe('egg show', () => {
   it('refuses entries outside the festival', () => {
     const { state, rng } = createNewGame(46);
     onDay(state, 0);
-    const egg = createDuck(rng, {
-      genome: randomCommonGenome(rng),
-      stage: 'egg',
-      pos: { x: 0, y: 0 },
-      name: 'Egg',
-    });
-    state.ducks.push(egg);
+    const egg = pushEgg(state, rng, { name: 'Egg' });
     expect(runEggShow(state, egg.id, rng)).toBeNull();
   });
 
@@ -185,8 +174,7 @@ describe('egg show', () => {
     // Judges weigh standard match as much as rarity now, so the sure winner
     // is a rare breed that also hits its standard.
     const genome = breedStandard('B|d|solid|c');
-    const egg = createDuck(rng, { genome, stage: 'egg', pos: { x: 0, y: 0 }, name: 'Egg' });
-    state.ducks.push(egg);
+    const egg = pushEgg(state, rng, { genome, name: 'Egg' });
     const result = runEggShow(state, egg.id, rng);
     expect(result!.playerPlace).toBe(0);
     expect(result!.prize).toBe(EGG_SHOW_PRIZES[0]);

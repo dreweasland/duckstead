@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { advanceTicks } from '../testFixtures';
 import { personalityLabels, tickBehavior } from './behavior';
 import { tickNeeds } from './needs';
 import { TICKS_PER_HOUR } from './time';
@@ -47,13 +48,11 @@ describe('friendships', () => {
     // Keep just two ducks, pinned near each other.
     state.ducks = state.ducks.slice(0, 2);
     const [a, b] = state.ducks;
-    for (let i = 0; i < 8 * TICKS_PER_HOUR; i += 1) {
-      state.clock.totalTicks += 1;
+    advanceTicks(state, rng, 8 * TICKS_PER_HOUR, [
       // Pin positions so the hourly sample always sees them together.
-      a.pos = { x: 300, y: 300 };
-      b.pos = { x: 330, y: 300 };
-      tickBehavior(state, rng);
-    }
+      () => { a.pos = { x: 300, y: 300 }; b.pos = { x: 330, y: 300 }; },
+      tickBehavior,
+    ]);
     expect(a.friendId).toBe(b.id);
     expect(b.friendId).toBe(a.id);
   });

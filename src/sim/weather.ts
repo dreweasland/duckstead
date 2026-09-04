@@ -9,7 +9,7 @@ import { clamp } from '../types';
 import { events } from '../events';
 import { dayOf, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 
-export type WeatherKind = 'clear' | 'rain' | 'snow' | 'fog' | 'wind';
+type WeatherKind = 'clear' | 'rain' | 'snow' | 'fog' | 'wind';
 
 export interface Weather {
   kind: WeatherKind;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { newGameWithPair } from '../testFixtures';
 import { layEgg } from './duck';
 import { breed, randomCommonGenome } from './genetics';
 import { makeCommission, describeCommission, duckFits, fulfilCommission } from './commissions';
@@ -38,9 +39,7 @@ describe('the rivals\' hatching-egg market', () => {
   });
 
   it('ignores wild clutches and pairings below the bar', () => {
-    const { state, rng } = createNewGame(201);
-    const dam = state.ducks.find((d) => d.sex === 'F')!;
-    const sire = state.ducks.find((d) => d.sex === 'M')!;
+    const { state, rng, hen: dam, drake: sire } = newGameWithPair(201);
     const egg = layEgg(rng, dam, sire, { x: 0, y: 0 });
     delete egg.lineage;
     state.ducks.push(egg);
@@ -175,14 +174,12 @@ describe('the rivals\' eggs for sale', () => {
   });
 
   it('respects the nest and the purse', () => {
-    const { state, rng } = createNewGame(212);
+    const { state, rng, hen: dam, drake: sire } = newGameWithPair(212);
     state.money = 1;
     const sale = rivalEggsForSale(state)[0];
     expect(buyRivalEgg(state, rng, sale.rivalId).reason).toMatch(/coins/);
     state.money = 10_000;
     // Fill the nest.
-    const dam = state.ducks.find((d) => d.sex === 'F')!;
-    const sire = state.ducks.find((d) => d.sex === 'M')!;
     for (let i = 0; i < nestCapacity(state); i += 1) state.ducks.push(layEgg(rng, dam, sire, { x: 0, y: 0 }));
     expect(buyRivalEgg(state, rng, sale.rivalId).reason).toMatch(/nest is full/);
   });

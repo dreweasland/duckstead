@@ -33,7 +33,7 @@ export interface GoalGo {
   tab?: string;
 }
 
-export interface GoalDef {
+interface GoalDef {
   id: string;
   label: string;
   hint: string; // where to go and what to do, in a sentence or two
@@ -629,7 +629,7 @@ export function chapterProgress(state: GameState, id: ChapterId): { done: number
   return { done: goals.filter((g) => goalDone(state, g)).length, total: goals.length };
 }
 
-export function chapterDone(state: GameState, id: ChapterId): boolean {
+function chapterDone(state: GameState, id: ChapterId): boolean {
   const p = chapterProgress(state, id);
   return p.done >= p.total;
 }
@@ -643,7 +643,7 @@ export function goalsOverview(state: GameState): { done: number; total: number }
   return { done: GOALS.filter((g) => goalDone(state, g)).length, total: GOALS.length };
 }
 
-export interface WidgetGoal {
+interface WidgetGoal {
   goal: GoalDef;
   later?: string;
   upNext: boolean; // borrowed from the chapter after the current one

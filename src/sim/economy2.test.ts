@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { newGameWithPair } from '../testFixtures';
 import { layEgg } from './duck';
 import { sellPrice } from './economy';
 
 describe('egg pricing without candling', () => {
   it('two eggs from the same parents price identically whatever their hidden genes', () => {
-    const { state, rng } = createNewGame(50);
-    const mother = state.ducks.find((d) => d.sex === 'F')!;
-    const father = state.ducks.find((d) => d.sex === 'M')!;
+    const { state, rng, hen: mother, drake: father } = newGameWithPair(50);
     const prices = new Set<number>();
     for (let i = 0; i < 40; i += 1) {
       const egg = layEgg(rng, mother, father, { x: 0, y: 0 });
@@ -23,9 +21,7 @@ describe('egg pricing without candling', () => {
   });
 
   it('parents\' rarity still lifts an egg\'s price', () => {
-    const { state, rng } = createNewGame(51);
-    const mother = state.ducks.find((d) => d.sex === 'F')!;
-    const father = state.ducks.find((d) => d.sex === 'M')!;
+    const { state, rng, hen: mother, drake: father } = newGameWithPair(51);
     const plain = sellPrice(state, layEgg(rng, mother, father, { x: 0, y: 0 }));
     mother.phenotype.rarityScore = 6;
     const fancy = sellPrice(state, layEgg(rng, mother, father, { x: 0, y: 0 }));

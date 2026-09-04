@@ -48,7 +48,7 @@ const WATCHED_ALLELES: Array<{ locus: LocusId; allele: Allele; name: string }> =
   { locus: 'billColor', allele: 'P', name: 'pink bill' },
 ];
 
-export interface BreedingValue {
+interface BreedingValue {
   // Undiscovered breed keys reachable by pairing this duck within the flock.
   newBreeds: string[];
   // Of those, the ones nobody else on the pond could reach without this duck —

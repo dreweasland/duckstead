@@ -113,7 +113,7 @@ export function activeStyle(state: GameState, slot: StyleSlot): StyleDef | null 
 }
 
 // Titles bestowed so far, highest last.
-export function societyTitles(state: GameState): string[] {
+function societyTitles(state: GameState): string[] {
   return RANKS.filter((r) => r.rank <= state.society.rank && r.title).map((r) => r.title!);
 }
 

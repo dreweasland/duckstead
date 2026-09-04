@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { newGameWithPair } from '../testFixtures';
 import { createStarterDuck, layEgg } from './duck';
 import { closeKin, generationOf, livingDescendants } from './lineage';
 import { homozygousBookLoci, isPureBred, pedigree, pedigreeScore } from './pedigree';
@@ -10,9 +10,7 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 
 describe('lineage', () => {
   it('stamps two generations on the egg and survives the parents leaving', () => {
-    const { state, rng } = createNewGame(40);
-    const m = state.ducks.find((d) => d.sex === 'F')!;
-    const f = state.ducks.find((d) => d.sex === 'M')!;
+    const { state, rng, hen: m, drake: f } = newGameWithPair(40);
     const egg = layEgg(rng, m, f, { x: 0, y: 0 });
     expect(generationOf(egg)).toBe(1);
     expect(egg.lineage!.dam!.name).toBe(m.name);
@@ -32,9 +30,7 @@ describe('lineage', () => {
   });
 
   it('recognises close kin and depresses vigor for their clutches', () => {
-    const { state, rng } = createNewGame(41);
-    const m = state.ducks.find((d) => d.sex === 'F')!;
-    const f = state.ducks.find((d) => d.sex === 'M')!;
+    const { rng, hen: m, drake: f } = newGameWithPair(41);
     for (const d of [m, f]) { d.genome.vigor1 = ['+', '+']; d.genome.vigor2 = ['+', '+']; }
     const a = layEgg(rng, m, f, { x: 0, y: 0 });
     const b = layEgg(rng, m, f, { x: 0, y: 0 });
@@ -53,13 +49,11 @@ describe('lineage', () => {
 
 describe('pedigree', () => {
   it('rises with generations, fixed genes, rare alleles, and pure breeding; prices follow', () => {
-    const { state, rng } = createNewGame(42);
+    const { state, rng, hen: m, drake: f } = newGameWithPair(42);
     const founder = state.ducks[0];
     const p0 = pedigree(founder);
     expect(p0.gen).toBe(0);
     expect(p0.pure).toBe(false);
-    const m = state.ducks.find((d) => d.sex === 'F')!;
-    const f = state.ducks.find((d) => d.sex === 'M')!;
     const kid = layEgg(rng, m, f, { x: 0, y: 0 });
     expect(pedigree(kid).gen).toBe(1);
     kid.genome.baseColor = ['B', 'B'];
@@ -83,7 +77,7 @@ describe('pedigree', () => {
 
 describe('birthdays and chronicle', () => {
   it('ducks get a seasonal birthday that can actually arrive, and deaths are chronicled with lineage', () => {
-    const { state, rng } = createNewGame(43);
+    const { state, rng, hen: m, drake: f } = newGameWithPair(43);
     const duck = state.ducks[0];
     duck.bornDay = 0;
     state.clock.totalTicks = 6 * TICKS_PER_DAY + 9 * TICKS_PER_HOUR; // day 6, 09:00 — one season old
@@ -91,8 +85,6 @@ describe('birthdays and chronicle', () => {
     tickLifecycle(state, rng);
     expect(duck.needs.happiness).toBe(60);
     // Death with descendants.
-    const m = state.ducks.find((d) => d.sex === 'F')!;
-    const f = state.ducks.find((d) => d.sex === 'M')!;
     state.ducks.push(layEgg(rng, m, f, { x: 0, y: 0 }));
     m.needs.health = 0;
     tickLifecycle(state, rng);

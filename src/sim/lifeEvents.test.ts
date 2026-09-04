@@ -1,19 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { newGameWithPair } from '../testFixtures';
 import { layEgg } from './duck';
 import { hasMark } from './marks';
 import { broodyHenToday, describeLifeEvent, LIFE_EVENT_EXPIRE_HOUR, LIFE_EVENT_ROLL_HOUR, lifeEventChoices, resolveLifeEvent, rollLifeEvent, tickLifeEvents } from './lifeEvents';
 import { canLayToday } from './laying';
 import { TICKS_PER_HOUR } from './time';
-
-function withEgg(seed: number) {
-  const { state, rng } = createNewGame(seed);
-  const mother = state.ducks.find((d) => d.sex === 'F')!;
-  const father = state.ducks.find((d) => d.sex === 'M')!;
-  state.ducks.push(layEgg(rng, mother, father, { x: 100, y: 300 }));
-  return { state, rng };
-}
 
 describe('life events', () => {
   it('rolls only when there is someone to roll for', () => {
@@ -26,8 +19,9 @@ describe('life events', () => {
   });
 
   it('a broody hen sits the nest: no egg from her, warmth held, then it clears', () => {
-    const { state, rng } = withEgg(41);
-    const ev = { id: 1, kind: 'broody' as const, duckId: state.ducks.find((d) => d.sex === 'F')!.id, day: 0 };
+    const { state, rng, hen: mother, drake: father } = newGameWithPair(41);
+    state.ducks.push(layEgg(rng, mother, father, { x: 100, y: 300 }));
+    const ev = { id: 1, kind: 'broody' as const, duckId: mother.id, day: 0 };
     state.lifeEvent = ev;
     expect(describeLifeEvent(state, ev).title).toMatch(/broody/);
     expect(lifeEventChoices(state, ev).map((c) => c.id)).toEqual(['sit', 'shoo']);

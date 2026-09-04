@@ -61,13 +61,18 @@ export interface Duck {
   parentRarity?: number; // eggs: the parents' average rarity, so the price never reads the hidden genes
 }
 
+// "adult · 3.5d" — the age line on cards and rows.
+export function ageLabel(duck: Duck): string {
+  return `${duck.stage} · ${(duck.ageTicks / TICKS_PER_DAY).toFixed(1)}d`;
+}
+
 export const STAGE_DAYS: Record<Exclude<LifeStage, 'egg' | 'adult'>, number> = {
   duckling: 1,
   juvenile: 2,
   elder: 4,
 };
 export const EGG_DAYS = 0.5;
-export const ADULT_BASE_DAYS = 14;
+const ADULT_BASE_DAYS = 14;
 
 export function adultDurationTicks(vigor: number): number {
   return Math.round(ADULT_BASE_DAYS * (0.8 + 0.4 * vigor) * TICKS_PER_DAY);
@@ -92,7 +97,7 @@ export const HATCH_NAMES = [
   'Acorn', 'Cricket', 'Waffle', 'Noodle', 'Peanut', 'Minnow', 'Tansy', 'Clementine',
 ];
 
-export function randomName(rng: Rng): string {
+function randomName(rng: Rng): string {
   return rng.pick(DUCK_NAMES);
 }
 

@@ -1,21 +1,20 @@
 import type { GameState } from '../state';
 import type { Rng } from '../rng';
 import { layEgg, type Duck } from './duck';
-import { nestCapacity } from './economy';
 import { heritageMutationRate } from './heritage';
 import { drakePressure } from './flockBalance';
 import { MUTATION_RATE } from './genetics';
 import { events } from '../events';
 import { canBreedPair, eggViability } from './needs';
 import { nestPos } from './pond';
-import { seasonOf, TICKS_PER_MINUTE } from './time';
+import { seasonOf } from './time';
 import { studFather } from './rivals';
 import type { Genome } from './genetics';
+import { duckById } from '../state';
+import { BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS, nestFull, NEST_FULL_REASON, nestSlotOffset } from './nest';
 
-// Long enough that feeding and petting the pair mid-courtship can swing the
-// viability roll made when the egg is laid.
-export const COURTSHIP_TICKS = 60 * TICKS_PER_MINUTE; // 1 game-hour
-export const BREEDING_COOLDOWN_TICKS = 12 * 600; // 12 game-hours
+// The nest's numbers live in nest.ts; re-exported so callers keep one import.
+export { BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS, eggsIncubating, nestFull, nestUsed, NEST_FULL_REASON, nestSlotOffset } from './nest';
 
 export interface PendingClutch {
   motherId: string;
@@ -28,7 +27,7 @@ export interface PendingClutch {
 
 // The sire of a clutch: a duck on the pond, or a rebuilt stud.
 export function clutchFather(state: GameState, clutch: PendingClutch): Duck | undefined {
-  return clutch.stud ? studFather(state, clutch) : state.ducks.find((d) => d.id === clutch.fatherId);
+  return clutch.stud ? studFather(state, clutch) : duckById(state, clutch.fatherId);
 }
 
 // The viability the pair would roll right now, for the Breed panel.
@@ -36,19 +35,13 @@ export function pairViability(state: GameState, a: Duck, b: Duck): number {
   return eggViability(a, b, seasonOf(state.clock) === 'spring', drakePressure(state));
 }
 
-export function eggsIncubating(state: GameState): number {
-  return state.ducks.filter((d) => d.stage === 'egg').length;
-}
-
 export function nestPair(state: GameState, aId: string, bId: string): { ok: boolean; reason?: string } {
-  const a = state.ducks.find((d) => d.id === aId);
-  const b = state.ducks.find((d) => d.id === bId);
+  const a = duckById(state, aId);
+  const b = duckById(state, bId);
   if (!a || !b) return { ok: false, reason: 'Duck not found' };
   const check = canBreedPair(a, b);
   if (!check.ok) return check;
-  if (eggsIncubating(state) + state.pendingClutches.length >= nestCapacity(state)) {
-    return { ok: false, reason: 'The nest is full — sell or hatch some eggs first' };
-  }
+  if (nestFull(state)) return { ok: false, reason: NEST_FULL_REASON };
   const mother = a.sex === 'F' ? a : b;
   const father = a.sex === 'F' ? b : a;
   state.pendingClutches.push({
@@ -70,7 +63,7 @@ export function tickBreeding(state: GameState, rng: Rng): void {
     if (clutch.ticksRemaining > 0) continue;
     state.pendingClutches.splice(i, 1);
 
-    const mother = state.ducks.find((d) => d.id === clutch.motherId);
+    const mother = duckById(state, clutch.motherId);
     const father = clutchFather(state, clutch);
     if (!mother || !father) continue; // a parent was sold or died mid-courtship
 
@@ -100,26 +93,3 @@ export function tickBreeding(state: GameState, rng: Rng): void {
   }
 }
 
-// Eggs settle into spread-out spots in the straw instead of a random pile —
-// a big egg landing on a small one made the back egg unclickable. Each new
-// egg takes the candidate spot farthest from every egg already in the nest.
-export function nestSlotOffset(state: GameState, rng: Rng): { x: number; y: number } {
-  const existing = state.ducks
-    .filter((d) => d.stage === 'egg' && d.nestOffset)
-    .map((d) => d.nestOffset!);
-  const candidates: Array<{ x: number; y: number }> = [];
-  for (const x of [-33, -11, 11, 33]) candidates.push({ x, y: -13 });
-  for (const x of [-22, 0, 22]) candidates.push({ x, y: 3 });
-  for (const x of [-33, -11, 11, 33]) candidates.push({ x, y: 13 });
-  let best = candidates[0];
-  let bestClearance = -1;
-  for (const c of candidates) {
-    let nearest = Infinity;
-    for (const e of existing) nearest = Math.min(nearest, Math.hypot(c.x - e.x, c.y - e.y));
-    if (nearest > bestClearance) {
-      bestClearance = nearest;
-      best = c;
-    }
-  }
-  return { x: best.x + rng.range(-2, 2), y: best.y + rng.range(-2, 2) };
-}

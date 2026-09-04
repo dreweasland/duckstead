@@ -5,11 +5,12 @@
 // sizes, which is fine — only *surplus* drakes are penalised, so a flock one
 // drake under ideal loses nothing.
 import type { GameState } from '../state';
+import { plural } from '../text';
 
 export const HENS_PER_DRAKE = 3;
-export const MAX_EXCESS_EFFECT = 4;
+const MAX_EXCESS_EFFECT = 4;
 
-export interface FlockBalance {
+interface FlockBalance {
   drakes: number;
   hens: number;
   idealDrakes: number;
@@ -49,14 +50,14 @@ export function describeBalance(b: FlockBalance): string {
 function describeBalanceCore(b: FlockBalance): string {
   switch (b.status) {
     case 'balanced':
-      return `${b.drakes} drake${b.drakes === 1 ? '' : 's'}, ${b.hens} hen${b.hens === 1 ? '' : 's'} — balanced`;
+      return `${plural(b.drakes, 'drake')}, ${plural(b.hens, 'hen')} — balanced`;
     case 'crowded':
-      return `${b.drakes} drakes for ${b.hens} hen${b.hens === 1 ? '' : 's'} — ${b.excess} too many; the hens are harried`;
+      return `${b.drakes} drakes for ${plural(b.hens, 'hen')} — ${b.excess} too many; the hens are harried`;
     case 'rowdy':
-      return `${b.drakes} drakes for ${b.hens} hen${b.hens === 1 ? '' : 's'} — a rowdy pond; hens won't lay well`;
+      return `${b.drakes} drakes for ${plural(b.hens, 'hen')} — a rowdy pond; hens won't lay well`;
     case 'no-hens':
-      return `${b.drakes} drake${b.drakes === 1 ? '' : 's'} and no hens`;
+      return `${plural(b.drakes, 'drake')} and no hens`;
     case 'no-drakes':
-      return `${b.hens} hen${b.hens === 1 ? '' : 's'} and no drake`;
+      return `${plural(b.hens, 'hen')} and no drake`;
   }
 }

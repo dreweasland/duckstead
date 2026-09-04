@@ -4,7 +4,10 @@
 // traits are deliberately excluded so the collection is finishable.
 import type { GameState } from '../state';
 import type { Duck } from './duck';
-import { expressedAlleles, type Genome, LOCI } from './genetics';
+import { breedKey, type Genome, LOCI } from './genetics';
+
+// The key lives with the genome code (pedigree.ts needs it without pulling in the book).
+export { breedKey };
 import { dayOf } from './time';
 import { events } from '../events';
 import { chronicle } from './chronicle';
@@ -26,14 +29,6 @@ const COLOR_NAMES: Record<string, string> = {
 };
 const PATTERNS = ['solid', 'spotted', 'capped'] as const;
 
-export function breedKey(genome: Genome): string {
-  const color = [...expressedAlleles(genome, 'baseColor')].sort().join('+');
-  const diluted = expressedAlleles(genome, 'dilution')[0] === 'd' ? 'd' : 'D';
-  const patternAllele = expressedAlleles(genome, 'pattern')[0];
-  const pattern = patternAllele === 'S' ? 'solid' : patternAllele === 'p' ? 'spotted' : 'capped';
-  const crested = genome.crest[0] === 'R' && genome.crest[1] === 'R' ? 'c' : 'n';
-  return `${color}|${diluted}|${pattern}|${crested}`;
-}
 
 export function breedLabel(key: string): string {
   const [color, dilution, pattern, crest] = key.split('|');

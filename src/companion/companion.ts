@@ -18,6 +18,7 @@ import { el } from '../ui/dom';
 import { icon } from '../ui/icons';
 import { renderPairScreen } from './pairScreen';
 import { attentionCount, bookScreen, dayScreen, duckScreen, flockScreen, nestScreen, pondScreen, shopScreen, type Ctx } from './screens';
+import { duckById } from '../state';
 
 type Tab = 'flock' | 'nest' | 'pond' | 'shop' | 'book' | 'day';
 type Mode = 'peek' | 'play';
@@ -422,7 +423,7 @@ class Shell {
     let screen: HTMLElement;
     // A duck that was sold or died while its sheet was open drops back to
     // the grid without a blank frame.
-    const open = this.openDuckId ? this.game.state.ducks.find((d) => d.id === this.openDuckId) : undefined;
+    const open = this.openDuckId ? duckById(this.game.state, this.openDuckId) : undefined;
     if (this.tab === 'flock' && this.openDuckId && !open) this.openDuckId = null;
     if (this.tab === 'flock' && open) {
       screen = duckScreen(ctx, open, () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { tickBehavior } from './behavior';
 import { nestPair, tickBreeding } from './breeding';
 import { canBreedPair } from './needs';
@@ -17,12 +17,21 @@ import { tickFestivals } from './festivals';
 import { tickTraining, train } from './training';
 import { resolveLifeEvent, tickLifeEvents } from './lifeEvents';
 import { tickWeather } from './weather';
+import { tickRivals } from './rivals';
+import { tickCup } from './cup';
 import { seasonOf, TICKS_PER_YEAR } from './time';
 import { isOvercrowded, sellDuck } from './economy';
+import { LOCI } from './genetics';
+import { CHRONICLE_CAP } from './chronicle';
+import { MEMORIAL_CAP } from '../state';
+import { deserialize, serialize } from '../save/save';
 
 // Long-run stability: simulate ~1.5 game-years with a simple caretaker bot.
-// Guards against NaNs, runaway values, and death-spiral balance bugs.
-describe('soak', () => {
+// Guards against NaNs, runaway values, and death-spiral balance bugs. It is
+// the only integration-level guard, so it stays in `npm test` and CI; the
+// watch loop skips it (12s per rerun) — run `npm test` before pushing.
+const watchMode = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env?.VITEST_MODE === 'WATCH';
+describe.skipIf(watchMode)('soak', () => {
   it('survives 1.5 game-years of simulation without corruption', () => {
     const { state, rng } = createNewGame(2024);
     state.inventory.feed = 100000;
@@ -46,6 +55,8 @@ describe('soak', () => {
       tickCommissions(state, rng);
       tickTraining(state);
       tickLifeEvents(state, rng);
+      tickRivals(state, rng);
+      tickCup(state);
 
       // Caretaker bot: every game-hour, feed hungry ducks and clean the pond.
       if (i % 600 === 0) {
@@ -115,5 +126,24 @@ describe('soak', () => {
     expect(state.memorial.length).toBeGreaterThan(0);
     // The flock survived.
     expect(state.ducks.length).toBeGreaterThan(0);
+    // Bounded collections stayed bounded.
+    expect(state.memorial.length).toBeLessThanOrEqual(MEMORIAL_CAP);
+    expect(state.chronicle.length).toBeLessThanOrEqual(CHRONICLE_CAP);
+    // Every clutch on the nest still points at a living parent (or a stud).
+    for (const clutch of state.pendingClutches) {
+      expect(state.ducks.some((d) => d.id === clutch.motherId)).toBe(true);
+      expect(clutch.stud !== undefined || state.ducks.some((d) => d.id === clutch.fatherId)).toBe(true);
+    }
+    // Rival flocks kept complete genomes.
+    for (const rival of state.rivals) {
+      for (const genome of rival.flock) {
+        for (const locus of LOCI) expect(genome[locus.id]).toHaveLength(2);
+      }
+    }
+    // A year and a half of play still round-trips through the save format
+    // (prevPos is interpolation scratch that deserialize resets by design).
+    state.rngState = rng.getState();
+    for (const duck of state.ducks) duck.prevPos = { ...duck.pos };
+    expect(deserialize(serialize(state))).toEqual(state);
   }, 60_000);
 });

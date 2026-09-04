@@ -1,12 +1,12 @@
 import type { GameState } from '../state';
 import { broodyWarmthScale, MENTOR_HAPPY_SCALE, mentorNearby } from './elders';
-import { GROUND_TOP, WORLD_H, WORLD_W } from '../state';
+import { GROUND_TOP, WORLD_H, WORLD_W, duckById } from '../state';
 import type { Rng } from '../rng';
 import { clamp } from '../types';
 import type { Duck } from './duck';
 import { BALANCE, eggWarmthDecayScale, overcrowding, upgradeLevel } from './economy';
 import { events } from '../events';
-import { festivalToday } from './festivals';
+import { festivalToday } from './calendar';
 import { isPondDirty } from './pond';
 import { eatFood, takeStock, type EatResult, type FoodKind } from './food';
 import { drakePressure } from './flockBalance';
@@ -99,7 +99,7 @@ export function tickNeeds(state: GameState, rng: Rng): void {
     n.happiness = clamp(n.happiness - happyRate * perTick * nightScale, 0, 100);
     // Best friends nearby are good company.
     if (duck.friendId) {
-      const friend = state.ducks.find((d) => d.id === duck.friendId);
+      const friend = duckById(state, duck.friendId);
       if (friend && Math.hypot(friend.pos.x - duck.pos.x, friend.pos.y - duck.pos.y) < 70) {
         n.happiness = clamp(n.happiness + 0.5 * perTick, 0, 100);
       }
@@ -215,7 +215,7 @@ export function petDuck(state: GameState, duckId: string): boolean {
 // A petting session grants happiness in small steps as the player strokes;
 // once the full amount is given, the duck is content and the cooldown starts.
 export function petStroke(state: GameState, duckId: string, amount: number): number {
-  const duck = state.ducks.find((d) => d.id === duckId);
+  const duck = duckById(state, duckId);
   if (!duck || duck.stage === 'egg' || duck.petCooldownTicks > 0) return 0;
   const given = duck.petSessionGranted ?? 0;
   const grant = Math.min(amount, BALANCE.petHappiness - given);
@@ -236,7 +236,7 @@ export function petStroke(state: GameState, duckId: string, amount: number): num
 // Brushing scrubs grime off in strokes; no cooldown, the stroke rate is the
 // limiter. Returns the cleanliness actually restored.
 export function brushStroke(state: GameState, duckId: string, amount: number): number {
-  const duck = state.ducks.find((d) => d.id === duckId);
+  const duck = duckById(state, duckId);
   if (!duck || duck.stage === 'egg') return 0;
   const before = duck.needs.cleanliness;
   duck.needs.cleanliness = clamp(before + amount, 0, 100);
@@ -293,13 +293,13 @@ export function dropFood(state: GameState, pos: { x: number; y: number }, kind: 
 
 // --- Breeding gate ---
 
-export interface BreedingCheck {
+interface BreedingCheck {
   ok: boolean;
   reason?: string;
 }
 
 // Remaining breeding cooldown as a compact game-time string ("5h" / "40m").
-export function restTimeLeft(duck: Duck): string {
+function restTimeLeft(duck: Duck): string {
   const hours = duck.breedingCooldownTicks / TICKS_PER_HOUR;
   return hours >= 1 ? `${Math.ceil(hours)}h` : `${Math.max(1, Math.ceil(hours * 60))}m`;
 }
@@ -357,5 +357,5 @@ export function bondedPair(a: Duck, b: Duck): boolean {
 }
 
 function getDuck(state: GameState, id: string): Duck | undefined {
-  return state.ducks.find((d) => d.id === id);
+  return duckById(state, id);
 }

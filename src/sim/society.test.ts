@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { activeStyle, addSocietyPoints, advanceRank, canAdvance, championTitle, hasPerk, RANKS } from './society';
 import { duckCapacity, henEggPrice } from './economy';
 

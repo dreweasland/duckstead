@@ -3,13 +3,13 @@
 // being sold. Penned ducks don't count toward drake pressure, can't nest or
 // lay, and stay inside the fence — but they still eat and get grubby.
 import type { GameState } from '../state';
-import { WORLD_W } from '../state';
+import { WORLD_W, duckById } from '../state';
 import type { Vec2 } from '../types';
 import type { Duck } from './duck';
 import { upgradeLevel } from './economy';
 import { pondGeometry } from './pond';
 
-export const PEN_PER_LEVEL = 3;
+const PEN_PER_LEVEL = 3;
 
 export interface PenRect {
   x: number;
@@ -18,7 +18,7 @@ export interface PenRect {
   h: number;
 }
 
-export function penLevel(state: GameState): number {
+function penLevel(state: GameState): number {
   return upgradeLevel(state, 'bachelorPen');
 }
 
@@ -86,7 +86,7 @@ export function canPen(state: GameState, duck: Duck): { ok: boolean; reason?: st
 }
 
 export function penDuck(state: GameState, duckId: string): { ok: boolean; reason?: string } {
-  const duck = state.ducks.find((d) => d.id === duckId);
+  const duck = duckById(state, duckId);
   if (!duck) return { ok: false, reason: 'Duck not found' };
   const gate = canPen(state, duck);
   if (!gate.ok) return gate;
@@ -99,7 +99,7 @@ export function penDuck(state: GameState, duckId: string): { ok: boolean; reason
 }
 
 export function releaseDuck(state: GameState, duckId: string): boolean {
-  const duck = state.ducks.find((d) => d.id === duckId);
+  const duck = duckById(state, duckId);
   if (!duck || !duck.penned) return false;
   delete duck.penned;
   delete duck.pennedInside;

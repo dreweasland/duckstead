@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { advanceTicks } from '../testFixtures';
 import { createDuck, createStarterDuck, layEgg } from './duck';
 import { ALL_BREED_KEYS, breedKey, representativeGenome } from './breedBook';
 import { breedStandard, standardMatch, standardTargets } from './standards';
@@ -98,10 +99,7 @@ describe('commissions', () => {
     const { state, rng } = createNewGame(52);
     state.stats.ducksHatched = 3;
     state.clock.totalTicks = 8 * TICKS_PER_HOUR - 1;
-    for (let i = 0; i < TICKS_PER_DAY * 3; i += 1) {
-      state.clock.totalTicks += 1;
-      tickCommissions(state, rng);
-    }
+    advanceTicks(state, rng, TICKS_PER_DAY * 3, [tickCommissions]);
     expect(state.commissions.length).toBe(3);
     state.clock.totalTicks += TICKS_PER_DAY * 7;
     state.clock.totalTicks -= state.clock.totalTicks % TICKS_PER_DAY;

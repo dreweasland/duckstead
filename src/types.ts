@@ -3,10 +3,6 @@ export interface Vec2 {
   y: number;
 }
 
-export function vec2(x = 0, y = 0): Vec2 {
-  return { x, y };
-}
-
 export function dist(a: Vec2, b: Vec2): number {
   const dx = a.x - b.x;
   const dy = a.y - b.y;

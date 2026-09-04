@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { advanceTicks, newGameWithPair } from '../testFixtures';
 import { canLayToday, tickLaying } from './laying';
 import { catchBugAt } from './bugs';
 import { henEggPrice, sellEggBasket } from './economy';
@@ -16,10 +17,7 @@ describe('hen laying', () => {
     }
     const hens = state.ducks.filter((d) => d.sex === 'F');
     expect(hens.length).toBe(2);
-    for (let i = 0; i < 10 * TICKS_PER_HOUR; i += 1) {
-      state.clock.totalTicks += 1;
-      tickLaying(state, rng);
-    }
+    advanceTicks(state, rng, 10 * TICKS_PER_HOUR, [tickLaying]);
     const eggs = state.bugs.filter((b) => b.kind === 'henEgg');
     expect(eggs.length).toBe(2);
     for (const egg of eggs) {
@@ -38,8 +36,7 @@ describe('hen laying', () => {
   });
 
   it('hungry, sad, sick, or courting hens do not lay', () => {
-    const { state } = createNewGame(16);
-    const hen = state.ducks.find((d) => d.sex === 'F')!;
+    const { hen } = newGameWithPair(16);
     hen.needs.happiness = 90;
     hen.needs.hunger = 90;
     expect(canLayToday(hen, 3)).toBe(true);

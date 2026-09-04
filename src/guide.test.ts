@@ -11,12 +11,14 @@ import { RIVAL_DEFS } from './sim/rivals';
 import { UPGRADES, DECOR_ITEMS } from './sim/economy';
 import { LEAGUE } from './sim/league';
 import { TRAIN_STAT_META } from './sim/training';
-import { SHORTCUTS } from './ui/settingsPanel';
 
 // The pond guide is prose, so nothing keeps it honest but this: every named
 // thing in the sim must at least be mentioned. Rename a rank or add a mark
 // and the guide has to follow.
 const guide = pondGuide.toLowerCase();
+
+// The keyboard sheet's bindings (the panel itself renders from KEY_ACTIONS).
+const SHORTCUTS = ['Esc', '1 – 6', 'C', 'P', '+ / −', 'Space', 'Ctrl/Cmd-click a duck', '?'];
 
 describe('the pond guide', () => {
   it('names every festival, league tier, rank, mark, weather, rival, upgrade, decoration, stat, and shortcut', () => {
@@ -30,7 +32,7 @@ describe('the pond guide', () => {
       ...UPGRADES.map((u) => u.name),
       ...DECOR_ITEMS.map((d) => d.name.replace('Garden ', '').replace('Wooden ', '')),
       ...Object.values(TRAIN_STAT_META).map((s) => s.label),
-      ...SHORTCUTS.map(([key]) => key.split(' ')[0]),
+      ...SHORTCUTS.map((key) => key.split(' ')[0]),
       'Society Cup', 'stud service', 'heritage', 'Pedigree Scope', 'companion', 'broody', 'commissions',
     ];
     const missing = expected.filter((name) => !guide.includes(name.toLowerCase()));

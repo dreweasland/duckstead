@@ -13,12 +13,14 @@ import { bestPairFor, describeCommission, duckFits } from './commissions';
 import { describeBalance, flockBalance, HENS_PER_DRAKE } from './flockBalance';
 import { penCapacity, penDucks } from './pen';
 import type { Season } from '../types';
+import { TUNING } from './tuning';
+import { plural } from '../text';
 
-export type DawnIcon =
+type DawnIcon =
   | 'coin' | 'duck' | 'egg' | 'flag' | 'heart' | 'wheat' | 'bubbles' | 'sparkle' | 'warning' | 'pill' | 'grave'
   | 'feather' | 'smile';
 
-export interface DawnLine {
+interface DawnLine {
   icon: DawnIcon;
   text: string;
   detail?: string; // quieter second line
@@ -26,12 +28,12 @@ export interface DawnLine {
   duck?: Duck; // drawn as a portrait in place of the icon badge
 }
 
-export interface DawnSection {
+interface DawnSection {
   title: string;
   lines: DawnLine[];
 }
 
-export interface DawnReport {
+interface DawnReport {
   season: Season;
   dayLabel: string; // "Day 2 of Spring · Year 1"
   greeting: string;
@@ -47,14 +49,11 @@ const GREETINGS: Record<Season, string> = {
   winter: 'A frosty winter morning at the pond.',
 };
 
-function plural(n: number, word: string, suffix = 's'): string {
-  return `${n} ${word}${n === 1 ? '' : suffix}`;
-}
 
 // Where the report is read: a few details point at desktop-only controls
 // (the festival chip, a duck card's deliver button) and read differently on
 // the companion, which has neither.
-export type DawnAudience = 'desktop' | 'companion';
+type DawnAudience = 'desktop' | 'companion';
 
 export function dawnReport(state: GameState, audience: DawnAudience = 'desktop'): DawnReport {
   const pocket = audience === 'companion';
@@ -120,12 +119,12 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
       duck: fits[0],
       text: `${c.client} wants ${describeCommission(c)} — ${c.reward} coins.`,
       detail: fits.length > 0
-        ? `${fits[0].name} fits — ${pocket ? 'deliver from the desktop' : 'deliver from the card'}. ${left} day${left === 1 ? '' : 's'} left.`
+        ? `${fits[0].name} fits — ${pocket ? 'deliver from the desktop' : 'deliver from the card'}. ${plural(left, 'day')} left.`
         : (() => {
             const pair = bestPairFor(state, c.key);
             return pair
-              ? `Nobody fits yet — ${pair.dam.name} × ${pair.sire.name} could hatch one (${Math.round(pair.chance * 100)}% per egg). ${left} day${left === 1 ? '' : 's'} left.`
-              : `Nobody fits yet; ${left} day${left === 1 ? '' : 's'} left.`;
+              ? `Nobody fits yet — ${pair.dam.name} × ${pair.sire.name} could hatch one (${Math.round(pair.chance * 100)}% per egg). ${plural(left, 'day')} left.`
+              : `Nobody fits yet; ${plural(left, 'day')} left.`;
           })(),
       urgent: fits.length > 0 && left <= 1,
     });
@@ -190,8 +189,8 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
   if (state.inventory.feed < 5 && state.feeder.food === 0) {
     chores.push({ icon: 'wheat', text: `Feed is low (${state.inventory.feed} left).`, detail: 'Gather duckweed from the rim or visit the shop.' });
   }
-  if (state.pond.cleanliness < 70) {
-    chores.push({ icon: 'bubbles', text: `Pond is ${Math.round(state.pond.cleanliness)}% clean.`, detail: "Wild ducks won't visit until it's scrubbed above 70%." });
+  if (state.pond.cleanliness < TUNING.visitors.inviteCleanliness) {
+    chores.push({ icon: 'bubbles', text: `Pond is ${Math.round(state.pond.cleanliness)}% clean.`, detail: `Wild ducks won't visit until it's scrubbed above ${TUNING.visitors.inviteCleanliness}%.` });
   }
   const pickups = state.bugs.filter((b) => b.kind === 'feather' || b.kind === 'duckweed').length;
   if (pickups > 0) chores.push({ icon: 'sparkle', text: `${plural(pickups, 'pickup')} on the grass.`, detail: 'Feathers for the album, duckweed for feed.' });

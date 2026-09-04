@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { canDrill, drillsLeft, drillsPerDay, tickTraining, train, trainingAptitude, TRAINING } from './training';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 

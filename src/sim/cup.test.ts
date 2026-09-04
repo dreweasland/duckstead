@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { canEnterCup, cupOpen, cupStandings, enterCup, tickCup } from './cup';
 import { addSocietyPoints } from './society';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, TICKS_PER_SEASON } from './time';

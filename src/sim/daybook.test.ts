@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { Game } from '../game';
 import { events } from '../events';
 import { dawnLines, dawnReport } from './daybook';
 import { createStarterDuck } from './duck';
+import { installFakeStorage } from '../testFixtures';
 import { NIGHT_END, TICKS_PER_HOUR, dayOf, hourOf, isNight } from './time';
 
 describe('dawn report', () => {
@@ -62,13 +63,7 @@ describe('dawn report', () => {
 describe('sleep until dawn', () => {
   it('ticks through the night to exactly 06:00 and fires the dawn event once', () => {
     // Game touches browser globals in its constructor; stub the minimum.
-    const store = new Map<string, string>();
-    (globalThis as any).localStorage = {
-      getItem: (k: string) => store.get(k) ?? null,
-      setItem: (k: string, v: string) => store.set(k, v),
-      removeItem: (k: string) => store.delete(k),
-    };
-    (globalThis as any).window = { addEventListener: () => {} };
+    installFakeStorage();
     const game = new Game();
     game.state.clock.totalTicks = 22 * TICKS_PER_HOUR; // 22:00
     let dawns = 0;

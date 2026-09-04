@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { advanceTicks, newGameWithPair } from '../testFixtures';
 import { createStarterDuck } from './duck';
 import { canPen, inPen, penCapacity, penDuck, penDucks, releaseDuck } from './pen';
 import { drakePressure, flockBalance } from './flockBalance';
@@ -12,10 +13,9 @@ import { TICKS_PER_HOUR } from './time';
 
 describe('bachelor pen', () => {
   it('needs the upgrade, respects capacity, and takes drakes out of the balance', () => {
-    const { state, rng } = createNewGame(110);
+    const { state, rng, hen, drake } = newGameWithPair(110);
     for (let i = 0; i < 3; i += 1) state.ducks.push(createStarterDuck(rng, { x: 480, y: 400 }, 'M'));
     expect(flockBalance(state).excess).toBe(3);
-    const drake = state.ducks.find((d) => d.sex === 'M')!;
     expect(canPen(state, drake).ok).toBe(false);
     expect(canPen(state, drake).reason).toContain('Buy');
     state.upgrades.bachelorPen = 1;
@@ -34,7 +34,6 @@ describe('bachelor pen', () => {
     expect(drakePressure(state)).toBe(0);
     // Penned ducks can't breed; release restores them.
     expect(breedReadiness(drakes[0]).reason).toContain('pen');
-    const hen = state.ducks.find((d) => d.sex === 'F')!;
     expect(canBreedPair(drakes[0], hen).ok).toBe(false);
     expect(releaseDuck(state, drakes[0].id)).toBe(true);
     expect(breedReadiness(drakes[0]).ok).toBe(true);
@@ -42,9 +41,8 @@ describe('bachelor pen', () => {
   });
 
   it('penned hens do not lay', () => {
-    const { state } = createNewGame(111);
+    const { state, hen } = newGameWithPair(111);
     state.upgrades.bachelorPen = 1;
-    const hen = state.ducks.find((d) => d.sex === 'F')!;
     hen.needs.hunger = 90;
     hen.needs.happiness = 90;
     expect(canLayToday(hen, 2)).toBe(true);
@@ -59,7 +57,7 @@ describe('bachelor pen', () => {
     for (const d of drakes) expect(penDuck(state, d.id).ok).toBe(true);
     // Walk in (they start in the pond).
     state.clock.totalTicks = 9 * TICKS_PER_HOUR;
-    for (let i = 0; i < TICKS_PER_HOUR * 2; i += 1) { state.clock.totalTicks += 1; tickNeeds(state, rng); tickBehavior(state, rng); }
+    advanceTicks(state, rng, TICKS_PER_HOUR * 2, [tickNeeds, tickBehavior]);
     for (const d of drakes) expect(inPen(state, d.pos)).toBe(true);
     // A day and a night inside.
     let swims = 0;

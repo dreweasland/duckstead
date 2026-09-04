@@ -22,7 +22,7 @@ import {
 import { favouriteTreat, FOODS, stockOf } from '../sim/food';
 import { catchBugAt, DUCKWEED_FEED } from '../sim/bugs';
 import { henEggPrice, sellEggBasket, SHOP_ITEMS, consumableCost } from '../sim/economy';
-import { claimHatch, eggIncubationTicks } from '../sim/lifecycle';
+import { claimHatch, incubationPct } from '../sim/lifecycle';
 import { cleanPond, isPondDirty } from '../sim/pond';
 import { dawnReport } from '../sim/daybook';
 import { goalProgress, pendingGoals } from '../sim/goals';
@@ -42,6 +42,8 @@ import { personalityLabels } from '../sim/behavior';
 import { describeLifeEvent, lifeEventChoices, resolveLifeEvent } from '../sim/lifeEvents';
 import { treatVisitor, TREATS_TO_RECRUIT, visitorInFlight } from '../sim/visitors';
 import { festivalEnteredToday, festivalToday, FESTIVAL_NAMES, FESTIVAL_PACKUP_HOUR } from '../sim/festivals';
+import { plural } from '../text';
+import { duckById } from '../state';
 
 export interface Ctx {
   game: Game;
@@ -109,7 +111,7 @@ export function flockScreen(ctx: Ctx, openDuck: (id: string) => void): HTMLEleme
         'div',
         { class: 'comp-muted small' },
         duck.stage === 'egg'
-          ? `${Math.min(100, Math.round((duck.incubationTicks / eggIncubationTicks(game.state)) * 100))}% · warmth ${Math.round(eggWarmth(duck))}%`
+          ? `${Math.round(incubationPct(game.state, duck))}% · warmth ${Math.round(eggWarmth(duck))}%`
           : `${duck.sex === 'M' ? '♂' : '♀'} ${duck.stage}`,
       ),
       el('div', { class: 'comp-card-badges' }, ...badges),
@@ -141,7 +143,7 @@ export function duckScreen(ctx: Ctx, duck: Duck, back: () => void): HTMLElement 
     el('button', { class: 'comp-btn', disabled: !ok, onclick: act(fn) }, label);
 
   if (duck.stage === 'egg') {
-    const pct = Math.min(100, Math.round((duck.incubationTicks / eggIncubationTicks(state)) * 100));
+    const pct = Math.round(incubationPct(state, duck));
     const warmth = Math.round(eggWarmth(duck));
     const tuckWait = duck.petCooldownTicks;
     box.append(
@@ -183,7 +185,7 @@ export function duckScreen(ctx: Ctx, duck: Duck, back: () => void): HTMLElement 
       el(
         'section',
         { class: 'comp-section' },
-        el('h2', {}, `Training · ${left} drill${left === 1 ? '' : 's'} left today`),
+        el('h2', {}, `Training · ${plural(left, 'drill')} left today`),
         // Tooltips never show on touch: the reason a drill is off goes in the text.
         el('div', { class: 'comp-muted small' }, gate.ok ? 'Pocket drills go through the motions at modest form; the desktop drills earn far more.' : gate.reason ?? 'No drills right now.'),
         drills,
@@ -269,7 +271,7 @@ export function nestScreen(ctx: Ctx, pick: string | null, setPick: (id: string |
   if (clutches.length > 0) {
     const sec = el('section', { class: 'comp-section' }, el('h2', {}, 'Courting'));
     for (const c of clutches) {
-      const m = state.ducks.find((d) => d.id === c.motherId);
+      const m = duckById(state, c.motherId);
       const f = clutchFather(state, c);
       sec.append(el('div', { class: 'comp-line' }, `${m?.name ?? '?'} & ${f?.name ?? '?'} — egg in ${Math.ceil(c.ticksRemaining / TICKS_PER_MINUTE)}m`));
     }
@@ -279,7 +281,7 @@ export function nestScreen(ctx: Ctx, pick: string | null, setPick: (id: string |
     const sec = el('section', { class: 'comp-section' }, el('h2', {}, `Incubating · ${eggs.length}`));
     const list = el('div', { class: 'comp-actions' });
     for (const egg of eggs) {
-      const pct = Math.min(100, Math.round((egg.incubationTicks / eggIncubationTicks(state)) * 100));
+      const pct = Math.round(incubationPct(state, egg));
       list.append(
         egg.readyToHatch
           ? el('button', { class: 'comp-btn', onclick: act(() => claimHatch(state, game.rng, egg.id)) }, `Hatch! (${egg.name === 'Egg' ? 'egg' : egg.name})`)
@@ -422,7 +424,7 @@ export function pondScreen(ctx: Ctx): HTMLElement {
       'section',
       { class: 'comp-section' },
       el('h2', {}, 'Egg basket'),
-      el('div', { class: 'comp-muted small' }, `${state.inventory.eggs} egg${state.inventory.eggs === 1 ? '' : 's'} · worth ${henEggPrice(state)} each`),
+      el('div', { class: 'comp-muted small' }, `${plural(state.inventory.eggs, 'egg')} · worth ${henEggPrice(state)} each`),
       el(
         'div',
         { class: 'comp-actions' },
@@ -510,8 +512,8 @@ export function dayScreen(ctx: Ctx, openDuck: (id: string) => void): HTMLElement
   if (ev) {
     anything = true;
     const { title, text } = describeLifeEvent(state, ev);
-    const duck = state.ducks.find((d) => d.id === ev.duckId);
-    const other = state.ducks.find((d) => d.id === ev.otherId);
+    const duck = duckById(state, ev.duckId);
+    const other = duckById(state, ev.otherId);
     const card = el(
       'div',
       { class: 'comp-card-wide' },

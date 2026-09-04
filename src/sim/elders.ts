@@ -11,10 +11,10 @@ import { TUNING } from './tuning';
 
 // Broody grannies: elder hens sit with the clutch, slowing egg-warmth decay.
 // Each hen is worth 25% less decay, two at most (a nest only has so much room).
-export const BROODY_PER_HEN = TUNING.elders.broodyPerHen;
-export const BROODY_MAX_HENS = TUNING.elders.broodyMaxHens;
+const BROODY_PER_HEN = TUNING.elders.broodyPerHen;
+const BROODY_MAX_HENS = TUNING.elders.broodyMaxHens;
 
-export function elderHensOnPond(state: GameState): number {
+function elderHensOnPond(state: GameState): number {
   return state.ducks.filter((d) => d.stage === 'elder' && d.sex === 'F' && !d.penned).length;
 }
 
@@ -24,7 +24,7 @@ export function broodyWarmthScale(state: GameState): number {
 
 // The mentor: ducklings and juveniles keeping company with an elder hold
 // their happiness better — grandparents raising the brood.
-export const MENTOR_RADIUS = TUNING.elders.mentorRadius;
+const MENTOR_RADIUS = TUNING.elders.mentorRadius;
 export const MENTOR_HAPPY_SCALE = TUNING.elders.mentorHappyScale;
 
 export function mentorNearby(state: GameState, duck: Duck): boolean {

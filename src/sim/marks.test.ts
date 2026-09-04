@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { newGameWithPair } from '../testFixtures';
 import { createDuck, layEgg } from './duck';
 import { tickLifecycle } from './lifecycle';
 import { assignAdultMarks, assignJuvenileMarks, hasMark, happinessDecayScale, raceMarkScale, sicknessScale, treatCheerScale, upbringingOf } from './marks';
@@ -40,9 +41,7 @@ describe('upbringing marks', () => {
   });
 
   it('marks are granted at the real stage transitions', () => {
-    const { state, rng } = createNewGame(32);
-    const mother = state.ducks.find((d) => d.sex === 'F')!;
-    const father = state.ducks.find((d) => d.sex === 'M')!;
+    const { state, rng, hen: mother, drake: father } = newGameWithPair(32);
     const egg = layEgg(rng, mother, father, { x: 100, y: 300 });
     egg.readyToHatch = true;
     egg.readyTicks = 10_000; // force the self-hatch

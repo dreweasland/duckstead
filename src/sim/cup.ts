@@ -4,6 +4,7 @@
 // takes the Cup — coins, a chronicle line, and a win on the record. It is
 // the sink Society points needed once the ladder is climbed.
 import type { GameState } from '../state';
+import { ordinal } from '../text';
 import { chronicle } from './chronicle';
 import { events } from '../events';
 import { dayOfSeason, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR, yearOf } from './time';
@@ -42,7 +43,7 @@ export function noteCupPoints(state: GameState, n: number): void {
   if (n > 0 && cupOpen(state)) state.cup!.score += n;
 }
 
-export interface CupStanding {
+interface CupStanding {
   name: string;
   score: number;
   isPlayer: boolean;
@@ -75,8 +76,8 @@ export function tickCup(state: GameState): void {
   } else {
     const rival = state.rivals.find((r) => r.name === winner.name);
     if (rival) rival.wins += 1;
-    chronicle(state, 'society', `${winner.name} took the year ${yearOf(state.clock)} Society Cup; the pond placed ${place + 1}${place === 1 ? 'nd' : place === 2 ? 'rd' : 'th'}.`);
-    events.emit('toast', `${winner.name} won the Society Cup — you placed ${place + 1}${place === 1 ? 'nd' : place === 2 ? 'rd' : 'th'}.`);
+    chronicle(state, 'society', `${winner.name} took the year ${yearOf(state.clock)} Society Cup; the pond placed ${ordinal(place + 1)}.`);
+    events.emit('toast', `${winner.name} won the Society Cup — you placed ${ordinal(place + 1)}.`);
   }
   state.cup = null;
 }

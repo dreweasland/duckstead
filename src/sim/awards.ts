@@ -14,11 +14,11 @@ import { chronicle } from './chronicle';
 import { dayOf, TICKS_PER_HOUR } from './time';
 import { addSocietyPoints } from './society';
 
-export type AwardTier = 'pure' | 'standard' | 'master';
+type AwardTier = 'pure' | 'standard' | 'master';
 export const AWARD_TIERS: AwardTier[] = ['pure', 'standard', 'master'];
 export const AWARD_LABELS: Record<AwardTier, string> = { pure: 'Pure', standard: 'Standard', master: 'Master' };
-export const AWARD_COINS: Record<AwardTier, number> = { pure: 20, standard: 40, master: 80 };
-export const AWARD_POINTS: Record<AwardTier, number> = { pure: 2, standard: 4, master: 8 };
+const AWARD_COINS: Record<AwardTier, number> = { pure: 20, standard: 40, master: 80 };
+const AWARD_POINTS: Record<AwardTier, number> = { pure: 2, standard: 4, master: 8 };
 export const MASTER_COUNT = 5;
 
 export type BreedAwards = Partial<Record<AwardTier, number>>; // tier → day earned

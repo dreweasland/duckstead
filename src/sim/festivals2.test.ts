@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { closeMarket, festivalEnteredToday, festivalTier, generateMarketBuyers, marketSell, marketTarget, tickFestivals, winterCeremonyFinale, winterParadeScore, winterParadeTarget } from './festivals';
 import { sponsorFestival } from './economy';
 import { TICKS_PER_DAY, TICKS_PER_HOUR, TICKS_PER_SEASON } from './time';

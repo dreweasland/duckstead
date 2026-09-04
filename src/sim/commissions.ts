@@ -37,8 +37,8 @@ export interface Commission {
   expiresDay: number;
 }
 
-export const COMMISSION_SLOTS = 3;
-export const COMMISSION_DAYS = 6;
+const COMMISSION_SLOTS = 3;
+const COMMISSION_DAYS = 6;
 const CLIENTS = [
   'Mrs. Abernathy', 'the Thistlewood estate', 'Harbour Farm', 'Dr. Quill', 'the Millpond Society',
   'Old Tom Fennick', 'the Abbey kitchens', 'Lady Marrow', 'the Fairweather twins', 'Pemberton & Sons',

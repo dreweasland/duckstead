@@ -1,5 +1,5 @@
 import type { GameState } from '../state';
-import { trimMemorial } from '../state';
+import { trimMemorial, duckById } from '../state';
 import type { Rng } from '../rng';
 import type { Duck } from './duck';
 import { adultDurationTicks, DUCK_NAMES, EGG_DAYS, freshName, HATCH_NAMES, STAGE_DAYS } from './duck';
@@ -14,7 +14,7 @@ import { passingPoints } from './elders';
 import { assignAdultMarks, assignJuvenileMarks, upbringingOf } from './marks';
 import { events } from '../events';
 import { dayOf, DAYS_PER_SEASON, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
-import { ordinal } from '../text';
+import { ordinal, plural } from '../text';
 
 const YEAR_DAYS = DAYS_PER_SEASON * 4;
 
@@ -28,7 +28,19 @@ export function eggIncubationTicks(state: GameState): number {
   return Math.round(days * TICKS_PER_DAY);
 }
 
+// How far along an egg is, 0–100 (a finished egg sits at 100 until claimed).
+export function incubationPct(state: GameState, egg: Duck): number {
+  return Math.min(100, (egg.incubationTicks / eggIncubationTicks(state)) * 100);
+}
+
 export function tickLifecycle(state: GameState, rng: Rng): void {
+  tickBirthdays(state);
+  const dead = tickStages(state, rng);
+  buryDead(state, dead);
+}
+
+// Birthdays and the lineage records, once a day at 09:00.
+function tickBirthdays(state: GameState): void {
   // Birthdays at 09:00, once a season (a duck lives ~3 seasons, so a yearly
   // birthday could never arrive). A year birthday is a chronicle event.
   if (state.clock.totalTicks % TICKS_PER_DAY === 9 * TICKS_PER_HOUR) {
@@ -43,7 +55,7 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
           events.emit('toast', `${duck.name} is ${age / YEAR_DAYS} year${age === YEAR_DAYS ? '' : 's'} old today — a rare old bird!`);
           chronicle(state, 'birthday', `${duck.name} reached a full year — few ducks do.`);
         } else {
-          events.emit('toast', `It's ${duck.name}'s birthday — ${seasons} season${seasons === 1 ? '' : 's'} old today!`);
+          events.emit('toast', `It's ${duck.name}'s birthday — ${plural(seasons, 'season')} old today!`);
         }
       }
     }
@@ -59,7 +71,12 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
       }
     }
   }
+}
 
+// Ages every duck by a tick: eggs incubate and hatch, the young grow up, and
+// elders reach the end of their days. Returns the ducks that died this tick,
+// in flock order; they are still in `state.ducks` until buried.
+function tickStages(state: GameState, rng: Rng): Duck[] {
   const dead: Duck[] = [];
 
   for (const duck of state.ducks) {
@@ -120,7 +137,12 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
 
     if (duck.needs.health <= 0) dead.push(duck);
   }
+  return dead;
+}
 
+// Take the dead off the pond: a memorial stone, a chronicle line, the
+// elder's honours, and a grieving friend.
+function buryDead(state: GameState, dead: Duck[]): void {
   for (const duck of dead) {
     const idx = state.ducks.indexOf(duck);
     if (idx < 0) continue;
@@ -141,7 +163,7 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
     });
     state.memorial = trimMemorial(state.memorial);
     const age = duck.bornDay !== undefined ? dayOf(state.clock) - duck.bornDay : undefined;
-    const line = descendants > 0 ? ` ${duck.sex === 'F' ? 'Her' : 'His'} line lives on in ${descendants} duck${descendants === 1 ? '' : 's'}.` : '';
+    const line = descendants > 0 ? ` ${duck.sex === 'F' ? 'Her' : 'His'} line lives on in ${plural(descendants, 'duck')}.` : '';
     chronicle(
       state,
       'death',
@@ -174,20 +196,20 @@ export function tickLifecycle(state: GameState, rng: Rng): void {
 
 // Player taps a cracked egg. Returns false if it isn't ready.
 export function claimHatch(state: GameState, rng: Rng, eggId: string): boolean {
-  const egg = state.ducks.find((d) => d.id === eggId);
+  const egg = duckById(state, eggId);
   if (!egg || egg.stage !== 'egg' || !egg.readyToHatch) return false;
   hatch(state, rng, egg);
   return true;
 }
 
 // Average warmth over the incubation, 0..100.
-export function eggTendingScore(egg: Duck): number {
+function eggTendingScore(egg: Duck): number {
   const ticks = Math.max(1, egg.ageTicks);
   return (egg.warmthSum ?? BALANCE.eggStartWarmth * ticks) / ticks;
 }
 
 function eggLabel(state: GameState, egg: Duck): string {
-  const mother = egg.parents ? state.ducks.find((d) => d.id === egg.parents![0]) : undefined;
+  const mother = egg.parents ? duckById(state, egg.parents![0]) : undefined;
   return mother ? `${mother.name}'s egg` : 'An egg';
 }
 

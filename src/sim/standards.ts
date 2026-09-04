@@ -6,8 +6,9 @@
 import type { Duck } from './duck';
 import type { Allele, Genome, LocusId } from './genetics';
 import { breedKey, representativeGenome } from './breedBook';
+import { fnv1a } from '../rng';
 
-export interface StandardTargets {
+interface StandardTargets {
   size: number; // 0..6 '+' alleles across size1-3
   bill: number; // 0..4 across bill1-2
   billColor: Allele; // 'O' | 'y' | 'P'
@@ -15,14 +16,7 @@ export interface StandardTargets {
   temper: number; // 0..4 '+' alleles across temper1-2: timid, steady, bold
 }
 
-function hashKey(key: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < key.length; i += 1) {
-    h ^= key.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
+const hashKey = fnv1a;
 
 export function standardTargets(key: string): StandardTargets {
   const h = hashKey(key);
@@ -59,7 +53,7 @@ export function breedStandard(key: string): Genome {
   return g;
 }
 
-export interface StandardMatch {
+interface StandardMatch {
   key: string;
   pct: number; // 0..100
   slots: Array<{ label: string; score: number; want: string; have: string }>; // 10 judged slots, score 0..1

@@ -7,6 +7,14 @@ import { runLab } from './lab';
 import { attachCloudSync, prepareCloudBoot } from './sync/sync';
 import { isSyncConfigured } from './sync/syncMeta';
 
+declare global {
+  interface Window {
+    // Dev-only seam for browser-automation checks (set below, DEV builds only).
+    __game?: Game;
+    __renderer?: Renderer;
+  }
+}
+
 async function boot(): Promise<void> {
   const canvas = document.getElementById('pond-canvas') as HTMLCanvasElement;
   fitWorldToWindow(); // before Game so starter ducks spawn on the pond
@@ -18,9 +26,9 @@ async function boot(): Promise<void> {
   new UI(game, renderer);
   attachCloudSync(game);
   // Dev-only seam for browser-automation checks (vite strips this in prod).
-  if ((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV) {
-    (window as unknown as Record<string, unknown>).__game = game;
-    (window as unknown as Record<string, unknown>).__renderer = renderer;
+  if (import.meta.env.DEV) {
+    window.__game = game;
+    window.__renderer = renderer;
   }
   startLoop(game.tick, renderer.render, () => game.speed);
 }

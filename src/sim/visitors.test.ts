@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { advanceTicks } from '../testFixtures';
 import { createDuck } from './duck';
 import { randomCommonGenome } from './genetics';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
@@ -16,11 +17,7 @@ import {
 } from './visitors';
 
 function runDays(days: number, setup: ReturnType<typeof createNewGame>): void {
-  const { state, rng } = setup;
-  for (let i = 0; i < days * TICKS_PER_DAY; i += 1) {
-    state.clock.totalTicks += 1;
-    tickVisitors(state, rng);
-  }
+  advanceTicks(setup.state, setup.rng, days * TICKS_PER_DAY, [tickVisitors]);
 }
 
 describe('buyer requests', () => {
@@ -37,10 +34,7 @@ describe('buyer requests', () => {
     expect(seen).not.toBeNull();
     expect(seen!.multiplier).toBeGreaterThanOrEqual(2.5);
     // Run well past its expiry: it must be gone or replaced by a fresh one.
-    for (let i = 0; i < 4 * TICKS_PER_DAY; i += 1) {
-      state.clock.totalTicks += 1;
-      tickVisitors(state, rng);
-    }
+    advanceTicks(state, rng, 4 * TICKS_PER_DAY, [tickVisitors]);
     expect(state.request === null || state.request !== seen).toBe(true);
   });
 
@@ -113,10 +107,7 @@ describe('wild visitors', () => {
     expect(start.y).toBeLessThan(v.duck.pos.y - 200);
     expect(end.x).toBeCloseTo(v.duck.pos.x);
     expect(end.y).toBeCloseTo(v.duck.pos.y);
-    for (let i = 0; i < VISITOR_FLY_TICKS + 20; i += 1) {
-      state.clock.totalTicks += 1;
-      tickVisitors(state, rng);
-    }
+    advanceTicks(state, rng, VISITOR_FLY_TICKS + 20, [tickVisitors]);
     expect(visitorInFlight(v)).toBe(false);
     expect(v.duck.activity).toBe('idle');
     expect(treatVisitor(state)).toBe('fed');
@@ -165,7 +156,7 @@ describe('wild visitors', () => {
 describe('visitor gift shuffle', () => {
   it('spreads the first gift evenly across the three rare genes', async () => {
     const { createRng } = await import('../rng');
-    const { createNewGame } = await import('../state');
+    const { createNewGame } = await import('../newGame');
     const { TICKS_PER_DAY, TICKS_PER_HOUR } = await import('./time');
     const counts = { blue: 0, pink: 0, crest: 0 };
     for (let seed = 0; seed < 300; seed += 1) {

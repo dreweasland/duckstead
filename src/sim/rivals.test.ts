@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { newGameWithPair } from '../testFixtures';
 import { tickBreeding } from './breeding';
 import { LOCI } from './genetics';
 import { createRivals, hireStud, rivalEggEntries, rivalRacers, rivalStrength, studOffers, tickRivals } from './rivals';
@@ -49,8 +50,7 @@ describe('rival ponds', () => {
   });
 
   it('a hired stud courts a hen and the egg carries his genes and name', () => {
-    const { state, rng } = createNewGame(83);
-    const hen = state.ducks.find((d) => d.sex === 'F')!;
+    const { state, rng, hen } = newGameWithPair(83);
     const offer = studOffers(state)[0];
     state.money = offer.cost + 10;
     expect(hireStud(state, offer.rivalId, hen.id).ok).toBe(true);

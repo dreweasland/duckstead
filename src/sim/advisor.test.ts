@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { breedingValue, childBreedKeys, keepVerdict, verdictReason } from './advisor';
 import { breedKey, recordBreed } from './breedBook';
 import { createDuck } from './duck';

@@ -6,7 +6,7 @@ import { clamp } from '../types';
 import { isOvercrowded, upgradeLevel } from './economy';
 import { TICKS_PER_HOUR } from './time';
 
-export interface PondGeometry {
+interface PondGeometry {
   cx: number;
   cy: number;
   rx: number;
@@ -50,7 +50,7 @@ export function pondDistance(state: GameState, p: Vec2): number {
 
 // The drawn shoreline wobbles wider than the geometry ellipse, so "ashore"
 // for roosting means well clear of the water, not one pixel past the edge.
-export const SHORE_MARGIN = 1.4;
+const SHORE_MARGIN = 1.4;
 
 export function isAshore(state: GameState, p: Vec2): boolean {
   return pondDistance(state, p) >= SHORE_MARGIN;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
-import { canRetire, heritageMutationRate, retirePond } from './heritage';
+import { newGameWithPair } from '../testFixtures';
+import { canRetire, heritageMutationRate } from './heritage';
+import { retirePond } from './retire';
 import { isUnlocked, UNLOCKABLES } from './unlocks';
 import { ALL_BREED_KEYS } from './breedBook';
 import { duckCapacity } from './economy';
@@ -9,15 +10,13 @@ import { createStarterDuck, layEgg } from './duck';
 
 describe('heritage', () => {
   it('retires the pond carrying the legacy and founder pair, with permanent bonuses', () => {
-    const { state } = createNewGame(80);
+    const { state, hen, drake } = newGameWithPair(80);
     expect(canRetire(state).ok).toBe(false);
     for (const k of ALL_BREED_KEYS.slice(0, 10)) state.breedBook[k] = { firstName: 'x', day: 1, count: 1 };
     state.awards['M|D|solid|n'] = { pure: 2 };
     state.society.rank = 3;
     state.chronicle.push({ day: 1, kind: 'milestone', text: 'old times' });
     state.stats.biggestSale = 500;
-    const drake = state.ducks.find((d) => d.sex === 'M')!;
-    const hen = state.ducks.find((d) => d.sex === 'F')!;
     expect(canRetire(state).ok).toBe(true);
     expect(retirePond(state, 'no-such-duck', hen.id, 123)).toBeNull();
     const next = retirePond(state, drake.id, hen.id, 123)!;

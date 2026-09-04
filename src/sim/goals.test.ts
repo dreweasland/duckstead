@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { advanceTicks } from '../testFixtures';
 import { catchBugAt, tickBugs } from './bugs';
 import { CHAPTERS, chapterGoals, currentChapter, GOALS, goalLater, tickGoals, widgetGoals } from './goals';
 import { fillFeeder } from './needs';
@@ -84,10 +85,7 @@ describe('bugs', () => {
     const { state, rng } = createNewGame(10);
     state.ducks = [];
     state.clock.totalTicks = 22 * TICKS_PER_HOUR; // 22:00
-    for (let i = 0; i < 4 * TICKS_PER_HOUR; i += 1) {
-      state.clock.totalTicks += 1;
-      tickBugs(state, rng);
-    }
+    advanceTicks(state, rng, 4 * TICKS_PER_HOUR, [tickBugs]);
     expect(state.bugs.some((b) => b.kind === 'firefly')).toBe(true);
     expect(state.bugs.some((b) => b.kind === 'beetle' || b.kind === 'snail')).toBe(false);
     state.clock.totalTicks = 24 * TICKS_PER_HOUR + 7 * TICKS_PER_HOUR; // 07:00 next day

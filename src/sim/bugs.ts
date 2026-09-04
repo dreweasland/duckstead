@@ -32,10 +32,10 @@ const {
   duckweedSpawnChance: DUCKWEED_SPAWN_CHANCE,
   duckEatDistance: DUCK_EAT_DISTANCE,
 } = TUNING.bugs;
-export const BUG_CATCH_RADIUS = TUNING.bugs.catchRadius;
+const BUG_CATCH_RADIUS = TUNING.bugs.catchRadius;
 
 const SPEED: Partial<Record<BugKind, number>> = { beetle: 0.22, snail: 0.05, firefly: 0.35, dragonfly: 0.55, frog: 0 };
-export const BUG_REWARD: Record<BugKind, number> = {
+const BUG_REWARD: Record<BugKind, number> = {
   beetle: 3,
   snail: 2,
   firefly: 1,
@@ -199,7 +199,7 @@ function spawnDuckweed(state: GameState, rng: Rng): void {
   }
 }
 
-export interface Pickup {
+interface Pickup {
   kind: BugKind;
   coins: number;
   feed: number;

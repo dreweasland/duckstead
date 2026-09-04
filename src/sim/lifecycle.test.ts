@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { events } from '../events';
 import { adultDurationTicks, createDuck, STAGE_DAYS } from './duck';
 import { randomCommonGenome } from './genetics';

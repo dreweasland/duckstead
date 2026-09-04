@@ -2,13 +2,12 @@
 // pond, fixed (homozygous) Book genes, rare alleles, and pure breeding all
 // add up; it feeds prices, sorting, and — later — standards and awards.
 import type { Duck } from './duck';
-import type { LocusId } from './genetics';
-import { breedKey } from './breedBook';
+import { breedKey, type LocusId } from './genetics';
 import { generationOf } from './lineage';
 
 const BOOK_LOCI: LocusId[] = ['baseColor', 'dilution', 'pattern', 'crest'];
 
-export interface PedigreeBreakdown {
+interface PedigreeBreakdown {
   score: number;
   gen: number; // capped contribution
   fixed: number; // homozygous Book loci (0–4)

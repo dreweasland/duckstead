@@ -1,5 +1,5 @@
 import type { GameState } from '../state';
-import { flock } from '../state';
+import { flock, duckById } from '../state';
 import { GROUND_TOP, WORLD_H, WORLD_W } from '../state';
 import type { Rng } from '../rng';
 import type { Vec2 } from '../types';
@@ -13,6 +13,7 @@ import { eatFood, favouriteTreat, FOODS } from './food';
 import { clampToPen, inPen, penRect, penSpot } from './pen';
 import { chronicle } from './chronicle';
 import { isNight } from './time';
+import { hashString } from '../rng';
 
 // Below this the card rail overlaps the scene; ducks prefer to stay above it.
 const LOW_STRIP_Y = WORLD_H - 120;
@@ -33,14 +34,13 @@ const CATCH_UP_DIST = 34;
 // busy, timid ones mellow) with a pinch of id-hashed jitter so siblings with
 // the same genes still differ. Sociability (toward or away from the flock)
 // stays a quirk of the individual, hashed from its id.
-export interface Personality {
+interface Personality {
   energy: number; // 0.75 (mellow) .. 1.3 (busy)
   sociability: number; // -1 (loner) .. 1 (flocker)
 }
 
 export function personality(duck: Duck): Personality {
-  let h = 0;
-  for (let i = 0; i < duck.id.length; i += 1) h = (h * 31 + duck.id.charCodeAt(i)) >>> 0;
+  const h = hashString(duck.id);
   const boldness = duck.phenotype.boldness ?? 0.5;
   const jitter = ((h % 97) / 96 - 0.5) * 0.1; // ±0.05
   return {
@@ -297,7 +297,7 @@ function steer(
       break;
     }
     case 'eat': {
-      const pellet = duck.penned ? nearestPelletIn(state, duck.pos) : nearestPellet(state, duck.pos);
+      const pellet = nearestPellet(state, duck.pos, duck.penned === true);
       const feederOpen = !duck.penned && state.feeder.food > 0;
       const pelletDist = pellet ? dist(duck.pos, pellet.pos) : Infinity;
       const feederDist = feederOpen ? dist(duck.pos, FEEDER_POS) : Infinity;
@@ -348,7 +348,7 @@ function steer(
     !duck.penned &&
     !isNight(state.clock)
   ) {
-    const mom = state.ducks.find((d) => d.id === duck.parents![0]);
+    const mom = duckById(state, duck.parents![0]);
     if (mom && mom.stage !== 'egg') {
       const gap = dist(duck.pos, mom.pos);
       // Hysteresis: start trailing past the outer ring, keep trailing until
@@ -428,7 +428,7 @@ function steer(
     }
     // Best friends drift back toward each other when they stray apart.
     if (duck.friendId && !duck.penned) {
-      const friend = state.ducks.find((d) => d.id === duck.friendId);
+      const friend = duckById(state, duck.friendId);
       if (friend && dist(duck.pos, friend.pos) > 140) {
         const toFriend = Math.atan2(friend.pos.y - duck.pos.y, friend.pos.x - duck.pos.x);
         duck.heading += angleDiff(toFriend, duck.heading) * 0.04;
@@ -462,7 +462,7 @@ function travelTime(duck: Duck, to: Vec2, speed: number, base: number): number {
 }
 
 // A random point well inside the pond.
-export function randomPondPoint(state: GameState, rng: Rng): Vec2 {
+function randomPondPoint(state: GameState, rng: Rng): Vec2 {
   const g = pondGeometry(state);
   const a = rng.range(0, Math.PI * 2);
   const r = Math.sqrt(rng.next()) * 0.85;
@@ -471,7 +471,7 @@ export function randomPondPoint(state: GameState, rng: Rng): Vec2 {
 
 // A random point on the grass (anywhere on the map that isn't water, above
 // the card rail), so waddlers actually explore the whole bank.
-export function randomGrassPoint(state: GameState, rng: Rng): Vec2 {
+function randomGrassPoint(state: GameState, rng: Rng): Vec2 {
   for (let i = 0; i < 10; i += 1) {
     const p = { x: rng.range(40, WORLD_W - 40), y: rng.range(GROUND_TOP + 10, WORLD_H - 110) };
     if (!isInPond(state, p)) return p;
@@ -503,16 +503,15 @@ function roosterIds(state: GameState): string[] {
   return roosterCache.ids;
 }
 
-export function roostSpot(state: GameState, duck: Duck): Vec2 {
+function roostSpot(state: GameState, duck: Duck): Vec2 {
   if (duck.penned) return penSpot(state, duck);
   // Ducklings tuck in beside their mother, fanned out by id so a brood
   // doesn't stack.
   if (duck.stage === 'duckling' && duck.parents) {
-    const mom = state.ducks.find((d) => d.id === duck.parents![0]);
+    const mom = duckById(state, duck.parents![0]);
     if (mom && mom.stage !== 'egg') {
       const spot = roostSpot(state, mom);
-      let h = 0;
-      for (let i = 0; i < duck.id.length; i += 1) h = (h * 31 + duck.id.charCodeAt(i)) >>> 0;
+      const h = hashString(duck.id);
       const side = (h % 2 === 0 ? 1 : -1) * (1 + (h >>> 3) % 2);
       return { x: spot.x + side * 22, y: spot.y + 10 + ((h >>> 5) % 3) * 6 };
     }
@@ -521,7 +520,7 @@ export function roostSpot(state: GameState, duck: Duck): Vec2 {
   // Never follow a duckling friend: its spot derives from its mother's, and a
   // duckling who befriends its own mother would recurse here forever.
   if (duck.friendId) {
-    const friend = state.ducks.find((d) => d.id === duck.friendId);
+    const friend = duckById(state, duck.friendId);
     if (friend && friend.stage !== 'duckling' && friend.friendId === duck.id && friend.id < duck.id) {
       const spot = roostSpot(state, friend);
       return { x: spot.x + 30, y: spot.y + 6 };
@@ -608,24 +607,12 @@ function angleDiff(to: number, from: number): number {
   return d;
 }
 
-function nearestPelletIn(state: GameState, pos: Vec2) {
+// A penned duck only ever goes for food inside the pen.
+function nearestPellet(state: GameState, pos: Vec2, onlyInPen = false) {
   let best = null;
   let bestDist = Infinity;
   for (const pellet of state.foodPellets) {
-    if (!inPen(state, pellet.pos)) continue;
-    const d = dist(pos, pellet.pos);
-    if (d < bestDist) {
-      bestDist = d;
-      best = pellet;
-    }
-  }
-  return best;
-}
-
-function nearestPellet(state: GameState, pos: Vec2) {
-  let best = null;
-  let bestDist = Infinity;
-  for (const pellet of state.foodPellets) {
+    if (onlyInPen && !inPen(state, pellet.pos)) continue;
     const d = dist(pos, pellet.pos);
     if (d < bestDist) {
       bestDist = d;

@@ -5,7 +5,7 @@
 //   Autumn  — Market Day (sale prices ×1.5, shop consumables −20%)
 //   Winter  — Winter Lights (lights over the pond, happiness decay paused)
 import type { GameState } from '../state';
-import { flock } from '../state';
+import { flock, duckById } from '../state';
 import type { GameClock } from './time';
 import { dayOf, dayOfSeason, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 import { chronicle } from './chronicle';
@@ -13,7 +13,7 @@ import { addSocietyPoints } from './society';
 import { breedStandard, standardMatch } from './standards';
 import type { Duck } from './duck';
 
-import { ordinal } from '../text';
+import { ordinal, plural } from '../text';
 import { poiseOf, TRAINING } from './training';
 import { rivalEggEntries } from './rivals';
 import { BALANCE } from './economy';
@@ -21,19 +21,12 @@ import { BALANCE } from './economy';
 function ordinalWord(n: number): string {
   return ['first', 'second', 'third', 'fourth', 'fifth'][n - 1] ?? ordinal(n);
 }
-import type { Season } from '../types';
 import { events } from '../events';
 
-export type FestivalKind = 'eggShow' | 'grandPrix' | 'marketDay' | 'winterLights';
+import { BY_SEASON, FESTIVAL_DAY, festivalToday, type FestivalKind } from './calendar';
 
-export const FESTIVAL_DAY = 4; // of each 6-day season
-
-const BY_SEASON: Record<Season, FestivalKind> = {
-  spring: 'eggShow',
-  summer: 'grandPrix',
-  autumn: 'marketDay',
-  winter: 'winterLights',
-};
+// Re-exported for the panels and tests that ask festivals.ts for the calendar.
+export { FESTIVAL_DAY, festivalToday, type FestivalKind };
 
 export const FESTIVAL_NAMES: Record<FestivalKind, string> = {
   eggShow: 'Spring Egg Show',
@@ -42,18 +35,13 @@ export const FESTIVAL_NAMES: Record<FestivalKind, string> = {
   winterLights: 'Winter Lights',
 };
 
-export function festivalToday(clock: GameClock): FestivalKind | null {
-  return dayOfSeason(clock) === FESTIVAL_DAY ? BY_SEASON[seasonOf(clock)] : null;
-}
-
 export function upcomingFestival(clock: GameClock): { kind: FestivalKind; inDays: number } {
   const today = dayOfSeason(clock);
   if (today <= FESTIVAL_DAY) {
     return { kind: BY_SEASON[seasonOf(clock)], inDays: FESTIVAL_DAY - today };
   }
   // Next season's festival.
-  const seasons: Season[] = ['spring', 'summer', 'autumn', 'winter'];
-  const next = seasons[(seasons.indexOf(seasonOf(clock)) + 1) % 4];
+  const next = SEASONS[(SEASONS.indexOf(seasonOf(clock)) + 1) % SEASONS.length];
   return { kind: BY_SEASON[next], inDays: 6 - today + FESTIVAL_DAY };
 }
 
@@ -108,8 +96,9 @@ import { breedKey, breedLabel } from './breedBook';
 // Circular with economy.ts (it imports festivalToday); safe because both
 // sides are hoisted function declarations used only at call time.
 import { sellPrice } from './economy';
+import { SEASONS } from '../types';
 
-export interface EggShowEntry {
+interface EggShowEntry {
   breeder: string; // 'You' for the player
   eggName: string;
   genome: Genome;
@@ -129,7 +118,7 @@ export const EGG_SHOW_PRIZES = [40, 20, 10, 5, 5];
 
 // Reputation tiers: win a festival and next year's edition is a bigger
 // event — tougher field, bigger purse, more Society points.
-export const FESTIVAL_TIER_NAMES = ['', 'County', 'Regional', 'National'];
+const FESTIVAL_TIER_NAMES = ['', 'County', 'Regional', 'National'];
 export function festivalTier(state: GameState, kind: FestivalKind): number {
   return Math.min(3, (state.festivalWins[kind] ?? 0) + (state.sponsored[kind] ? 1 : 0));
 }
@@ -234,7 +223,7 @@ const MARKET_QUOTES = [
 ];
 
 export const HAGGLE_BONUS = 0.25;
-export const HAGGLE_SUCCESS = 0.55;
+const HAGGLE_SUCCESS = 0.55;
 
 // Up to three buyers, each smitten with a specific duck from the flock.
 export function generateMarketBuyers(state: GameState, rng: Rng): MarketBuyer[] {
@@ -274,7 +263,7 @@ export function marketTarget(state: GameState): number {
   return BALANCE.marketTargetBase + festivalTier(state, 'marketDay') * BALANCE.marketTargetPerTier;
 }
 
-export interface MarketClose {
+interface MarketClose {
   sold: number;
   earned: number;
   target: number;
@@ -284,8 +273,7 @@ export interface MarketClose {
 // The stalls pack up: the day is entered (spending any sponsorship), and a
 // sale total past the target wins the festival. Null if there's no market
 // today or it's already closed.
-export function closeMarket(state: GameState, rng?: Rng): MarketClose | null {
-  void rng;
+export function closeMarket(state: GameState): MarketClose | null {
   if (!state.market || state.market.day !== dayOf(state.clock)) return null;
   if (festivalEnteredToday(state, 'marketDay')) return null;
   const { sold, earned } = state.market;
@@ -301,7 +289,7 @@ export function closeMarket(state: GameState, rng?: Rng): MarketClose | null {
     chronicle(state, 'festival', `${title}: ${earned} coins taken at the stall — the best trade of the fair.`);
     events.emit('toast', `Market Day won — ${earned} coins against a target of ${target}! (+${Math.round(4 * scale)} Society)`);
   } else if (sold > 0) {
-    chronicle(state, 'festival', `${title}: ${sold} duck${sold === 1 ? '' : 's'} sold for ${earned} coins.`);
+    chronicle(state, 'festival', `${title}: ${plural(sold, 'duck')} sold for ${earned} coins.`);
   }
   return { sold, earned, target, won };
 }
@@ -355,7 +343,7 @@ export function winterParadeTarget(state: GameState): number {
   return 45 + festivalTier(state, 'winterLights') * 15;
 }
 
-export type WinterWish = 'lure' | 'society' | 'fortune';
+type WinterWish = 'lure' | 'society' | 'fortune';
 export const WINTER_WISHES: Array<{ id: WinterWish; label: string; blurb: string }> = [
   { id: 'lure', label: 'A stranger on the wind', blurb: 'A remarkable wild duck arrives tomorrow, bearing the best it can.' },
   { id: 'society', label: 'Good standing', blurb: '+8 Society points.' },
@@ -405,14 +393,15 @@ export function winterCeremonyFinale(state: GameState, wish: WinterWish = 'fortu
 export function runEggShow(state: GameState, eggId: string, rng: Rng): EggShowResult | null {
   if (festivalToday(state.clock) !== 'eggShow') return null;
   if (festivalEnteredToday(state, 'eggShow')) return null;
-  const egg = state.ducks.find((d) => d.id === eggId && d.stage === 'egg');
+  const entrant = duckById(state, eggId);
+  const egg = entrant?.stage === 'egg' ? entrant : undefined;
   if (!egg) return null;
 
   // Player entry: hidden genes + parental condition.
   let parentCare = 60;
   if (egg.parents) {
     const parents = egg.parents
-      .map((id) => state.ducks.find((d) => d.id === id))
+      .map((id) => duckById(state, id))
       .filter((d): d is NonNullable<typeof d> => Boolean(d));
     // Poise: a well-drilled parent carries itself before the judges.
     if (parents.length > 0) {

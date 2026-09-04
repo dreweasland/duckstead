@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { advanceTicks } from '../testFixtures';
 import { henEggPrice, sponsorCost, sponsorFestival, UPGRADES } from './economy';
 import { feederCapacity, fillFeeder, tickNeeds } from './needs';
 import { growthScale } from './lifecycle';
@@ -37,7 +38,7 @@ describe('late-game upgrades', () => {
     state.ducks = [];
     state.upgrades.reedBeds = 3;
     state.clock.totalTicks = 8 * TICKS_PER_HOUR;
-    for (let i = 0; i < TICKS_PER_DAY; i += 1) { state.clock.totalTicks += 1; tickBugs(state, rng); }
+    advanceTicks(state, rng, TICKS_PER_DAY, [tickBugs]);
     const critters = state.bugs.filter((b) => b.kind === 'beetle' || b.kind === 'snail').length;
     expect(critters).toBeGreaterThan(3); // above the unupgraded cap
   });

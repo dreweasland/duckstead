@@ -7,11 +7,12 @@ import type { Duck } from './duck';
 import { clamp } from '../types';
 import { TUNING } from './tuning';
 import { treatCheerScale, upbringingOf } from './marks';
+import { hashString } from '../rng';
 
 export type FoodKind = 'feed' | 'premiumFeed' | 'peas' | 'worms' | 'berries';
 export type TreatKind = 'peas' | 'worms' | 'berries';
 
-export interface FoodDef {
+interface FoodDef {
   kind: FoodKind;
   name: string;
   restore: number;
@@ -30,15 +31,13 @@ export const FOODS: Record<FoodKind, FoodDef> = {
 };
 
 export const TREATS: TreatKind[] = ['peas', 'worms', 'berries'];
-export const FAVOURITE_RESTORE_SCALE = 1.5;
-export const FAVOURITE_HAPPINESS = 8;
+const FAVOURITE_RESTORE_SCALE = 1.5;
+const FAVOURITE_HAPPINESS = 8;
 
 // A duck's favourite treat is fixed for life, derived from its id so old
 // saves need no migration.
 export function favouriteTreat(duck: Duck): TreatKind {
-  let h = 7;
-  for (let i = 0; i < duck.id.length; i += 1) h = (h * 33 + duck.id.charCodeAt(i)) >>> 0;
-  return TREATS[(h >>> 4) % TREATS.length];
+  return TREATS[(hashString(duck.id, 33, 7) >>> 4) % TREATS.length];
 }
 
 export function stockOf(state: GameState, kind: FoodKind): number {

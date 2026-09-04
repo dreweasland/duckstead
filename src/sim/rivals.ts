@@ -6,7 +6,7 @@
 // the player's own flock.
 import type { GameState } from '../state';
 import type { Rng } from '../rng';
-import { createRng } from '../rng';
+import { createRng, hashString } from '../rng';
 import type { Duck } from './duck';
 import { createDuck, layEgg } from './duck';
 import { breed, computePhenotype, randomCommonGenome, type Genome } from './genetics';
@@ -21,10 +21,10 @@ import { TUNING } from './tuning';
 import { BALANCE, noteSale } from './economy';
 import { canBreedPair } from './needs';
 import { nestPos } from './pond';
-import { nestCapacity } from './economy';
-import { eggsIncubating, BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS, nestSlotOffset } from './breeding';
+import { BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS, nestSlotOffset, nestFull, NEST_FULL_REASON } from './nest';
+import { duckById } from '../state';
 
-export type RivalSpecialty = 'show' | 'racing' | 'rare';
+type RivalSpecialty = 'show' | 'racing' | 'rare';
 
 export interface Rival {
   id: string;
@@ -39,7 +39,7 @@ export interface Rival {
   lastEggSoldDay?: number; // ...and last sold one to the player
 }
 
-export interface RivalDef {
+interface RivalDef {
   id: string;
   name: string;
   specialty: RivalSpecialty;
@@ -125,7 +125,7 @@ function fitness(specialty: RivalSpecialty, g: Genome): number {
 }
 
 // The rival's best bird by its own lights.
-export function rivalBestGenome(rival: Rival): Genome {
+function rivalBestGenome(rival: Rival): Genome {
   let best = rival.flock[0];
   for (const g of rival.flock) if (fitness(rival.specialty, g) > fitness(rival.specialty, best)) best = g;
   return best;
@@ -168,9 +168,7 @@ export function tickRivals(state: GameState, rng: Rng): void {
 // portraits and names are stable across renders.
 export function rivalDuck(rival: Rival, slot: number, genome: Genome = rival.flock[slot % rival.flock.length]): Duck {
   const def = rivalDef(rival.id);
-  let h = 7;
-  for (const ch of `${rival.id}:${slot}`) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  const rng = createRng(h);
+  const rng = createRng(hashString(`${rival.id}:${slot}`, 31, 7));
   const duck = createDuck(rng, { genome, stage: 'adult', pos: { x: 0, y: 0 }, name: def.duckNames[slot % def.duckNames.length] });
   duck.id = `rival:${rival.id}:${slot}`;
   duck.needs = { hunger: 85, cleanliness: 85, happiness: 80, health: 95 };
@@ -180,7 +178,7 @@ export function rivalDuck(rival: Rival, slot: number, genome: Genome = rival.flo
 
 // --- Where rivals show up ---
 
-export interface RivalEggEntry {
+interface RivalEggEntry {
   breeder: string;
   genome: Genome;
   care: number; // 0..100+, what a parent's condition and poise add up to
@@ -218,10 +216,10 @@ export function rivalRacers(state: GameState): Array<{ duck: Duck; skill: number
 // egg's own hidden genes, so the bid can't leak what's inside the shell.
 
 export const EGG_OFFER_THRESHOLD = 55; // parents' average fitness a rival needs
-export const EGG_OFFER_SHARE = 0.35; // of projected adult value, plus quality
-export const EGG_ABSORB_CHANCE = 0.5; // the rival folds the genome into its flock
+const EGG_OFFER_SHARE = 0.35; // of projected adult value, plus quality
+const EGG_ABSORB_CHANCE = 0.5; // the rival folds the genome into its flock
 
-export interface EggOffer {
+interface EggOffer {
   rivalId: string;
   rivalName: string;
   price: number;
@@ -291,7 +289,7 @@ export function sellEggToRival(state: GameState, eggId: string, rng: Rng): boole
 }
 
 // Fold a genome into the rival's flock in place of its weakest bird.
-export function absorbGenome(rival: Rival, genome: Genome): void {
+function absorbGenome(rival: Rival, genome: Genome): void {
   let weakest = 0;
   for (let i = 1; i < rival.flock.length; i += 1) {
     if (fitness(rival.specialty, rival.flock[i]) < fitness(rival.specialty, rival.flock[weakest])) weakest = i;
@@ -307,7 +305,7 @@ export function absorbGenome(rival: Rival, genome: Genome): void {
 // read them); the shell is the same gamble their buyers take from you. The
 // egg arrives gen 0 — their line, not yours.
 
-export interface RivalEggSale {
+interface RivalEggSale {
   rivalId: string;
   rivalName: string;
   dam: Duck; // synthetic, for the portrait and the Scope
@@ -321,9 +319,7 @@ export interface RivalEggSale {
 export function rivalEggsForSale(state: GameState): RivalEggSale[] {
   const day = dayOf(state.clock);
   return state.rivals.map((rival) => {
-    let h = 5;
-    for (const ch of `${rival.id}:${day}`) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-    const seeded = createRng(h);
+    const seeded = createRng(hashString(`${rival.id}:${day}`, 31, 5));
     const damGenome = rivalBestGenome(rival);
     const rest = rival.flock.filter((g) => g !== damGenome);
     const sireGenome = rest.length > 0 ? rest[seeded.int(rest.length)] : damGenome;
@@ -345,9 +341,7 @@ export function buyRivalEgg(state: GameState, rng: Rng, rivalId: string): { ok: 
   const rival = state.rivals.find((r) => r.id === rivalId);
   if (!sale || !rival) return { ok: false, reason: 'No such offer' };
   if (sale.soldToday) return { ok: false, reason: `${sale.rivalName} has no more eggs to spare today` };
-  if (eggsIncubating(state) + state.pendingClutches.length >= nestCapacity(state)) {
-    return { ok: false, reason: 'The nest is full — sell or hatch some eggs first' };
-  }
+  if (nestFull(state)) return { ok: false, reason: NEST_FULL_REASON };
   if (state.money < sale.price) return { ok: false, reason: `Need ${sale.price} coins` };
   state.money -= sale.price;
   rival.lastEggSoldDay = dayOf(state.clock);
@@ -368,7 +362,7 @@ export function buyRivalEgg(state: GameState, rng: Rng, rivalId: string): { ok: 
 
 // --- Stud service ---
 
-export interface StudOffer {
+interface StudOffer {
   rivalId: string;
   drake: Duck; // synthetic, for the portrait and the Scope
   cost: number;
@@ -389,14 +383,12 @@ export function studOffers(state: GameState): StudOffer[] {
 // like any other; the sire is remembered on the egg's lineage by name.
 export function hireStud(state: GameState, rivalId: string, henId: string): { ok: boolean; reason?: string } {
   const offer = studOffers(state).find((o) => o.rivalId === rivalId);
-  const hen = state.ducks.find((d) => d.id === henId);
+  const hen = duckById(state, henId);
   if (!offer || !hen) return { ok: false, reason: 'No such hen or stud' };
   if (hen.sex !== 'F') return { ok: false, reason: 'A stud needs a hen' };
   const check = canBreedPair(hen, offer.drake);
   if (!check.ok) return check;
-  if (eggsIncubating(state) + state.pendingClutches.length >= nestCapacity(state)) {
-    return { ok: false, reason: 'The nest is full — sell or hatch some eggs first' };
-  }
+  if (nestFull(state)) return { ok: false, reason: NEST_FULL_REASON };
   if (state.money < offer.cost) return { ok: false, reason: `Need ${offer.cost} coins` };
   state.money -= offer.cost;
   state.pendingClutches.push({

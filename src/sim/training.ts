@@ -8,6 +8,7 @@ import { clamp, dist } from '../types';
 import { BALANCE, upgradeLevel } from './economy';
 import { dayOf, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 import { events } from '../events';
+import { duckById } from '../state';
 
 export type TrainStat = 'paddle' | 'stamina' | 'poise';
 export const TRAIN_STATS: TrainStat[] = ['paddle', 'stamina', 'poise'];
@@ -81,7 +82,7 @@ export function trainingAptitude(duck: Duck, stat: TrainStat): number {
 // Apply a drill's result. `quality` is 0..1 from the minigame. Returns the
 // points gained (0 when the duck couldn't train).
 export function train(state: GameState, duckId: string, stat: TrainStat, quality: number): number {
-  const duck = state.ducks.find((d) => d.id === duckId);
+  const duck = duckById(state, duckId);
   if (!duck) return 0;
   const gate = canDrill(state, duck);
   if (!gate.ok) return 0;
@@ -99,7 +100,7 @@ export function train(state: GameState, duckId: string, stat: TrainStat, quality
   let gain = Math.max(1, Math.round(raw));
   // A training partner: the duck's best friend watching from close by is
   // worth a point — and the friend enjoys the show.
-  const friend = duck.friendId ? state.ducks.find((d) => d.id === duck.friendId) : undefined;
+  const friend = duck.friendId ? duckById(state, duck.friendId) : undefined;
   if (friend && friend.stage !== 'egg' && !friend.penned && dist(duck.pos, friend.pos) <= TRAINING.friendRange) {
     gain += TRAINING.friendBonus;
     friend.needs.happiness = clamp(friend.needs.happiness + TRAINING.friendCheer, 0, 100);

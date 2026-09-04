@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { newGameWithPair, pushEgg } from '../testFixtures';
 import { createDuck, createStarterDuck } from './duck';
 import { nestPair } from './breeding';
 import { randomCommonGenome } from './genetics';
@@ -75,16 +76,14 @@ describe('upgrades', () => {
 
 describe('pond capacity', () => {
   it('counts hatched ducks only; the nest keeps running at a full pond', () => {
-    const { state, rng } = createNewGame(21);
+    const { state, rng, hen: f, drake: m } = newGameWithPair(21);
     // 4 starters + 4 adopted = 8 = capacity.
     for (let i = 0; i < 4; i += 1) state.ducks.push(createStarterDuck(rng, { x: 0, y: 0 }, i % 2 ? 'M' : 'F'));
     expect(pondHasRoom(state)).toBe(false);
     expect(overcrowding(state)).toBe(0);
-    const m = state.ducks.find((d) => d.sex === 'M')!;
-    const f = state.ducks.find((d) => d.sex === 'F')!;
     expect(nestPair(state, m.id, f.id).ok).toBe(true);
     // Eggs don't occupy the pond…
-    state.ducks.push(createDuck(rng, { genome: randomCommonGenome(rng), stage: 'egg', pos: { x: 0, y: 0 } }));
+    pushEgg(state, rng);
     expect(pondOccupancy(state)).toBe(8);
     // …but a hatched duck over the limit overcrowds it.
     state.ducks.push(createStarterDuck(rng, { x: 0, y: 0 }));

@@ -1,5 +1,10 @@
 // Tiny shared text formatters.
 
+// "3 eggs", "1 egg".
+export function plural(n: number, word: string, suffix = 's'): string {
+  return `${n} ${word}${n === 1 ? '' : suffix}`;
+}
+
 // "1st", "2nd", "3rd", "4th" — with the %100 guard so 11..13 read "11th",
 // not "11st".
 export function ordinal(n: number): string {

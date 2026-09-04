@@ -12,7 +12,7 @@ import { TUNING } from './tuning';
 
 export type Mark = 'hardy' | 'scrappy' | 'steady' | 'keen' | 'spoiled' | 'proud';
 
-export interface MarkDef {
+interface MarkDef {
   label: string;
   blurb: string; // what it does, for the card tooltip
   how: string; // how it's earned, for the guide
@@ -26,8 +26,6 @@ export const MARKS: Record<Mark, MarkDef> = {
   spoiled: { label: 'spoiled', blurb: 'Treats cheer it 50% more — but it sulks 10% faster.', how: 'eat three or more treats while young' },
   proud: { label: 'proud', blurb: 'Won a rivalry: +2% race speed, shrugs off drake squabbles.', how: 'come out on top when two drakes fall out' },
 };
-
-export const MARK_LIST = Object.keys(MARKS) as Mark[];
 
 // Running tallies kept only while the duck is young (duckling/juvenile).
 export interface Upbringing {
@@ -64,8 +62,8 @@ export function assignJuvenileMarks(state: GameState, duck: Duck): void {
 
 // At coming of age: what its youth was like. The tallies are dropped
 // afterwards — they were only ever for this.
-export const STEADY_MENTOR_SHARE = TUNING.marks.steadyMentorShare;
-export const SPOILED_TREATS = TUNING.marks.spoiledTreats;
+const STEADY_MENTOR_SHARE = TUNING.marks.steadyMentorShare;
+const SPOILED_TREATS = TUNING.marks.spoiledTreats;
 
 export function assignAdultMarks(state: GameState, duck: Duck): void {
   const u = upbringingOf(duck);

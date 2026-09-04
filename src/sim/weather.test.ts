@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { rollWeather, tickWeather, weatherBugScale, weatherHungerScale, weatherWarmthScale } from './weather';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 

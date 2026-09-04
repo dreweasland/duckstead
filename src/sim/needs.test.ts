@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { pushEgg } from '../testFixtures';
 import { createStarterDuck } from './duck';
 import {
   breedReadiness,
@@ -16,8 +17,6 @@ import {
   tickNeeds,
   tuckEgg,
 } from './needs';
-import { createDuck } from './duck';
-import { randomCommonGenome } from './genetics';
 import { BALANCE } from './economy';
 import { tickBehavior } from './behavior';
 import { FEEDER_POS, tickPond } from './pond';
@@ -236,8 +235,7 @@ describe('overcrowding', () => {
 describe('egg tending', () => {
   function eggSetup() {
     const { state, rng } = createNewGame(7);
-    const egg = createDuck(rng, { genome: randomCommonGenome(rng), stage: 'egg', pos: { x: 0, y: 0 } });
-    state.ducks.push(egg);
+    const egg = pushEgg(state, rng);
     return { state, rng, egg };
   }
 

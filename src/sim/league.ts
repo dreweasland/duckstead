@@ -9,7 +9,7 @@ import { chronicle } from './chronicle';
 import { addSocietyPoints } from './society';
 import { events } from '../events';
 
-export interface LeagueTier {
+interface LeagueTier {
   tier: number;
   name: string;
   entryFee: number;
@@ -33,7 +33,7 @@ export const LEAGUE: LeagueTier[] = [
   },
 ];
 
-export const PROMOTE_AT = 3;
+const PROMOTE_AT = 3;
 
 export function currentTier(state: GameState): LeagueTier {
   return LEAGUE[Math.min(LEAGUE.length - 1, state.league.tier)];

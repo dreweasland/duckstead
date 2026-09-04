@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { createDuck } from './duck';
 import { randomCommonGenome, type Genome } from './genetics';
 import { boostPower, enterRace, racedToday, raceEligible, raceSpeed, settleRace } from './race';

@@ -295,3 +295,15 @@ export function formatGenotype(genome: Genome): string {
   const temper = additiveCount(genome, ['temper1', 'temper2']);
   return `${mendel} | size ${size}/6 · bill ${bill}/4 · vigor ${vigor}/4 · bold ${temper}/4`;
 }
+
+// The breed a genome expresses, as a stable key: colour alleles, dilution,
+// pattern, crest. The Breed Book, standards, and the pedigree score all
+// group by it.
+export function breedKey(genome: Genome): string {
+  const color = [...expressedAlleles(genome, 'baseColor')].sort().join('+');
+  const diluted = expressedAlleles(genome, 'dilution')[0] === 'd' ? 'd' : 'D';
+  const patternAllele = expressedAlleles(genome, 'pattern')[0];
+  const pattern = patternAllele === 'S' ? 'solid' : patternAllele === 'p' ? 'spotted' : 'capped';
+  const crested = genome.crest[0] === 'R' && genome.crest[1] === 'R' ? 'c' : 'n';
+  return `${color}|${diluted}|${pattern}|${crested}`;
+}

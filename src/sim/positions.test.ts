@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame, GROUND_TOP, WORLD_H, WORLD_W } from '../state';
+import { GROUND_TOP, WORLD_H, WORLD_W } from '../state';
+import { createNewGame } from '../newGame';
+import { advanceTicks, newGameWithPair } from '../testFixtures';
 import { createStarterDuck, layEgg } from './duck';
 import { pondDistance } from './pond';
 import { tickBehavior } from './behavior';
@@ -14,15 +16,14 @@ describe('duck distribution', () => {
     state.inventory.feed = 10000;
     for (const d of state.ducks) d.needs.hunger = 100;
 
-    for (let i = 0; i < TICKS_PER_DAY * 2; i += 1) {
-      state.clock.totalTicks += 1;
-      state.seasonCache = seasonOf(state.clock);
-      tickNeeds(state, rng);
-      tickLifecycle(state, rng);
-      tickBehavior(state, rng);
+    advanceTicks(state, rng, TICKS_PER_DAY * 2, [
+      (s) => { s.seasonCache = seasonOf(s.clock); },
+      tickNeeds,
+      tickLifecycle,
+      tickBehavior,
       // Keep them fed so hunger never dominates behavior.
-      for (const d of state.ducks) d.needs.hunger = Math.max(d.needs.hunger, 80);
-    }
+      (s) => { for (const d of s.ducks) d.needs.hunger = Math.max(d.needs.hunger, 80); },
+    ]);
 
     for (const duck of state.ducks) {
       // Not jammed against the top or right boundary.
@@ -42,11 +43,7 @@ describe('night roost', () => {
         state.upgrades.pondExpansion = level;
         for (let i = 0; i < 10; i += 1) state.ducks.push(createStarterDuck(rng, { x: 300 + i * 40, y: 420 }));
         state.clock.totalTicks = 21 * TICKS_PER_HOUR;
-        for (let i = 0; i < TICKS_PER_HOUR * 2; i += 1) {
-          state.clock.totalTicks += 1;
-          tickNeeds(state, rng);
-          tickBehavior(state, rng);
-        }
+        advanceTicks(state, rng, TICKS_PER_HOUR * 2, [tickNeeds, tickBehavior]);
         for (const d of state.ducks) {
           expect(d.activity).toBe('sleep');
           expect(pondDistance(state, d.pos)).toBeGreaterThan(1.2);
@@ -59,9 +56,7 @@ describe('night roost', () => {
 
   it('broods roost beside their mother instead of jogging between her and their own spot', () => {
     for (const seed of [1, 2, 3, 4]) {
-      const { state, rng } = createNewGame(seed);
-      const m = state.ducks.find((d) => d.sex === 'F')!;
-      const f = state.ducks.find((d) => d.sex === 'M')!;
+      const { state, rng, hen: m, drake: f } = newGameWithPair(seed);
       for (let i = 0; i < 4; i += 1) {
         const e = layEgg(rng, m, f, { x: 400 + i * 30, y: 450 });
         e.stage = 'duckling';
@@ -69,11 +64,7 @@ describe('night roost', () => {
         state.ducks.push(e);
       }
       state.clock.totalTicks = 21 * TICKS_PER_HOUR;
-      for (let i = 0; i < TICKS_PER_HOUR * 2; i += 1) {
-        state.clock.totalTicks += 1;
-        tickNeeds(state, rng);
-        tickBehavior(state, rng);
-      }
+      advanceTicks(state, rng, TICKS_PER_HOUR * 2, [tickNeeds, tickBehavior]);
       for (const d of state.ducks) expect(d.activity).toBe('sleep');
       for (const d of state.ducks.filter((x) => x.stage === 'duckling')) {
         expect(Math.hypot(d.pos.x - m.pos.x, d.pos.y - m.pos.y)).toBeLessThan(120);

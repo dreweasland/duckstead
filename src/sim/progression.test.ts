@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { makeCommission, tierFor } from './commissions';
 import { recordLeagueResult } from './league';
 import { heritageMutationRate, heritagePondBonus } from './heritage';

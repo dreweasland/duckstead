@@ -1,4 +1,4 @@
-export const TICK_MS = 100; // 10 Hz simulation
+const TICK_MS = 100; // 10 Hz simulation
 
 const MAX_CATCHUP_TICKS = 50;
 

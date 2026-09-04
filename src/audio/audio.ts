@@ -4,7 +4,7 @@
 // gesture (browsers require it); until then every call is a no-op.
 import { events } from '../events';
 
-export interface AudioSettings {
+interface AudioSettings {
   volume: number; // 0..1
   muted: boolean;
 }
@@ -54,10 +54,6 @@ export function setAudioSettings(next: AudioSettings): void {
   settings = { ...next };
   applyVolume();
   if (!settings.muted && unlocked) ensureAmbience();
-}
-
-export function audioSettings(): AudioSettings {
-  return { ...settings };
 }
 
 // Call from the first pointerdown/keydown: opens the context and starts the

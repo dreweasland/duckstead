@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
+import { pushEgg } from '../testFixtures';
 import { createDuck } from './duck';
 import { currentTier, LEAGUE, recordLeagueResult } from './league';
 import { festivalPurseScale, festivalTier, festivalTitle, runEggShow, winterCeremonyFinale } from './festivals';
@@ -48,8 +49,7 @@ describe('festival tiers', () => {
     expect(festivalTitle(state, 'eggShow')).toBe('Spring Egg Show');
     // Day 4 (egg show) with a perfect-standard egg: wins.
     state.clock.totalTicks = 3 * TICKS_PER_DAY + 600 * 10;
-    const egg = createDuck(rng, { genome: breedStandard('M|D|solid|n'), stage: 'egg', pos: { x: 0, y: 0 } });
-    state.ducks.push(egg);
+    const egg = pushEgg(state, rng, { genome: breedStandard('M|D|solid|n') });
     const result = runEggShow(state, egg.id, rng)!;
     expect(result).not.toBeNull();
     if (result.playerPlace === 0) {

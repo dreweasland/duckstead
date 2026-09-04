@@ -12,8 +12,9 @@ import { canPen, penDuck } from './pen';
 import { clamp } from '../types';
 import { dayOf, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 import { TUNING } from './tuning';
+import { duckById } from '../state';
 
-export type LifeEventKind = 'broody' | 'rivalry';
+type LifeEventKind = 'broody' | 'rivalry';
 
 export interface LifeEvent {
   id: number;
@@ -23,7 +24,7 @@ export interface LifeEvent {
   day: number;
 }
 
-export interface LifeChoice {
+interface LifeChoice {
   id: string;
   label: string;
   blurb: string;
@@ -33,12 +34,12 @@ export interface LifeChoice {
 
 export const LIFE_EVENT_ROLL_HOUR = TUNING.lifeEvents.rollHour;
 export const LIFE_EVENT_EXPIRE_HOUR = TUNING.lifeEvents.expireHour;
-export const LIFE_EVENT_CHANCE = TUNING.lifeEvents.chance;
+const LIFE_EVENT_CHANCE = TUNING.lifeEvents.chance;
 export const BROODY_WARMTH_SCALE = TUNING.lifeEvents.broodyWarmthScale; // egg warmth decays half as fast while a hen sits
-export const RIVALRY_TREATS = TUNING.lifeEvents.rivalryTreats;
+const RIVALRY_TREATS = TUNING.lifeEvents.rivalryTreats;
 
 function duckOf(state: GameState, id: string | undefined): Duck | undefined {
-  return id ? state.ducks.find((d) => d.id === id) : undefined;
+  return id ? duckById(state, id) : undefined;
 }
 
 function broodyCandidates(state: GameState): Duck[] {

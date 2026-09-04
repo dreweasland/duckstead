@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { eatFood, favouriteTreat, FOODS, TREATS } from './food';
 import { dropFood, feedDuckDirectly } from './needs';
 import { tickBehavior } from './behavior';
