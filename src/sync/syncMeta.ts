@@ -26,11 +26,15 @@ export function loadSyncMeta(): SyncMeta | null {
   }
 }
 
-export function saveSyncMeta(meta: SyncMeta): void {
+// Returns false when the write failed (storage full or blocked). Sync
+// degrades — the caller shows "offline" — but the game itself carries on.
+export function saveSyncMeta(meta: SyncMeta): boolean {
   try {
     localStorage.setItem(SYNC_META_KEY, JSON.stringify(meta));
-  } catch {
-    // Quota errors: sync degrades, the game does not.
+    return true;
+  } catch (err) {
+    console.warn('Could not store the sync record', err);
+    return false;
   }
 }
 

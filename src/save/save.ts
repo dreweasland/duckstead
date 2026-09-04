@@ -1,11 +1,14 @@
 import type { GameState, GameStats } from '../state';
 import { defaultStats, GROUND_TOP, STATE_VERSION, trimMemorial, WORLD_H, WORLD_W } from '../state';
 import { completeGenome, computePhenotype, type Genome } from '../sim/genetics';
-import { createRng } from '../rng';
+import { createRng, fnv1a } from '../rng';
 import { createRivals } from '../sim/rivals';
 import { recordBreed } from '../sim/breedBook';
 import { nestPos } from '../sim/pond';
-import { clamp } from '../types';
+import { FOODS } from '../sim/food';
+import { MARKS } from '../sim/marks';
+import type { Duck } from '../sim/duck';
+import { clamp, type Activity, type LifeStage } from '../types';
 
 // The storage key is frozen at v1 — renaming it would orphan every save.
 // The envelope's `version` is what advances; see MIGRATIONS below.
@@ -39,6 +42,7 @@ export function deserialize(json: string): GameState {
   // Recompute derived caches, pull ducks saved under a different window
   // aspect back inside the current world, and reset interpolation state.
   const nest = nestPos();
+  state.ducks.forEach(healDuck);
   for (const duck of state.ducks) {
     duck.phenotype = computePhenotype(duck.genome);
     duck.pos.x = clamp(duck.pos.x, 20, WORLD_W - 20);
@@ -133,8 +137,52 @@ export function deserialize(json: string): GameState {
   for (const pellet of state.foodPellets) {
     pellet.pos.x = clamp(pellet.pos.x, 30, WORLD_W - 30);
     pellet.pos.y = clamp(pellet.pos.y, GROUND_TOP, WORLD_H - 25);
+    if (pellet.kind !== undefined && !(pellet.kind in FOODS)) delete pellet.kind; // a renamed food: fall back to the legacy flag
   }
   return state;
+}
+
+// Every member of the unions, kept honest by the Record type: adding a
+// stage or activity without listing it here is a compile error.
+const STAGES: Record<LifeStage, true> = { egg: true, duckling: true, juvenile: true, adult: true, elder: true };
+const ACTIVITIES: Record<Activity, true> = {
+  idle: true, waddle: true, swim: true, eat: true, sleep: true, preen: true, sit: true, dabble: true, forage: true, flap: true, shake: true,
+};
+
+const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+
+// A duck that deserialize accepts but the sim or renderer can't handle
+// (an unknown mark, no needs, a stage that doesn't exist) would crash every
+// frame with no recovery path — the save has already been accepted, so the
+// corrupt-save stash never triggers. Heal what can be healed here and throw
+// on what can't, so the corrupt path catches it before anything is kept.
+function healDuck(duck: Duck, index: number): void {
+  if (!duck || typeof duck !== 'object' || typeof duck.id !== 'string' || !duck.genome || typeof duck.genome !== 'object') {
+    throw new Error(`Duck ${index} is not a recognizable duck`);
+  }
+  if (!(duck.stage in STAGES)) throw new Error(`Duck ${duck.id} has unknown stage ${String(duck.stage)}`);
+  if (!duck.pos || typeof duck.pos.x !== 'number' || typeof duck.pos.y !== 'number') throw new Error(`Duck ${duck.id} has no position`);
+  if (typeof duck.name !== 'string') duck.name = 'Duck';
+  if (duck.sex !== 'M' && duck.sex !== 'F') duck.sex = 'F';
+  const needs = (duck.needs ?? {}) as Partial<Duck['needs']>;
+  duck.needs = {
+    hunger: num(needs.hunger, 80),
+    cleanliness: num(needs.cleanliness, 80),
+    happiness: num(needs.happiness, 70),
+    health: num(needs.health, 100),
+  };
+  duck.sick = duck.sick === true;
+  duck.ageTicks = num(duck.ageTicks, 0);
+  duck.heading = num(duck.heading, 0);
+  duck.activityTimer = num(duck.activityTimer, 0);
+  duck.breedingCooldownTicks = num(duck.breedingCooldownTicks, 0);
+  duck.incubationTicks = num(duck.incubationTicks, 0);
+  duck.petCooldownTicks = num(duck.petCooldownTicks, 0);
+  if (!(duck.activity in ACTIVITIES)) duck.activity = duck.stage === 'egg' ? 'sit' : 'idle';
+  if (!Array.isArray(duck.parents) || duck.parents.length !== 2 || duck.parents.some((p) => typeof p !== 'string')) duck.parents = null;
+  if (duck.marks !== undefined) {
+    duck.marks = Array.isArray(duck.marks) ? duck.marks.filter((m) => typeof m === 'string' && m in MARKS) : undefined;
+  }
 }
 
 // One step per format version: MIGRATIONS[n] lifts a version-n state to
@@ -148,11 +196,7 @@ const MIGRATIONS: Record<number, (state: GameState) => void> = {
   // so an old flock isn't uniformly middling; ancestors and the dead get a
   // neutral pair (their genes only ever feed a family tree or a portrait).
   1: (state) => {
-    const seedFrom = (id: string): number => {
-      let h = 2166136261;
-      for (let i = 0; i < id.length; i += 1) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
-      return h >>> 0;
-    };
+    const seedFrom = fnv1a;
     const healAncestor = (a: { genome: Genome } | null | undefined) => {
       if (a?.genome) completeGenome(a.genome);
     };
@@ -197,7 +241,7 @@ export function saveToStorage(state: GameState): boolean {
   }
 }
 
-export type LoadedSave =
+type LoadedSave =
   | { kind: 'loaded'; state: GameState }
   | { kind: 'empty' }
   // Unreadable: the raw blob has been copied to CORRUPT_KEY, so the fresh
@@ -214,7 +258,10 @@ export function loadFromStorage(): LoadedSave {
   if (!json) return { kind: 'empty' };
   try {
     return { kind: 'loaded', state: deserialize(json) };
-  } catch {
+  } catch (err) {
+    // The stash keeps the blob; the log is the only way to tell a migration
+    // bug from a blob that was garbage to begin with.
+    console.warn('Save could not be read; a copy is stashed', err);
     try {
       localStorage.setItem(CORRUPT_KEY, json);
     } catch {

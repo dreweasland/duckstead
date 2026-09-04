@@ -5,11 +5,22 @@
   Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
 
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 
-/index.html
+# The HTML shell is served at these paths (never as /index.html — the SPA
+# fallback and the /guide/ index files answer for it). It must revalidate on
+# every load so a deploy's new hashed asset names are seen at once.
+/
+  Cache-Control: no-cache
+
+/companion
+  Cache-Control: no-cache
+
+/guide/*
   Cache-Control: no-cache
 
 /sw.js

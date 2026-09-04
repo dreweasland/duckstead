@@ -72,7 +72,7 @@ describe('planPush', () => {
 
 // Cloud blobs must prove readable before they may replace the local save.
 import { isReadableSave } from './sync';
-import { createNewGame } from '../state';
+import { createNewGame } from '../newGame';
 import { serialize } from '../save/save';
 
 describe('cloud blob validation', () => {

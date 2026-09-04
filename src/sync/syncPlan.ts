@@ -8,7 +8,7 @@ export interface CloudMeta {
   savedAt: number;
 }
 
-export type BootDecision =
+type BootDecision =
   // Nothing in the cloud yet (or we've never pushed): play local, push after.
   | 'use-local'
   // The cloud moved on and we have nothing unsynced: load the cloud blob.
@@ -46,14 +46,14 @@ export function planBoot(
   return 'use-local';
 }
 
-export type PollDecision = 'ok' | 'lost-ownership';
+type PollDecision = 'ok' | 'lost-ownership';
 
 export function planPoll(cloud: CloudMeta, deviceId: string): PollDecision {
   if (cloud.exists && cloud.owner !== null && cloud.owner !== deviceId) return 'lost-ownership';
   return 'ok';
 }
 
-export type ResumeDecision = 'reclaim' | 'wait';
+type ResumeDecision = 'reclaim' | 'wait';
 
 // A device that lost the pond to another one keeps polling. Once nobody
 // holds the save (the other device released it) — or it somehow came back
@@ -64,12 +64,12 @@ export function planResume(cloud: CloudMeta, deviceId: string): ResumeDecision {
   return 'wait';
 }
 
-export type PushResult =
+type PushResult =
   | { kind: 'accepted'; seq: number }
   | { kind: 'rejected'; reason: 'not-owner' | 'stale-seq'; seq: number }
   | { kind: 'offline' };
 
-export type PushDecision = 'synced' | 'stale' | 'retry-offline';
+type PushDecision = 'synced' | 'stale' | 'retry-offline';
 
 export function planPush(result: PushResult): PushDecision {
   switch (result.kind) {

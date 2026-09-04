@@ -7,7 +7,7 @@ import {
   decideRelease,
   decideWrite,
   generateCode,
-  MAX_PAIR_ATTEMPTS,
+  CODE_RANDOM_BYTES,
   normalizeCode,
   PAIR_TTL_MS,
   type PairRecord,
@@ -18,27 +18,32 @@ const record = (over: Partial<PairRecord> = {}): PairRecord => ({
   syncId: 'id',
   secret: 's',
   expiresAt: 1000 + PAIR_TTL_MS,
-  attempts: 0,
   ...over,
 });
 
 describe('pairing codes', () => {
   it('generates codes from the unambiguous alphabet only', () => {
-    const bytes = new Uint8Array(CODE_LENGTH).map((_, i) => i * 37);
+    const bytes = new Uint8Array(CODE_RANDOM_BYTES).map((_, i) => i * 37);
     const code = generateCode(bytes);
     expect(code).toHaveLength(CODE_LENGTH);
     for (const ch of code) expect(CODE_ALPHABET).toContain(ch);
     expect(code).not.toMatch(/[0O1IL]/);
   });
 
+  it('skips bytes that would bias the symbol distribution', () => {
+    // 248..255 would wrap onto the first eight symbols; they must be skipped.
+    const bytes = new Uint8Array([255, 250, 248, 0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(generateCode(bytes)).toBe(CODE_ALPHABET.slice(0, CODE_LENGTH));
+    expect(() => generateCode(new Uint8Array([255, 255, 255]))).toThrow('entropy');
+  });
+
   it('normalizes human input', () => {
     expect(normalizeCode(' ab-cd ef23 ')).toBe('ABCDEF23');
   });
 
-  it('validates expiry and attempt limits', () => {
+  it('validates expiry', () => {
     expect(codeValid(record(), 1000)).toBe(true);
     expect(codeValid(record(), 1001 + PAIR_TTL_MS)).toBe(false);
-    expect(codeValid(record({ attempts: MAX_PAIR_ATTEMPTS }), 1000)).toBe(false);
     expect(codeValid(null, 1000)).toBe(false);
   });
 });

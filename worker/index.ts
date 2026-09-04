@@ -1,6 +1,6 @@
 // Worker entry: routes /api/* to the sync Durable Object; everything else
 // falls through to the static assets (the game itself).
-import { CODE_ALPHABET, CODE_LENGTH, generateCode, normalizeCode } from './protocol';
+import { CODE_ALPHABET, CODE_LENGTH, CODE_RANDOM_BYTES, generateCode, normalizeCode } from './protocol';
 import { json } from './http';
 import { DuckSyncDO, type Env } from './room';
 
@@ -8,15 +8,34 @@ export { DuckSyncDO };
 
 // Device ids are minted client-side as 8 random bytes in hex; anything else
 // is hostile input that would otherwise be persisted verbatim as the save's
-// owner column and echoed in every meta response.
+// owner column and echoed in every meta response. Sync ids are v4 UUIDs
+// from crypto.randomUUID(); the strict shape keeps junk names from ever
+// reaching the Durable Object namespace.
 const DEVICE_ID_RE = /^[0-9a-f]{16}$/;
-const SYNC_ID_RE = /^[0-9a-f-]{36}$/;
+const UUID_V4 = '[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
+const SYNC_ID_RE = new RegExp(`^${UUID_V4}$`);
+const SAVE_ROUTE_RE = new RegExp(`^/api/save/(${UUID_V4})(?:/(meta|claim|release|rotate))?$`);
 
 // Reject oversized bodies before request.json() materializes them — the
-// blob-length check alone runs after up to 100 MB has been parsed.
-function tooLarge(request: Request): boolean {
-  const len = Number(request.headers.get('content-length') ?? 0);
-  return len > 2_000_000;
+// blob-length check alone runs after up to 100 MB has been parsed. A body
+// with no declared length (chunked transfer) would slip past a size check,
+// so it is refused outright; every client here sends a string body, which
+// always carries content-length.
+function bodyProblem(request: Request): Response | null {
+  const raw = request.headers.get('content-length');
+  if (raw === null) return json({ error: 'length-required' }, 411);
+  if (Number(raw) > 2_000_000) return json({ error: 'too-large' }, 413);
+  return null;
+}
+
+// Throttle the unauthenticated pairing routes per client: code guessing and
+// DO minting both go through here. Without the binding (local dev) it's a
+// no-op.
+async function pairThrottled(request: Request, env: Env): Promise<boolean> {
+  if (!env.PAIR_LIMITER) return false;
+  const key = request.headers.get('cf-connecting-ip') ?? 'unknown';
+  const { success } = await env.PAIR_LIMITER.limit({ key });
+  return !success;
 }
 
 function bearer(request: Request): string | null {
@@ -39,7 +58,9 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
   // it re-issues a code for an existing sync (adding another device); bare, it
   // creates a brand-new sync identity.
   if (path === '/api/pair/start' && request.method === 'POST') {
-    if (tooLarge(request)) return json({ error: 'too-large' }, 413);
+    const problem = bodyProblem(request);
+    if (problem) return problem;
+    if (await pairThrottled(request, env)) return json({ error: 'rate-limited' }, 429);
     const reqBody = (await request.json().catch(() => ({}))) as { syncId?: string };
     let syncId: string;
     let secret: string;
@@ -57,7 +78,7 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
     }
     // Retry on the (astronomically unlikely) collision with a live code.
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      const code = generateCode(crypto.getRandomValues(new Uint8Array(CODE_LENGTH)));
+      const code = generateCode(crypto.getRandomValues(new Uint8Array(CODE_RANDOM_BYTES)));
       const stub = env.SYNC.get(env.SYNC.idFromName(`pair:${code}`));
       const res = await stub.fetch('https://do/', {
         method: 'POST',
@@ -73,7 +94,9 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
 
   // POST /api/pair/claim {code} — trade a code for the sync credentials.
   if (path === '/api/pair/claim' && request.method === 'POST') {
-    if (tooLarge(request)) return json({ error: 'too-large' }, 413);
+    const problem = bodyProblem(request);
+    if (problem) return problem;
+    if (await pairThrottled(request, env)) return json({ error: 'rate-limited' }, 429);
     const { code } = (await request.json().catch(() => ({}))) as { code?: unknown };
     if (typeof code !== 'string') return json({ error: 'unknown-code' }, 404);
     const normalized = normalizeCode(code);
@@ -89,8 +112,8 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
     });
   }
 
-  // /api/save/:syncId[/meta|/claim|/release]
-  const match = path.match(/^\/api\/save\/([0-9a-f-]{36})(?:\/(meta|claim|release))?$/);
+  // /api/save/:syncId[/meta|/claim|/release|/rotate]
+  const match = path.match(SAVE_ROUTE_RE);
   if (match) {
     const secret = bearer(request);
     if (!secret) return json({ error: 'unauthorized' }, 401);
@@ -101,14 +124,24 @@ async function handleApi(request: Request, env: Env, path: string): Promise<Resp
     if (request.method === 'GET' && sub === 'meta') {
       return saveStub(env, syncId, { op: 'meta', secret });
     }
+    if (request.method === 'POST' && sub === 'rotate') {
+      // Mint the replacement here so the DO never sees anything but the
+      // secret it is told to store.
+      const newSecret = hex(crypto.getRandomValues(new Uint8Array(16)));
+      const res = await saveStub(env, syncId, { op: 'rotate', secret, newSecret });
+      if (res.status !== 200) return res;
+      return json({ secret: newSecret });
+    }
     if (request.method === 'POST' && (sub === 'claim' || sub === 'release')) {
-      if (tooLarge(request)) return json({ error: 'too-large' }, 413);
+      const problem = bodyProblem(request);
+      if (problem) return problem;
       const { deviceId } = (await request.json().catch(() => ({}))) as { deviceId?: unknown };
       if (typeof deviceId !== 'string' || !DEVICE_ID_RE.test(deviceId)) return json({ error: 'bad-request' }, 400);
       return saveStub(env, syncId, { op: sub, secret, deviceId });
     }
     if (request.method === 'PUT' && sub === undefined) {
-      if (tooLarge(request)) return json({ error: 'too-large' }, 413);
+      const problem = bodyProblem(request);
+      if (problem) return problem;
       const body = (await request.json().catch(() => null)) as {
         deviceId?: string;
         baseSeq?: number;

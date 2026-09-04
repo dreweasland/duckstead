@@ -10,6 +10,8 @@ export function json(body: unknown, status = 200): Response {
       // save to another.
       'cache-control': 'no-store',
       vary: 'authorization',
+      // The static _headers file doesn't cover Worker responses.
+      'x-content-type-options': 'nosniff',
     },
   });
 }

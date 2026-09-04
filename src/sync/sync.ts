@@ -5,7 +5,7 @@
 import { events } from '../events';
 import { el } from '../ui/dom';
 import type { Game } from '../game';
-import { deserialize, SAVE_KEY } from '../save/save';
+import { deserialize, SAVE_KEY, SAVE_VERSION } from '../save/save';
 import { claimSave, pullSave, pullMeta, pushSave, type CloudSave } from './syncClient';
 import { isSyncConfigured, loadSyncMeta, saveSyncMeta } from './syncMeta';
 import { planBoot, planPoll, planPush, planResume } from './syncPlan';
@@ -31,11 +31,38 @@ export function isReadableSave(blob: string): boolean {
   }
 }
 
+// A cloud blob written by a newer build than this one. This build cannot
+// load it, and pushing over it would replace the newer save with an older
+// format (the DO's single undo slot would be gone one push later) — so once
+// seen, this build stops writing to the cloud until the page is reloaded.
+let newerBuildInCloud = false;
+
+function isNewerFormat(blob: string): boolean {
+  try {
+    const version = (JSON.parse(blob) as { version?: unknown }).version;
+    return typeof version === 'number' && version > SAVE_VERSION;
+  } catch {
+    return false;
+  }
+}
+
 // Write a validated cloud blob into localStorage. Returns false (writing
-// nothing) when the blob is missing or unreadable.
+// nothing) when the blob is missing, unreadable, from a newer build, or the
+// write itself fails (storage full or blocked) — the caller keeps local.
 function adoptBlob(blob: string | null): boolean {
-  if (!blob || !isReadableSave(blob)) return false;
-  localStorage.setItem(SAVE_KEY, blob);
+  if (!blob) return false;
+  if (isNewerFormat(blob)) {
+    newerBuildInCloud = true;
+    setStatus('stale');
+    return false;
+  }
+  if (!isReadableSave(blob)) return false;
+  try {
+    localStorage.setItem(SAVE_KEY, blob);
+  } catch (err) {
+    console.warn('Could not store the cloud save locally', err);
+    return false;
+  }
   return true;
 }
 
@@ -79,6 +106,13 @@ export async function prepareCloudBoot(): Promise<void> {
   // 'offline' now flows through planBoot's documented contract; the check on
   // `cloud` narrows the union for everything below.
   if (decision === 'offline' || cloud === 'offline') return;
+  // Whatever the decision, a cloud save from a newer build is left exactly
+  // as it is — meta included — so the reload that brings the new build in
+  // adopts it cleanly instead of this build pushing an older format over it.
+  if (cloud.blob && isNewerFormat(cloud.blob)) {
+    newerBuildInCloud = true;
+    return;
+  }
   const adoptCloud = (): void => {
     if (adoptBlob(cloud.blob)) {
       meta.lastSyncedSeq = cloud.seq;
@@ -142,7 +176,7 @@ function askConflict(cloudSavedAt: number): Promise<boolean> {
         el('h2', {}, 'Two ponds diverged'),
         el('p', {}, `The cloud save is newer (last played ${when}), but this device also has progress that never synced. Which one should the pond keep?`),
         el('div', { class: 'sync-conflict-actions' }, pickBtn('Load the cloud save', true), pickBtn("Keep this device's save", false)),
-        el('p', { class: 'muted small' }, "The other copy is kept in the cloud's undo slot either way."),
+        el('p', { class: 'muted small' }, 'The copy you skip is lost once the pond saves again.'),
       ),
     );
     document.body.append(overlay);
@@ -158,7 +192,14 @@ function askConflict(cloudSavedAt: number): Promise<boolean> {
 let detachCurrent: (() => void) | null = null;
 let handoffCurrent: ((keepalive: boolean) => Promise<boolean>) | null = null;
 
+// Teardown for unlinking (and tests): also forgets that the cloud held a
+// newer-build save, since the next link may point at a different pond.
 export function detachCloudSync(): void {
+  dropAttachment();
+  newerBuildInCloud = false;
+}
+
+function dropAttachment(): void {
   detachCurrent?.();
   detachCurrent = null;
   handoffCurrent = null;
@@ -176,12 +217,22 @@ export function handoffCloudSync(keepalive = false): Promise<boolean> {
   return run(keepalive);
 }
 
+// Each attachment gets a generation; closures from a superseded attachment
+// (unlink then relink in one session) check it after every await, so a
+// response landing late can't write the old credentials over the new ones.
+let attachGen = 0;
+
 export function attachCloudSync(game: Game): void {
-  detachCloudSync();
+  dropAttachment();
   const meta = loadSyncMeta();
   if (!meta) return;
+  const gen = ++attachGen;
+  const live = (): boolean => gen === attachGen;
 
-  let pushing = false;
+  // The push in flight, if any. A handoff on the way out aborts it rather
+  // than waiting: an unloading page's timers never fire, and its blob is
+  // older than the one about to be sent anyway.
+  let inFlight: AbortController | null = null;
   let pendingPush = false;
   // True after another *device* took the pond (as opposed to another tab in
   // this browser, which is settled by reload). Only this flavour of stale can
@@ -204,7 +255,11 @@ export function attachCloudSync(game: Game): void {
     events.emit('takeover', { remote: true });
   };
 
-  const pushOnce = async (opts: { keepalive: boolean; release: boolean }): Promise<boolean> => {
+  const pushOnce = async (opts: { keepalive: boolean; release: boolean }, ctl: AbortController): Promise<boolean> => {
+    if (newerBuildInCloud) {
+      setStatus('stale');
+      return false;
+    }
     const blob = localStorage.getItem(SAVE_KEY);
     if (!blob) return false;
     // Never push a blob the other device could not load — it would replace
@@ -213,11 +268,13 @@ export function attachCloudSync(game: Game): void {
     setStatus('syncing');
     let result;
     try {
-      result = await pushSave(meta, blob, opts);
+      result = await pushSave(meta, blob, { ...opts, signal: ctl.signal });
     } catch {
       result = null;
     }
-    if (game.stale || !isSyncConfigured()) return false; // unlinked or superseded mid-flight
+    // Aborted: a newer push superseded this one and owns the outcome.
+    if (ctl.signal.aborted) return false;
+    if (!live() || game.stale || !isSyncConfigured()) return false; // unlinked or superseded mid-flight
     if (result === null) {
       meta.dirty = true;
       saveSyncMeta(meta);
@@ -228,8 +285,9 @@ export function attachCloudSync(game: Game): void {
       case 'synced':
         meta.lastSyncedSeq = (result as { seq: number }).seq;
         meta.dirty = false;
-        saveSyncMeta(meta);
-        setStatus('synced');
+        // A meta write that fails leaves the next session's first push
+        // rejected as stale; say so now rather than reading "synced".
+        setStatus(saveSyncMeta(meta) ? 'synced' : 'offline');
         if (opts.release) handedOff = true;
         return true;
       case 'stale':
@@ -244,21 +302,23 @@ export function attachCloudSync(game: Game): void {
 
   const push = async (keepalive = false): Promise<void> => {
     if (game.stale || handedOff) return;
-    if (pushing) {
+    if (inFlight) {
       // A save landed while a push was in flight: the blob being sent is
       // already stale. Chase it with a follow-up once this push settles —
       // dropping it left the HUD "synced" while the cloud was behind.
       pendingPush = true;
       return;
     }
-    pushing = true;
-    await pushOnce({ keepalive, release: releasing });
-    pushing = false;
+    const ctl = new AbortController();
+    inFlight = ctl;
+    await pushOnce({ keepalive, release: releasing }, ctl);
+    if (inFlight !== ctl) return; // a handoff took over; it pushed the freshest blob
+    inFlight = null;
     if (pendingPush) {
       pendingPush = false;
       // Only chase the newer blob when the last push landed; a failed push
       // already marked dirty and the poll retries it.
-      if (!game.stale && isSyncConfigured() && !meta.dirty) void push();
+      if (live() && !game.stale && isSyncConfigured() && !meta.dirty) void push();
     }
   };
 
@@ -271,7 +331,9 @@ export function attachCloudSync(game: Game): void {
   // carry on. The UI hears 'resumed' and drops its takeover overlay.
   const reclaim = async (): Promise<void> => {
     const cloud = await claimSave(meta);
+    if (!live()) return;
     const adopted = adoptIntoGame(game, cloud.blob);
+    if (newerBuildInCloud) return; // can't play what the other device wrote; reload
     meta.lastSyncedSeq = cloud.seq;
     meta.dirty = !adopted;
     saveSyncMeta(meta);
@@ -290,6 +352,7 @@ export function attachCloudSync(game: Game): void {
     if (game.stale && !remoteStale) return; // another tab in this browser: reload settles it
     try {
       const cloud = await pullMeta(meta);
+      if (!live()) return;
       if (remoteStale) {
         if (planResume(cloud, meta.deviceId) === 'reclaim') await reclaim();
         return;
@@ -301,7 +364,7 @@ export function attachCloudSync(game: Game): void {
       if (meta.dirty || releasing) void push(); // reconnected with unsynced play, or a release still owed
       else setStatus('synced');
     } catch {
-      if (!remoteStale) setStatus('offline');
+      if (live() && !remoteStale) setStatus('offline');
     }
   };
   const pollId = setInterval(() => void poll(), POLL_MS);
@@ -312,12 +375,21 @@ export function attachCloudSync(game: Game): void {
     quiet = true;
     game.save();
     quiet = false;
-    // Wait out an in-flight push: its blob is older than the one just saved
-    // and its response would otherwise land after ours and rewind the seq.
-    while (pushing) await new Promise((r) => setTimeout(r, 25));
-    pushing = true;
-    const ok = await pushOnce({ keepalive, release: true });
-    pushing = false;
+    if (keepalive) {
+      // On the way out: abort an in-flight push instead of waiting for it —
+      // the page is unloading and a timer-based wait would never resume, so
+      // the release would never be sent (and the phone would wait forever).
+      inFlight?.abort();
+    } else {
+      // Page alive: wait out an in-flight push. Its blob is older than the
+      // one just saved, and its response landing after ours would rewind
+      // the seq.
+      while (inFlight) await new Promise((r) => setTimeout(r, 25));
+    }
+    const ctl = new AbortController();
+    inFlight = ctl;
+    const ok = await pushOnce({ keepalive, release: true }, ctl);
+    if (inFlight === ctl) inFlight = null;
     // On failure the device stays dirty and still owns the pond; the poll's
     // retry pushes carry the release until one lands.
     return ok;
@@ -347,8 +419,15 @@ export function attachCloudSync(game: Game): void {
     clearInterval(pollId);
     window.removeEventListener('pagehide', onPagehide);
     window.removeEventListener('pageshow', onPageshow);
+    inFlight?.abort();
+    inFlight = null;
   };
 
+  if (newerBuildInCloud) {
+    setStatus('stale');
+    events.emit('toast', 'The cloud save comes from a newer version of the game — reload to catch up. Nothing is pushed until then.');
+    return;
+  }
   setStatus(meta.dirty ? 'offline' : 'synced');
   if (meta.dirty) void push();
 }
@@ -360,16 +439,21 @@ export async function claimAndReload(): Promise<void> {
   if (!meta) return;
   const cloud = await claimSave(meta);
   // Same rule as boot: an unreadable cloud blob never replaces the local
-  // save — we keep local, stay dirty, and push a good blob over it.
-  meta.dirty = !adoptBlob(cloud.blob);
-  meta.lastSyncedSeq = cloud.seq;
-  saveSyncMeta(meta);
+  // save — we keep local, stay dirty, and push a good blob over it. A blob
+  // from a newer build is the exception: leave the meta alone and let the
+  // reload pick up the new build, which can read it.
+  const adopted = adoptBlob(cloud.blob);
+  if (!newerBuildInCloud) {
+    meta.dirty = !adopted;
+    meta.lastSyncedSeq = cloud.seq;
+    saveSyncMeta(meta);
+  }
   location.reload();
 }
 
 // ---- peeking (companion) ---------------------------------------------------
 
-export interface Peek {
+interface Peek {
   seq: number;
   owner: string | null;
   savedAt: number;
@@ -407,13 +491,10 @@ export async function takeCloud(game: Game): Promise<number> {
   if (!meta) throw new Error('sync not configured');
   const cloud = await claimSave(meta);
   if (cloud.seq !== meta.lastSyncedSeq) {
-    if (adoptIntoGame(game, cloud.blob)) {
-      meta.lastSyncedSeq = cloud.seq;
-      meta.dirty = false;
-    } else {
-      meta.lastSyncedSeq = cloud.seq;
-      meta.dirty = true;
-    }
+    const adopted = adoptIntoGame(game, cloud.blob);
+    if (newerBuildInCloud) throw new Error('cloud save needs a newer build');
+    meta.lastSyncedSeq = cloud.seq;
+    meta.dirty = !adopted;
   }
   saveSyncMeta(meta);
   game.stale = false;

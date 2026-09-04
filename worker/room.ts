@@ -18,7 +18,15 @@ import {
 export interface Env {
   SYNC: DurableObjectNamespace<DuckSyncDO>;
   ASSETS: Fetcher;
+  // Per-client throttle on the unauthenticated pairing routes (wrangler
+  // `ratelimits`). Optional so a dev setup without the binding still runs.
+  PAIR_LIMITER?: RateLimit;
 }
+
+// A save that was initialised for a pairing code but never received a
+// push (the code expired unclaimed, or the founding device never saved) is
+// deleted after this long; saves with a blob are kept indefinitely.
+export const ORPHAN_SAVE_TTL_MS = 24 * 60 * 60_000;
 
 interface SaveRow extends Record<string, number | string | null> {
   seq: number;
@@ -29,14 +37,33 @@ interface SaveRow extends Record<string, number | string | null> {
 
 export class DuckSyncDO extends DurableObject<Env> {
   private sql = this.ctx.storage.sql;
+  private tableReady = false;
 
-  constructor(ctx: DurableObjectState, env: Env) {
-    super(ctx, env);
-    // Slot 0 is the current save, slot 1 the previous accepted write — cheap
-    // one-step insurance against a bad handoff.
+  // Slot 0 is the current save, slot 1 the previous accepted write — cheap
+  // one-step insurance against a bad handoff. Created lazily, after the
+  // secret check: DDL in the constructor persisted a SQLite database for
+  // every save:<id> an unauthenticated probe could name.
+  private ensureTable(): void {
+    if (this.tableReady) return;
     this.sql.exec(
       'CREATE TABLE IF NOT EXISTS saves (slot INTEGER PRIMARY KEY, seq INTEGER, owner TEXT, savedAt INTEGER, blob TEXT)',
     );
+    this.tableReady = true;
+  }
+
+  // Retention. pair:<code> records vanish at expiry; save:<id> objects that
+  // never got a blob are dropped after ORPHAN_SAVE_TTL_MS.
+  override async alarm(): Promise<void> {
+    const pair = await this.ctx.storage.get<PairRecord>('pair');
+    if (pair) {
+      if (!codeValid(pair, Date.now())) await this.ctx.storage.deleteAll();
+      return;
+    }
+    const secret = await this.ctx.storage.get<string>('secret');
+    if (secret === undefined) return;
+    this.ensureTable();
+    const row = this.currentRow();
+    if (row === null || row.blob === null) await this.ctx.storage.deleteAll();
   }
 
   // Internal API: the Worker fetch handler POSTs {op, ...} JSON. This is not
@@ -68,24 +95,17 @@ export class DuckSyncDO extends DurableObject<Env> {
       syncId,
       secret,
       expiresAt: Date.now() + PAIR_TTL_MS,
-      attempts: 0,
     };
     await this.ctx.storage.put('pair', record);
+    await this.ctx.storage.setAlarm(record.expiresAt + 1000);
     return json({ ok: true, expiresAt: record.expiresAt });
   }
 
   private async pairClaim(): Promise<Response> {
     const record = await this.ctx.storage.get<PairRecord>('pair');
-    if (!codeValid(record ?? null, Date.now())) {
-      // Count the miss so a brute-forcer burns the code out quickly.
-      if (record) {
-        record.attempts += 1;
-        await this.ctx.storage.put('pair', record);
-      }
-      return json({ error: 'unknown-code' }, 404);
-    }
+    if (!codeValid(record ?? null, Date.now())) return json({ error: 'unknown-code' }, 404);
     // Single use: the code is gone the moment it succeeds.
-    await this.ctx.storage.delete('pair');
+    await this.ctx.storage.deleteAll();
     return json({ syncId: record!.syncId, secret: record!.secret });
   }
 
@@ -93,7 +113,10 @@ export class DuckSyncDO extends DurableObject<Env> {
 
   private async saveInit(secret: string): Promise<Response> {
     const existing = await this.ctx.storage.get<string>('secret');
-    if (existing === undefined) await this.ctx.storage.put('secret', secret);
+    if (existing === undefined) {
+      await this.ctx.storage.put('secret', secret);
+      await this.ctx.storage.setAlarm(Date.now() + ORPHAN_SAVE_TTL_MS);
+    }
     return json({ ok: true });
   }
 
@@ -102,6 +125,14 @@ export class DuckSyncDO extends DurableObject<Env> {
     if (secret === undefined || !(await secretsMatch(body.secret, secret))) {
       return json({ error: 'unauthorized' }, 401);
     }
+    if (op === 'rotate') {
+      // Every other paired device holds the old secret and is cut off; the
+      // caller stores the new one. The save itself is untouched.
+      const fresh = body.newSecret as string;
+      await this.ctx.storage.put('secret', fresh);
+      return json({ ok: true });
+    }
+    this.ensureTable();
     const row = this.currentRow();
     const meta: SaveMeta = row
       ? { seq: row.seq, owner: row.owner, savedAt: row.savedAt }
@@ -161,6 +192,8 @@ export class DuckSyncDO extends DurableObject<Env> {
           next.savedAt,
           body.blob as string,
         );
+        // A real save now: cancel the orphan-retention alarm set at init.
+        if (!exists) await this.ctx.storage.deleteAlarm();
         return json({ seq: next.seq });
       }
       default:

@@ -6,21 +6,14 @@ vi.mock('./syncClient', () => ({
   pullSave: vi.fn(),
   pullMeta: vi.fn(),
   claimSave: vi.fn(),
-  releaseSave: vi.fn(),
 }));
 
-import { claimSave, pullMeta, pushSave } from './syncClient';
-import { attachCloudSync, detachCloudSync, handoffCloudSync } from './sync';
+import { claimSave, pullMeta, pullSave, pushSave } from './syncClient';
+import { attachCloudSync, detachCloudSync, handoffCloudSync, prepareCloudBoot } from './sync';
 import { SYNC_META_KEY } from './syncMeta';
-import { SAVE_KEY, serialize } from '../save/save';
-import { createNewGame } from '../state';
+import { SAVE_KEY, SAVE_VERSION } from '../save/save';
+import { installFakeStorage, realBlob, uninstallFakeStorage } from '../testFixtures';
 import type { Game } from '../game';
-
-const realBlob = (money: number): string => {
-  const { state } = createNewGame(1);
-  state.money = money;
-  return serialize(state);
-};
 
 // The pieces of Game the attachment touches, plus a spy on loadState so a
 // reclaim can be seen adopting the phone's play.
@@ -44,21 +37,14 @@ describe('handoff and reclaim', () => {
   let map: Map<string, string>;
   beforeEach(() => {
     vi.useFakeTimers();
-    (globalThis as { window?: unknown }).window = { addEventListener: () => {}, removeEventListener: () => {} };
-    map = new Map<string, string>();
-    (globalThis as { localStorage?: unknown }).localStorage = {
-      getItem: (k: string) => map.get(k) ?? null,
-      setItem: (k: string, v: string) => void map.set(k, v),
-      removeItem: (k: string) => void map.delete(k),
-    };
+    map = installFakeStorage();
     map.set(SYNC_META_KEY, JSON.stringify({ syncId: 's', secret: 'x', deviceId: 'phone', lastSyncedSeq: 1, dirty: false }));
     map.set(SAVE_KEY, realBlob(1));
   });
   afterEach(() => {
     detachCloudSync();
     vi.useRealTimers();
-    delete (globalThis as { localStorage?: unknown }).localStorage;
-    delete (globalThis as { window?: unknown }).window;
+    uninstallFakeStorage();
     vi.restoreAllMocks();
   });
 
@@ -90,6 +76,66 @@ describe('handoff and reclaim', () => {
     expect(vi.mocked(pushSave)).toHaveBeenCalledTimes(2);
     expect(vi.mocked(pushSave).mock.calls[1][2]).toMatchObject({ release: true });
     expect(JSON.parse(map.get(SYNC_META_KEY)!).dirty).toBe(false);
+  });
+
+  it('an unload handoff aborts an in-flight push instead of waiting on a timer', async () => {
+    // Push #1 hangs until its signal aborts (a real fetch on a closing page);
+    // the release must not wait behind it — the page's timers never fire.
+    vi.mocked(pushSave)
+      .mockImplementationOnce(
+        (_m, _b, opts) =>
+          new Promise((_, reject) => opts?.signal?.addEventListener('abort', () => reject(new Error('aborted')))),
+      )
+      .mockResolvedValue({ kind: 'accepted', seq: 2 });
+    const game = fakeGame(map);
+    attachCloudSync(game);
+    events.emit('saved'); // push #1, in flight
+    await Promise.resolve();
+    expect(vi.mocked(pushSave)).toHaveBeenCalledTimes(1);
+    const ok = await handoffCloudSync(true); // no timers advanced
+    expect(ok).toBe(true);
+    expect(vi.mocked(pushSave)).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(pushSave).mock.calls[0][2]?.signal?.aborted).toBe(true);
+    expect(vi.mocked(pushSave).mock.calls[1][2]).toMatchObject({ release: true, keepalive: true });
+    expect(JSON.parse(map.get(SYNC_META_KEY)!)).toMatchObject({ lastSyncedSeq: 2, dirty: false });
+  });
+
+  it('a push still in flight when the device relinks cannot write the old link back', async () => {
+    let resolveFirst!: (v: { kind: 'accepted'; seq: number }) => void;
+    vi.mocked(pushSave)
+      .mockImplementationOnce(() => new Promise((r) => { resolveFirst = r; }))
+      .mockResolvedValue({ kind: 'accepted', seq: 2 });
+    const game = fakeGame(map);
+    attachCloudSync(game);
+    events.emit('saved'); // push #1 (old link), in flight
+    await Promise.resolve();
+    // Unlink, relink to a different sync, attach again.
+    const fresh = { syncId: 'new', secret: 'y', deviceId: 'phone', lastSyncedSeq: 5, dirty: false };
+    detachCloudSync();
+    map.set(SYNC_META_KEY, JSON.stringify(fresh));
+    attachCloudSync(game);
+    resolveFirst({ kind: 'accepted', seq: 9 }); // the old push's response lands late
+    await vi.advanceTimersByTimeAsync(10);
+    expect(JSON.parse(map.get(SYNC_META_KEY)!)).toEqual(fresh);
+  });
+
+  it('a cloud save from a newer build is neither adopted nor pushed over', async () => {
+    map.set(SYNC_META_KEY, JSON.stringify({ syncId: 's', secret: 'x', deviceId: 'phone', lastSyncedSeq: 1, dirty: true }));
+    const local = map.get(SAVE_KEY)!;
+    const newer = JSON.stringify({ version: SAVE_VERSION + 1, savedAt: 5, state: { ducks: [], clock: { totalTicks: 0 } } });
+    vi.mocked(pullSave).mockResolvedValue({ exists: true, seq: 4, owner: null, savedAt: 5, blob: newer });
+    const statuses: unknown[] = [];
+    const off = events.on('sync-status', (st) => statuses.push(st));
+    await prepareCloudBoot();
+    expect(map.get(SAVE_KEY)).toBe(local); // not adopted
+    expect(vi.mocked(claimSave)).not.toHaveBeenCalled();
+    expect(JSON.parse(map.get(SYNC_META_KEY)!)).toMatchObject({ lastSyncedSeq: 1, dirty: true }); // meta untouched
+    attachCloudSync(fakeGame(map));
+    events.emit('saved');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(vi.mocked(pushSave)).not.toHaveBeenCalled();
+    expect(statuses).toContain('stale');
+    off();
   });
 
   it('a device that lost the pond takes it back on its own once released', async () => {

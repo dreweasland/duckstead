@@ -1,7 +1,20 @@
 // Minimal service worker: makes the companion installable and keeps the app
 // shell loading fast. The sync API is never touched — cloud state must always
-// be live.
+// be live. Registered from /companion at root scope, so once installed it
+// also fronts the desktop game; both are network-first for HTML, so a deploy
+// is never hidden.
 const CACHE = 'duckstead-v1';
+
+// Hashed assets are immutable but pile up one set per deploy. After each
+// fresh shell arrives, drop every cached /assets/ entry it no longer names.
+async function evictStaleAssets(shellHtml) {
+  const live = new Set([...shellHtml.matchAll(/\/assets\/[\w.-]+/g)].map((m) => m[0]));
+  const cache = await caches.open(CACHE);
+  for (const req of await cache.keys()) {
+    const path = new URL(req.url).pathname;
+    if (path.startsWith('/assets/') && !live.has(path)) await cache.delete(req);
+  }
+}
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -23,8 +36,19 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(event.request, copy));
+          // Only a good shell goes in the cache — a 5xx error page during a
+          // deploy must not become the offline fallback.
+          if (res.ok) {
+            const copy = res.clone();
+            const shell = res.clone();
+            event.waitUntil(
+              caches
+                .open(CACHE)
+                .then((c) => c.put(event.request, copy))
+                .then(() => shell.text())
+                .then(evictStaleAssets),
+            );
+          }
           return res;
         })
         .catch(() =>
@@ -46,9 +70,9 @@ self.addEventListener('fetch', (event) => {
         hit ??
         fetch(event.request)
           .then((res) => {
-            if (res.ok && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/'))) {
+            if (res.ok && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/') || url.pathname.startsWith('/guide/'))) {
               const copy = res.clone();
-              caches.open(CACHE).then((c) => c.put(event.request, copy));
+              event.waitUntil(caches.open(CACHE).then((c) => c.put(event.request, copy)));
             }
             return res;
           })

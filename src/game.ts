@@ -1,5 +1,6 @@
 import { createRng, type Rng } from './rng';
-import { createNewGame, type GameState } from './state';
+import { type GameState } from './state';
+import { createNewGame } from './newGame';
 import { tickBehavior } from './sim/behavior';
 import { tickBreeding } from './sim/breeding';
 import { tickBugs } from './sim/bugs';
@@ -7,7 +8,7 @@ import { tickGoals } from './sim/goals';
 import { tickLaying } from './sim/laying';
 import { tickAwards } from './sim/awards';
 import { tickCommissions } from './sim/commissions';
-import { retirePond } from './sim/heritage';
+import { retirePond } from './sim/retire';
 import { tickVisitors } from './sim/visitors';
 import { tickFestivals } from './sim/festivals';
 import { tickLifecycle } from './sim/lifecycle';
@@ -65,17 +66,28 @@ export class Game {
     });
 
     setInterval(() => this.save(), AUTOSAVE_MS);
-    window.addEventListener('beforeunload', () => this.save());
+    // The unload save is silent: with cloud sync attached, the pagehide
+    // handoff does its own save-and-release, and a 'saved' push fired here
+    // would only be aborted by it.
+    window.addEventListener('beforeunload', () => this.save({ silent: true }));
     events.on('purchase', () => this.save());
-    events.on('egg-hatched', () => this.save());
+    // A hatch fires from inside tickLifecycle's loop; saving there would
+    // serialise the whole state mid-tick (several times a frame during a
+    // sleep). Note it and save once the tick is over.
+    events.on('egg-hatched', () => {
+      this.saveDue = true;
+    });
   }
 
   private lastSaveFailureToast = 0;
+  private saveDue = false;
+  private batching = false;
 
-  save(): void {
+  save(opts: { silent?: boolean } = {}): void {
     if (this.stale) return;
+    this.saveDue = false;
     if (saveToStorage(this.snapshotState())) {
-      events.emit('saved');
+      if (!opts.silent) events.emit('saved');
       return;
     }
     // The write never landed: without this, cloud sync would push the
@@ -114,6 +126,7 @@ export class Game {
     tickCup(s);
     s.rngState = this.rng.getState();
     if (s.clock.totalTicks % TICKS_PER_DAY === NIGHT_END * TICKS_PER_HOUR) events.emit('dawn');
+    if (this.saveDue && !this.batching) this.save();
   };
 
   // Advance up to `budget` night ticks. Returns how many ran and whether the
@@ -123,11 +136,15 @@ export class Game {
   sleepChunk(budget: number): { slept: number; done: boolean } {
     if (!isNight(this.state.clock) || this.stale) return { slept: 0, done: true };
     let slept = 0;
-    // The 06:00 tick itself is the one that emits 'dawn'.
+    // The 06:00 tick itself is the one that emits 'dawn'. Saves owed by
+    // hatches along the way are batched into one at the end of the chunk.
+    this.batching = true;
     while (slept < budget && isNight(this.state.clock)) {
       this.tick();
       slept += 1;
     }
+    this.batching = false;
+    if (this.saveDue) this.save();
     return { slept, done: !isNight(this.state.clock) };
   }
 

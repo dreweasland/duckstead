@@ -11,23 +11,31 @@ export interface PairRecord {
   syncId: string;
   secret: string;
   expiresAt: number; // ms epoch
-  attempts: number; // failed claim attempts against this code
 }
 
 // Pairing codes: 8 symbols from an unambiguous alphabet (no 0/O/1/I/L),
-// ~39 bits — infeasible to guess inside the 10-minute window even before
-// the attempt limit.
+// ~39 bits — infeasible to guess inside the 10-minute window. Guessing is
+// throttled at the edge (a rate limit per client on /api/pair/*), not per
+// code: a wrong guess lands on a different pair:<code> object, so no
+// per-record counter could ever see it.
 export const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 export const CODE_LENGTH = 8;
 export const PAIR_TTL_MS = 10 * 60_000;
-export const MAX_PAIR_ATTEMPTS = 20;
+// Bytes to draw per code: rejection sampling below discards a few, and
+// running out is a hard error, so ask for plenty.
+export const CODE_RANDOM_BYTES = CODE_LENGTH * 4;
 
+// Rejection sampling keeps every symbol equally likely: 256 % 31 = 8, so a
+// plain modulo would favour the first eight symbols.
 export function generateCode(randomBytes: Uint8Array): string {
-  if (randomBytes.length < CODE_LENGTH) throw new Error('need more entropy');
+  const n = CODE_ALPHABET.length;
+  const cutoff = 256 - (256 % n);
   let code = '';
-  for (let i = 0; i < CODE_LENGTH; i += 1) {
-    code += CODE_ALPHABET[randomBytes[i] % CODE_ALPHABET.length];
+  for (let i = 0; i < randomBytes.length && code.length < CODE_LENGTH; i += 1) {
+    const b = randomBytes[i];
+    if (b < cutoff) code += CODE_ALPHABET[b % n];
   }
+  if (code.length < CODE_LENGTH) throw new Error('need more entropy');
   return code;
 }
 
@@ -40,12 +48,10 @@ export function normalizeCode(input: string): string {
 
 export function codeValid(record: PairRecord | null, now: number): boolean {
   if (!record) return false;
-  if (now > record.expiresAt) return false;
-  if (record.attempts >= MAX_PAIR_ATTEMPTS) return false;
-  return true;
+  return now <= record.expiresAt;
 }
 
-export type WriteDecision =
+type WriteDecision =
   | { ok: true }
   | { ok: false; reason: 'not-owner' | 'stale-seq' };
 
@@ -68,7 +74,7 @@ export function decideClaim(meta: SaveMeta, deviceId: string): SaveMeta {
   return { ...meta, owner: deviceId };
 }
 
-export type ReleaseDecision = { ok: true; meta: SaveMeta } | { ok: false; reason: 'not-owner' };
+type ReleaseDecision = { ok: true; meta: SaveMeta } | { ok: false; reason: 'not-owner' };
 
 // Releasing hands the pond back: the owner steps aside (owner null) so the
 // device that lost the save can pick it up again without a human clicking.

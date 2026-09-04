@@ -15,5 +15,8 @@
   "durable_objects": {
     "bindings": [{ "name": "SYNC", "class_name": "DuckSyncDO" }]
   },
+  // Per-client throttle on the unauthenticated pairing routes (code
+  // guessing, save minting). Legitimate use is a handful of calls a day.
+  "ratelimits": [{ "name": "PAIR_LIMITER", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }],
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DuckSyncDO"] }]
 }

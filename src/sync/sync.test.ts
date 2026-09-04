@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { events } from '../events';
 
 vi.mock('./syncClient', () => ({
@@ -6,45 +6,34 @@ vi.mock('./syncClient', () => ({
   pullSave: vi.fn(),
   pullMeta: vi.fn(),
   claimSave: vi.fn(),
-  releaseSave: vi.fn(),
 }));
 
 import { pushSave } from './syncClient';
 import { attachCloudSync, detachCloudSync } from './sync';
 import { SYNC_META_KEY } from './syncMeta';
-import { SAVE_KEY, serialize } from '../save/save';
-import { createNewGame } from '../state';
+import { SAVE_KEY } from '../save/save';
+import { installFakeStorage, realBlob, uninstallFakeStorage } from '../testFixtures';
 import type { Game } from '../game';
 
-// Pushes refuse unreadable blobs, so the fixtures must be real saves; the
-// money makes the two distinguishable.
-const realBlob = (money: number): string => {
-  const { state } = createNewGame(1);
-  state.money = money;
-  return serialize(state);
+// Fake timers: the attachment's poll and handoff waits are timer-based, so
+// a real setTimeout here would be a flake waiting to happen.
+const flush = async (): Promise<void> => {
+  await vi.advanceTimersByTimeAsync(0);
 };
 
-const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
-
 describe('push re-queue', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
   afterEach(() => {
     detachCloudSync();
-    delete (globalThis as { localStorage?: unknown }).localStorage;
-    delete (globalThis as { window?: unknown }).window;
+    vi.useRealTimers();
+    uninstallFakeStorage();
     vi.restoreAllMocks();
   });
 
   it('a save landing during an in-flight push triggers a follow-up push', async () => {
-    (globalThis as { window?: unknown }).window = {
-      addEventListener: () => {},
-      removeEventListener: () => {},
-    };
-    const map = new Map<string, string>();
-    (globalThis as { localStorage?: unknown }).localStorage = {
-      getItem: (k: string) => map.get(k) ?? null,
-      setItem: (k: string, v: string) => void map.set(k, v),
-      removeItem: (k: string) => void map.delete(k),
-    };
+    const map = installFakeStorage();
     map.set(SYNC_META_KEY, JSON.stringify({ syncId: 's', secret: 'x', deviceId: 'd', lastSyncedSeq: 1, dirty: false }));
     const blob1 = realBlob(1);
     const blob2 = realBlob(2);
