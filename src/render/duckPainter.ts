@@ -1,12 +1,18 @@
 import type { Duck } from '../sim/duck';
+
+// Everything the painter reads off a duck. Stills of ducks that no longer
+// exist (a memorial stone, a statue) can be drawn from a plain object of
+// this shape instead of a full Duck.
+export type DuckLook = Pick<Duck, 'id' | 'genome' | 'phenotype' | 'sex' | 'stage' | 'sick' | 'activity' | 'needs'>;
 import type { Phenotype } from '../sim/genetics';
 import { darken, lighten, mixColors } from '../sim/genetics';
 import type { AnimState } from './animation';
+import { hashString } from '../rng';
 
 // The duck is drawn in a local space where the body center is the origin and
 // the duck faces +x. Body is ~44 wide before sizeScale.
 
-export interface DrawOpts {
+interface DrawOpts {
   inWater: boolean;
   selected: boolean;
   anim: AnimState;
@@ -19,7 +25,7 @@ export interface DrawOpts {
 
 const MALLARD_HEAD_GREEN = '#2e6b45';
 
-export function drawDuck(ctx: CanvasRenderingContext2D, duck: Duck, opts: DrawOpts): void {
+export function drawDuck(ctx: CanvasRenderingContext2D, duck: DuckLook, opts: DrawOpts): void {
   const p = duck.phenotype;
   const stageScale =
     duck.stage === 'duckling' ? 0.45 : duck.stage === 'juvenile' ? 0.75 : 1;
@@ -63,7 +69,7 @@ export function drawDuck(ctx: CanvasRenderingContext2D, duck: Duck, opts: DrawOp
   ctx.restore();
 }
 
-function stageColors(duck: Duck, p: Phenotype): { body: string; head: string } {
+function stageColors(duck: DuckLook, p: Phenotype): { body: string; head: string } {
   let body = p.bodyColor;
   let head = p.headColor;
   // Adult mallard-expressing males get the classic green head.
@@ -87,7 +93,7 @@ function stageColors(duck: Duck, p: Phenotype): { body: string; head: string } {
   return { body, head };
 }
 
-function isMallardish(duck: Duck): boolean {
+function isMallardish(duck: DuckLook): boolean {
   const [a, b] = duck.genome.baseColor;
   return a === 'M' || b === 'M';
 }
@@ -188,7 +194,7 @@ function drawTail(ctx: CanvasRenderingContext2D, bodyColor: string, anim: AnimSt
 function drawBody(
   ctx: CanvasRenderingContext2D,
   bodyColor: string,
-  duck: Duck,
+  duck: DuckLook,
   inWater: boolean,
 ): void {
   ctx.beginPath();
@@ -220,13 +226,12 @@ function drawWing(ctx: CanvasRenderingContext2D, bodyColor: string, anim: AnimSt
 }
 
 // Deterministic spots seeded by duck id, clipped to the body ellipse.
-function drawSpots(ctx: CanvasRenderingContext2D, duck: Duck, color: string): void {
+function drawSpots(ctx: CanvasRenderingContext2D, duck: DuckLook, color: string): void {
   ctx.save();
   ctx.beginPath();
   ctx.ellipse(0, 0, 22, 15, 0, 0, Math.PI * 2);
   ctx.clip();
-  let h = 0;
-  for (let i = 0; i < duck.id.length; i += 1) h = (h * 31 + duck.id.charCodeAt(i)) >>> 0;
+  let h = hashString(duck.id);
   const count = 5 + (h % 4);
   ctx.fillStyle = color;
   for (let i = 0; i < count; i += 1) {
@@ -244,7 +249,7 @@ function drawSpots(ctx: CanvasRenderingContext2D, duck: Duck, color: string): vo
 }
 
 // Grubby ducks wear their neglect: mud smudges that fade as they're brushed.
-function drawDirt(ctx: CanvasRenderingContext2D, duck: Duck): void {
+function drawDirt(ctx: CanvasRenderingContext2D, duck: DuckLook): void {
   if (duck.stage === 'egg') return;
   const clean = duck.needs.cleanliness;
   if (clean >= 55) return;
@@ -254,8 +259,7 @@ function drawDirt(ctx: CanvasRenderingContext2D, duck: Duck): void {
   ctx.ellipse(0, 0, 22, 15, 0, 0, Math.PI * 2);
   ctx.clip();
   ctx.fillStyle = `rgba(94, 70, 40, ${alpha})`;
-  let h = 0;
-  for (let i = 0; i < duck.id.length; i += 1) h = (h * 33 + duck.id.charCodeAt(i)) >>> 0;
+  let h = hashString(duck.id, 33);
   const count = 3 + (h % 3);
   for (let i = 0; i < count; i += 1) {
     h = (h * 1103515245 + 12345) >>> 0;
@@ -273,7 +277,7 @@ function drawDirt(ctx: CanvasRenderingContext2D, duck: Duck): void {
 
 function drawHeadGroup(
   ctx: CanvasRenderingContext2D,
-  duck: Duck,
+  duck: DuckLook,
   colors: { body: string; head: string },
   anim: AnimState,
 ): void {
@@ -376,7 +380,7 @@ function drawBill(ctx: CanvasRenderingContext2D, p: Phenotype, anim: AnimState):
   ctx.fill();
 }
 
-function drawEye(ctx: CanvasRenderingContext2D, duck: Duck, anim: AnimState): void {
+function drawEye(ctx: CanvasRenderingContext2D, duck: DuckLook, anim: AnimState): void {
   const sad = duck.stage !== 'egg' && duck.needs.happiness < 25;
   if (anim.headTuck > 0 || anim.blink) {
     // Closed eye arc.

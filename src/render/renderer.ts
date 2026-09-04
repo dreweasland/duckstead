@@ -1,5 +1,5 @@
 import type { Game } from '../game';
-import { fitWorldToWindow, WORLD_H, WORLD_W } from '../state';
+import { fitWorldToWindow, WORLD_H, WORLD_W, type Bug, type BugKind } from '../state';
 import { lerp } from '../types';
 import { duckRadius } from '../sim/duck';
 import { eggIncubationTicks } from '../sim/lifecycle';
@@ -9,6 +9,7 @@ import { VISITOR_FLY_TICKS, visitorFlightPos, visitorInFlight } from '../sim/vis
 import { isInPond } from '../sim/pond';
 import { computeAnim } from './animation';
 import { drawDuck } from './duckPainter';
+import { groundShadow } from './paint';
 import { drawBachelorPenFront, drawReedsFront, drawDecorations, drawDecorGhost, drawNightOverlay, drawScene, drawWeather, type DecorGhost } from './scene';
 
 interface Particle {
@@ -20,6 +21,173 @@ interface Particle {
   life: number;
   kind: 'heart' | 'bubble' | 'sparkle' | 'feather';
 }
+
+// One painter per bug kind, drawn at the bug's position (the caller has
+// already translated there). `t` is seconds, for the wiggles and pulses.
+type BugPainter = (ctx: CanvasRenderingContext2D, bug: Bug, t: number) => void;
+
+const BUG_PAINTERS: Record<BugKind, BugPainter> = {
+  beetle: (ctx, bug, t) => {
+    ctx.rotate(bug.heading);
+    // Legs wiggle as it scurries.
+    ctx.strokeStyle = '#2c221a';
+    ctx.lineWidth = 1;
+    const wiggle = Math.sin(t * 14 + bug.id) * 1.2;
+    for (const side of [-1, 1]) {
+      for (const lx of [-2.5, 0, 2.5]) {
+        ctx.beginPath();
+        ctx.moveTo(lx, 0);
+        ctx.lineTo(lx + wiggle * side * 0.4, side * 4);
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = '#3d2c1e';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 5, 3.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#241a10';
+    ctx.beginPath();
+    ctx.arc(4.5, 0, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  },
+  firefly: (ctx, bug, t) => {
+    // Pulsing glow, bobbing as it drifts.
+    const pulse = 0.55 + 0.45 * Math.sin(t * 5 + bug.id * 1.7);
+    ctx.translate(0, Math.sin(t * 2 + bug.id) * 2);
+    ctx.fillStyle = `rgba(220, 255, 120, ${0.18 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, 9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(240, 255, 160, ${0.5 + 0.5 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, 2.4, 0, Math.PI * 2);
+    ctx.fill();
+  },
+  feather: (ctx, bug, _t) => {
+    // A molted feather: curved quill with a soft vane in the duck's color.
+    ctx.rotate(-0.25 + bug.heading * 0.5);
+    ctx.fillStyle = 'rgba(20, 30, 16, 0.18)';
+    ctx.beginPath();
+    ctx.ellipse(1, 3, 9, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = bug.color ?? '#c9b58a';
+    ctx.beginPath();
+    ctx.moveTo(-9, 2);
+    ctx.quadraticCurveTo(-2, -8, 10, -3);
+    ctx.quadraticCurveTo(2, 5, -9, 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-9, 2);
+    ctx.quadraticCurveTo(0, -2, 9, -3);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.beginPath();
+    ctx.moveTo(-9, 2);
+    ctx.lineTo(-13, 4);
+    ctx.stroke();
+  },
+  henEgg: (ctx, bug, _t) => {
+    ctx.rotate(bug.heading);
+    groundShadow(ctx, 1, 4, 8, 3, 0.18);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 6.5, 8.5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = '#f3ead2';
+    ctx.fill();
+    ctx.strokeStyle = '#cfc3a4';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.beginPath();
+    ctx.ellipse(-2, -3, 1.8, 2.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  },
+  frog: (ctx, bug, t) => {
+    ctx.scale(Math.cos(bug.heading) < 0 ? -1 : 1, 1);
+    groundShadow(ctx, 0, 4, 8, 3, 0.18);
+    const throat = 1 + Math.max(0, Math.sin(t * 3 + bug.id)) * 1.5;
+    ctx.fillStyle = '#5d9a3c';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 7, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#cfe08a';
+    ctx.beginPath();
+    ctx.ellipse(3, 2, 3.5, throat, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#5d9a3c';
+    for (const lx of [-6, 6]) {
+      ctx.beginPath();
+      ctx.ellipse(lx, 3, 3, 1.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = '#1d1a16';
+    ctx.beginPath();
+    ctx.arc(4, -3, 1.3, 0, Math.PI * 2);
+    ctx.arc(1, -3.5, 1.3, 0, Math.PI * 2);
+    ctx.fill();
+  },
+  dragonfly: (ctx, bug, t) => {
+    ctx.rotate(bug.heading);
+    ctx.translate(0, Math.sin(t * 6 + bug.id) * 1.5);
+    const beat = Math.sin(t * 40 + bug.id) * 0.5;
+    ctx.strokeStyle = 'rgba(200, 230, 255, 0.75)';
+    ctx.lineWidth = 1;
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(-1, side * (3 + beat), 6, 2, side * 0.3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(-5, side * (2.5 + beat), 5, 1.6, side * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#2f8fb5';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(3, 0);
+    ctx.stroke();
+    ctx.fillStyle = '#3aa5c8';
+    ctx.beginPath();
+    ctx.arc(4, 0, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  },
+  duckweed: (ctx, bug, t) => {
+    // A clump of tiny floating leaves at the rim.
+    groundShadow(ctx, 0, 3, 10, 4, 0.15);
+    const leaves: Array<[number, number, number]> = [
+      [0, 0, 4], [-5, 2, 3], [5, 1, 3.2], [2, -4, 2.8], [-3, -3, 2.6], [-7, -2, 2], [7, -3, 2.2],
+    ];
+    for (const [lx, ly, r] of leaves) {
+      ctx.fillStyle = (lx + ly) % 2 === 0 ? '#6fbf4a' : '#59a83c';
+      ctx.beginPath();
+      ctx.arc(lx, ly + Math.sin(t * 1.5 + bug.id + lx) * 0.4, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  },
+  snail: (ctx, bug, _t) => {
+    // Snail: body with a spiral shell.
+    ctx.rotate(Math.cos(bug.heading) < 0 ? Math.PI : 0);
+    ctx.fillStyle = '#9a8a6a';
+    ctx.beginPath();
+    ctx.ellipse(0, 1.5, 6, 2.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#9a8a6a';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(5, 0);
+    ctx.lineTo(6.5, -3.5);
+    ctx.stroke();
+    ctx.fillStyle = '#7a5c40';
+    ctx.beginPath();
+    ctx.arc(-1.5, -2, 3.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#5c4028';
+    ctx.beginPath();
+    ctx.arc(-1.5, -2, 2, 0, Math.PI * 1.5);
+    ctx.stroke();
+  },
+};
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -89,7 +257,9 @@ export class Renderer {
     for (const pellet of state.foodPellets) {
       ctx.beginPath();
       ctx.arc(pellet.pos.x, pellet.pos.y, 4, 0, Math.PI * 2);
-      ctx.fillStyle = FOODS[pellet.kind ?? (pellet.premium ? 'premiumFeed' : 'feed')].color;
+      // A kind this build doesn't know (renamed food in an old save) must
+      // not throw inside the frame; draw it as plain feed.
+      ctx.fillStyle = (FOODS[pellet.kind ?? (pellet.premium ? 'premiumFeed' : 'feed')] ?? FOODS.feed).color;
       ctx.fill();
     }
 
@@ -117,10 +287,7 @@ export class Renderer {
       // instead (drawn by the painter).
       if (duck.stage !== 'egg' && !inWater) {
         const r = duckRadius(duck);
-        ctx.fillStyle = 'rgba(20, 40, 16, 0.16)';
-        ctx.beginPath();
-        ctx.ellipse(0, r * 0.55 + 2, r * 1.05, r * 0.32, 0, 0, Math.PI * 2);
-        ctx.fill();
+        groundShadow(ctx, 0, r * 0.55 + 2, r * 1.05, r * 0.32);
       }
       drawDuck(ctx, duck, {
         inWater,
@@ -272,10 +439,7 @@ export class Renderer {
       const shade = Math.max(0, 1 - flight.height / 260);
       ctx.save();
       ctx.translate(flight.x, duck.pos.y + 14);
-      ctx.fillStyle = `rgba(20, 40, 16, ${0.05 + 0.18 * shade})`;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 14 + 10 * shade, 4 + 3 * shade, 0, 0, Math.PI * 2);
-      ctx.fill();
+      groundShadow(ctx, 0, 0, 14 + 10 * shade, 4 + 3 * shade, 0.05 + 0.18 * shade);
       ctx.restore();
 
       ctx.save();
@@ -331,168 +495,7 @@ export class Renderer {
     for (const bug of this.game.state.bugs) {
       ctx.save();
       ctx.translate(bug.pos.x, bug.pos.y);
-      if (bug.kind === 'beetle') {
-        ctx.rotate(bug.heading);
-        // Legs wiggle as it scurries.
-        ctx.strokeStyle = '#2c221a';
-        ctx.lineWidth = 1;
-        const wiggle = Math.sin(t * 14 + bug.id) * 1.2;
-        for (const side of [-1, 1]) {
-          for (const lx of [-2.5, 0, 2.5]) {
-            ctx.beginPath();
-            ctx.moveTo(lx, 0);
-            ctx.lineTo(lx + wiggle * side * 0.4, side * 4);
-            ctx.stroke();
-          }
-        }
-        ctx.fillStyle = '#3d2c1e';
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 5, 3.4, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#241a10';
-        ctx.beginPath();
-        ctx.arc(4.5, 0, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (bug.kind === 'firefly') {
-        // Pulsing glow, bobbing as it drifts.
-        const pulse = 0.55 + 0.45 * Math.sin(t * 5 + bug.id * 1.7);
-        ctx.translate(0, Math.sin(t * 2 + bug.id) * 2);
-        ctx.fillStyle = `rgba(220, 255, 120, ${0.18 * pulse})`;
-        ctx.beginPath();
-        ctx.arc(0, 0, 9, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = `rgba(240, 255, 160, ${0.5 + 0.5 * pulse})`;
-        ctx.beginPath();
-        ctx.arc(0, 0, 2.4, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (bug.kind === 'feather') {
-        // A molted feather: curved quill with a soft vane in the duck's color.
-        ctx.rotate(-0.25 + bug.heading * 0.5);
-        ctx.fillStyle = 'rgba(20, 30, 16, 0.18)';
-        ctx.beginPath();
-        ctx.ellipse(1, 3, 9, 3, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = bug.color ?? '#c9b58a';
-        ctx.beginPath();
-        ctx.moveTo(-9, 2);
-        ctx.quadraticCurveTo(-2, -8, 10, -3);
-        ctx.quadraticCurveTo(2, 5, -9, 2);
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-9, 2);
-        ctx.quadraticCurveTo(0, -2, 9, -3);
-        ctx.stroke();
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-        ctx.beginPath();
-        ctx.moveTo(-9, 2);
-        ctx.lineTo(-13, 4);
-        ctx.stroke();
-      } else if (bug.kind === 'henEgg') {
-        ctx.rotate(bug.heading);
-        ctx.fillStyle = 'rgba(20, 40, 16, 0.18)';
-        ctx.beginPath();
-        ctx.ellipse(1, 4, 8, 3, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 6.5, 8.5, 0, 0, Math.PI * 2);
-        ctx.fillStyle = '#f3ead2';
-        ctx.fill();
-        ctx.strokeStyle = '#cfc3a4';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.beginPath();
-        ctx.ellipse(-2, -3, 1.8, 2.6, 0, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (bug.kind === 'frog') {
-        ctx.scale(Math.cos(bug.heading) < 0 ? -1 : 1, 1);
-        ctx.fillStyle = 'rgba(20, 40, 16, 0.18)';
-        ctx.beginPath();
-        ctx.ellipse(0, 4, 8, 3, 0, 0, Math.PI * 2);
-        ctx.fill();
-        const throat = 1 + Math.max(0, Math.sin(t * 3 + bug.id)) * 1.5;
-        ctx.fillStyle = '#5d9a3c';
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 7, 4.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#cfe08a';
-        ctx.beginPath();
-        ctx.ellipse(3, 2, 3.5, throat, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#5d9a3c';
-        for (const lx of [-6, 6]) {
-          ctx.beginPath();
-          ctx.ellipse(lx, 3, 3, 1.6, 0, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.fillStyle = '#1d1a16';
-        ctx.beginPath();
-        ctx.arc(4, -3, 1.3, 0, Math.PI * 2);
-        ctx.arc(1, -3.5, 1.3, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (bug.kind === 'dragonfly') {
-        ctx.rotate(bug.heading);
-        ctx.translate(0, Math.sin(t * 6 + bug.id) * 1.5);
-        const beat = Math.sin(t * 40 + bug.id) * 0.5;
-        ctx.strokeStyle = 'rgba(200, 230, 255, 0.75)';
-        ctx.lineWidth = 1;
-        for (const side of [-1, 1]) {
-          ctx.beginPath();
-          ctx.ellipse(-1, side * (3 + beat), 6, 2, side * 0.3, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.ellipse(-5, side * (2.5 + beat), 5, 1.6, side * 0.5, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-        ctx.strokeStyle = '#2f8fb5';
-        ctx.lineWidth = 1.6;
-        ctx.beginPath();
-        ctx.moveTo(-10, 0);
-        ctx.lineTo(3, 0);
-        ctx.stroke();
-        ctx.fillStyle = '#3aa5c8';
-        ctx.beginPath();
-        ctx.arc(4, 0, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-      } else if (bug.kind === 'duckweed') {
-        // A clump of tiny floating leaves at the rim.
-        ctx.fillStyle = 'rgba(20, 40, 16, 0.15)';
-        ctx.beginPath();
-        ctx.ellipse(0, 3, 10, 4, 0, 0, Math.PI * 2);
-        ctx.fill();
-        const leaves: Array<[number, number, number]> = [
-          [0, 0, 4], [-5, 2, 3], [5, 1, 3.2], [2, -4, 2.8], [-3, -3, 2.6], [-7, -2, 2], [7, -3, 2.2],
-        ];
-        for (const [lx, ly, r] of leaves) {
-          ctx.fillStyle = (lx + ly) % 2 === 0 ? '#6fbf4a' : '#59a83c';
-          ctx.beginPath();
-          ctx.arc(lx, ly + Math.sin(t * 1.5 + bug.id + lx) * 0.4, r, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      } else {
-        // Snail: body with a spiral shell.
-        ctx.rotate(Math.cos(bug.heading) < 0 ? Math.PI : 0);
-        ctx.fillStyle = '#9a8a6a';
-        ctx.beginPath();
-        ctx.ellipse(0, 1.5, 6, 2.2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#9a8a6a';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(5, 0);
-        ctx.lineTo(6.5, -3.5);
-        ctx.stroke();
-        ctx.fillStyle = '#7a5c40';
-        ctx.beginPath();
-        ctx.arc(-1.5, -2, 3.6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#5c4028';
-        ctx.beginPath();
-        ctx.arc(-1.5, -2, 2, 0, Math.PI * 1.5);
-        ctx.stroke();
-      }
+      BUG_PAINTERS[bug.kind](ctx, bug, t);
       ctx.restore();
     }
   }

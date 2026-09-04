@@ -1,4 +1,5 @@
 import type { Duck } from '../sim/duck';
+import { hashString } from '../rng';
 
 export interface AnimState {
   bob: number; // vertical offset
@@ -140,7 +141,5 @@ export function computeAnim(duck: Duck, timeMs: number): AnimState {
 }
 
 function idHash(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i += 1) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return (h % 1000) / 1000;
+  return (hashString(id) % 1000) / 1000;
 }
