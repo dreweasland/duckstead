@@ -10,6 +10,9 @@ import { TICKS_PER_DAY } from '../sim/time';
 import type { Duck, Needs } from '../sim/duck';
 import { breedReadiness } from '../sim/needs';
 import { pedigreeScore } from '../sim/pedigree';
+import { drillsLeft } from '../sim/training';
+import { trainingChip } from './cardRail';
+import type { GameState } from '../state';
 import { generationOf } from '../sim/lineage';
 import { describeBalance, flockBalance, HENS_PER_DRAKE } from '../sim/flockBalance';
 import { buildGeneTable, clearPicks, isPicked, pickedCount } from './geneTable';
@@ -18,7 +21,7 @@ type View = 'cards' | 'genes';
 let activeView: View = 'cards';
 let pickedOnly = false;
 
-type Filter = 'all' | 'drakes' | 'hens' | 'adults' | 'elders' | 'young' | 'eggs' | 'ready' | 'care' | 'key' | 'penned';
+type Filter = 'all' | 'drakes' | 'hens' | 'adults' | 'elders' | 'young' | 'eggs' | 'ready' | 'care' | 'train' | 'key' | 'penned';
 type Sort = 'age' | 'name' | 'hunger' | 'happiness' | 'rarity' | 'pedigree' | 'value';
 
 const FILTERS: Array<{ id: Filter; label: string; icon?: IconName }> = [
@@ -31,6 +34,7 @@ const FILTERS: Array<{ id: Filter; label: string; icon?: IconName }> = [
   { id: 'eggs', label: 'Eggs', icon: 'egg' },
   { id: 'ready', label: 'Ready to breed', icon: 'heart' },
   { id: 'care', label: 'Needs care', icon: 'warning' },
+  { id: 'train', label: 'To train', icon: 'flag' },
   { id: 'key', label: 'Key breeders', icon: 'star' },
   { id: 'penned', label: 'Penned', icon: 'cross' },
 ];
@@ -55,7 +59,7 @@ function needsCare(duck: Duck): boolean {
   return duck.sick || Math.min(duck.needs.hunger, duck.needs.cleanliness, duck.needs.happiness, duck.needs.health) < 25;
 }
 
-function matchesFilter(duck: Duck, filter: Filter, verdicts: ReadonlyMap<string, KeepVerdict>): boolean {
+function matchesFilter(state: GameState, duck: Duck, filter: Filter, verdicts: ReadonlyMap<string, KeepVerdict>): boolean {
   switch (filter) {
     case 'all':
       return true;
@@ -75,6 +79,8 @@ function matchesFilter(duck: Duck, filter: Filter, verdicts: ReadonlyMap<string,
       return duck.stage === 'adult' && breedReadiness(duck).ok;
     case 'care':
       return duck.stage !== 'egg' && needsCare(duck);
+    case 'train':
+      return duck.stage !== 'egg' && duck.stage !== 'duckling' && drillsLeft(state, duck) > 0;
     case 'key':
       return verdicts.get(duck.id) === 'key';
     case 'penned':
@@ -156,7 +162,7 @@ export function renderRosterPanel(ctx: PanelCtx): HTMLElement {
   const counts = new Map<Filter, number>(FILTERS.map((f) => [f.id, 0]));
   for (const d of state.ducks) {
     for (const f of FILTERS) {
-      if (matchesFilter(d, f.id, verdicts)) counts.set(f.id, counts.get(f.id)! + 1);
+      if (matchesFilter(state, d, f.id, verdicts)) counts.set(f.id, counts.get(f.id)! + 1);
     }
   }
   const filters = el('div', { class: 'roster-filters' });
@@ -221,7 +227,7 @@ export function renderRosterPanel(ctx: PanelCtx): HTMLElement {
   );
 
   const shown = state.ducks
-    .filter((d) => matchesFilter(d, activeFilter, verdicts) && (!pickedOnly || isPicked(d.id)))
+    .filter((d) => matchesFilter(state, d, activeFilter, verdicts) && (!pickedOnly || isPicked(d.id)))
     .sort(compare(activeSort, verdicts));
   if (activeView === 'genes') {
     panel.append(buildGeneTable(ctx, shown));
@@ -271,6 +277,8 @@ function duckCard(ctx: PanelCtx, duck: Duck): HTMLElement {
     badges.append(el('span', { class: 'chip chip-ready', title: verdictReason(value) }, 'best of breed'));
   }
   if (duck.penned) badges.append(el('span', { class: 'chip chip-trait' }, 'penned'));
+  const train = trainingChip(ctx.game, duck);
+  if (train) badges.append(train);
   if (duck.sick) {
     badges.append(el('span', { class: 'chip chip-sick' }, icon('cross', 10), 'sick'));
   } else if (duck.needs.hunger < 25) {

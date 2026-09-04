@@ -2443,6 +2443,29 @@ body.feeding #pond-canvas {
   font-weight: 600;
 }
 
+.mini-stage-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mini-stage-row .chip {
+  padding: 0 4px;
+  gap: 2px;
+  line-height: 14px;
+}
+
+/* Today's drills: still to run, or done. */
+.chip-drill {
+  background: rgba(106, 160, 216, 0.2);
+  color: #8fc0ee;
+}
+
+.chip-trained {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+
 .chip-sick {
   background: rgba(123, 163, 106, 0.18);
   color: #9cc48a;

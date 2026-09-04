@@ -9,6 +9,7 @@ import { icon, sexBadge, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { quickActions, type QuickHandlers } from './quickActions';
 import { pedigreeScore } from '../sim/pedigree';
+import { drillsLeft } from '../sim/training';
 
 export interface RailHandlers extends QuickHandlers {
   select(id: string, pin?: boolean): void;
@@ -77,7 +78,7 @@ export function railSignature(game: Game): string {
     if (d.stage === 'egg') {
       s += `${d.id}~${Math.round(d.incubationTicks / 150)}${d.readyToHatch ? 'r' : ''};`;
     } else {
-      s += `${d.id}~${d.stage[0]}${d.sick ? 's' : ''}${d.penned ? 'p' : ''}${d.petCooldownTicks > 0 ? 'c' : ''}${d.name}#${Math.round(d.needs.hunger)},${Math.round(d.needs.cleanliness)},${Math.round(d.needs.happiness)},${Math.round(d.needs.health)};`;
+      s += `${d.id}~${d.stage[0]}${d.sick ? 's' : ''}${d.penned ? 'p' : ''}${d.petCooldownTicks > 0 ? 'c' : ''}${d.stage === 'duckling' ? '' : `t${drillsLeft(game.state, d)}`}${d.name}#${Math.round(d.needs.hunger)},${Math.round(d.needs.cleanliness)},${Math.round(d.needs.happiness)},${Math.round(d.needs.health)};`;
     }
   }
   return s;
@@ -148,13 +149,27 @@ function miniCard(game: Game, duck: Duck, handlers: RailHandlers): HTMLElement {
         'div',
         { class: 'mini-id' },
         el('div', { class: 'mini-name' }, sexBadge(duck.sex), ` ${duck.name}`),
-        el('div', { class: 'muted mini-stage' }, duck.stage),
+        // Whether today's drills are done sits by the stage: the question
+        // asked most at a glance.
+        el('div', { class: 'mini-stage-row' }, el('span', { class: 'muted mini-stage' }, duck.stage), trainingChip(game, duck, 9, true)),
       ),
       status,
     ),
     needs,
     quickActions(game, duck, handlers),
   );
+}
+
+// A duck's training for the day, as a chip: drills still to run, or done.
+// Ducklings can't train and get nothing.
+export function trainingChip(game: Game, duck: Duck, size = 10, compact = false): HTMLElement | null {
+  if (duck.stage === 'egg' || duck.stage === 'duckling') return null;
+  const left = drillsLeft(game.state, duck);
+  if (left > 0) {
+    const label = compact ? (left > 1 ? String(left) : '') : left > 1 ? `${left} drills` : 'drill';
+    return el('span', { class: 'chip chip-drill', title: `${left} drill${left === 1 ? '' : 's'} left today — open the card to train` }, icon('flag', size), label);
+  }
+  return el('span', { class: 'chip chip-trained', title: 'Trained today' }, icon('check', size), compact ? '' : 'trained');
 }
 
 function miniEggCard(game: Game, egg: Duck, handlers: RailHandlers): HTMLElement {
