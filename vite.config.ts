@@ -10,5 +10,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts', 'worker/**/*.test.ts'],
+    // vi.fn() state (calls, queued mockResolvedValueOnce values) is reset
+    // before every test; since vitest 3, restoreAllMocks alone no longer does.
+    mockReset: true,
   },
 });

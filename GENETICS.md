@@ -49,7 +49,8 @@ steady selection rather than lucky pairings.
 - **Mutation**: each inherited allele has a **2% chance** to flip to a random
   different allele of that locus. This is the *only* way `B` (blue) and `P`
   (pink bill) enter a closed flock — apart from wild visitors and Society
-  commissioned stock. Heritage ponds add +1% mutation per retirement (max +5%).
+  commissioned stock. Heritage ponds add +1% mutation per retirement for the
+  first five, a quarter of that after, up to +7.5% over the base.
 - **Starter ducks** carry no rare alleles, but each hides **at least one
   recessive** (`W`/`k`, `d`, `p`/`c`, or `R`), so early clutches throw
   surprises.
@@ -159,8 +160,10 @@ Genes set the ceiling; the life sets where a duck lands under it.
    ducks for breeds you lack); a winter visitor at rank 10+ can carry pink
    bill *and* crest together. The Winter Lights "stranger on the wind" wish
    summons the best available.
-2. **Mutation** — 2% per allele, so ~1 duckling in 12 carries *some* novelty;
-   heritage ponds push this up.
+2. **Mutation** — 2% per allele across 30 alleles, so nearly half of all
+   ducklings carry at least one flipped allele — but most flips land on
+   common alleles; a flip *to* a rare one is uncommon. Heritage ponds push
+   this up.
 3. **Commissioned stock** — Society rank 8 lets you order a duck with a chosen
    rare gene outright.
 

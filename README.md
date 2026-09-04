@@ -1,4 +1,4 @@
-# Duck Simulator
+# Duck Homestead
 
 A browser game where you breed, raise, and care for ducks. Every duck is drawn
 procedurally from its genes — no art assets — so selective breeding visibly
@@ -10,7 +10,12 @@ crest pom-pom.
 ```bash
 npm install
 npm run dev        # open http://localhost:5173
+npm run dev:worker # optional, in a second terminal: the cloud-sync API on :8787
 ```
+
+Cloud sync and the phone companion talk to a Cloudflare Worker; `vite`
+proxies `/api` to `npm run dev:worker`, so without it those features simply
+report the cloud as unreachable while everything else plays offline.
 
 - **Click a duck** to inspect it: needs, genetics, care actions, sell price.
   The pin button on the card keeps it open as its own window while you
@@ -227,28 +232,29 @@ fresh flock. Starter ducks each hide at least one recessive, so early clutches
 produce surprises. Adult mallard-expressing males grow green heads; ducklings
 wear yellow fluff that conceals their true colors until the juvenile molt.
 
-Care quality feeds back into breeding: egg viability is the average of the
-parents' happiness and health, so a neglected flock breeds poorly.
+Care quality feeds back into breeding: egg viability is the parents' average
+happiness *multiplied by* their average health, so a cheerful but sickly
+pair — or a healthy, miserable one — breeds poorly.
 
 ## Deploying
 
-The game is a static Vite build (`dist/`), hosted on **Cloudflare Pages**.
+The game is a static Vite build (`dist/`) served as **Cloudflare Workers
+static assets**, beside the small sync Worker (`worker/index.ts`) and its
+SQLite Durable Object (`DuckSyncDO`). A *Pages* project cannot host the
+Durable Object, so it must be the Workers deploy.
 
-- **CI** (`.github/workflows/ci.yml`) type-checks, lints (`npm run lint`,
-  ESLint flat config), runs the test suite, and builds on every push and
-  pull request.
-- **Deploy** — Cloudflare's Git integration. In the dashboard, Workers &
-  Pages → Create → connect this GitHub repo. Build command `npm run build`;
-  the deploy command `npx wrangler deploy` uses `wrangler.jsonc` to publish
-  `dist` as Worker static assets. Every push to `main` goes live and every
-  PR gets a preview URL. (Node version is pinned by `.nvmrc`.) Connecting it
-  as a *Pages* project instead also works — use output directory `dist`.
-- `public/_headers` makes Pages cache hashed assets for a year and never
-  cache `index.html`, so new builds show up immediately.
-- The deploy now includes a small Worker (`worker/index.ts`) and a SQLite
-  Durable Object (`DuckSyncDO`) for cloud save sync — `wrangler.jsonc` carries
-  the binding and migration; no extra dashboard setup is needed. Note that
-  a *Pages* project cannot host the Durable Object — use the Workers deploy.
+- **CI** (`.github/workflows/ci.yml`) runs `npm run ci` — type-check (game
+  and worker), lint (ESLint flat config), the test suite, and the build — on
+  every push and pull request.
+- **Deploy** — `npm run deploy` builds and runs `wrangler deploy`;
+  `wrangler.jsonc` carries the assets directory, the Durable Object binding
+  and migration, and the pairing rate-limit binding, so there is no extra
+  dashboard setup. Cloudflare's Git integration works too: build command
+  `npm run build`, deploy command `npx wrangler deploy`. (Node version is
+  pinned by `.nvmrc`.)
+- `public/_headers` caches hashed assets for a year and never caches the
+  HTML shell, so new builds show up immediately; it also sets the CSP and
+  the other security headers.
 
 ## Companion & cloud sync
 
@@ -289,8 +295,10 @@ On a phone (or any other browser), open **`/companion`** and enter the code.
 ## Development
 
 ```bash
-npm test           # vitest suite (genetics ratios, needs, lifecycle, economy, save round-trip, 1.5-year soak)
-npm run build      # type-check + production bundle
+npm test           # vitest suite (genetics ratios, needs, lifecycle, economy, save round-trip, sync API, 1.5-year soak)
+npm run typecheck  # tsc for the game and for the worker
+npm run ci         # typecheck + lint + test + build — what CI runs
+npm run build      # production bundle (dist/)
 ```
 
 Architecture: fixed-timestep simulation at 10 Hz with interpolated
@@ -327,7 +335,7 @@ Key files:
 - [ ] Fireflies drift after 21:00, gone by 06:00
 - [ ] 06:00: dawn card lists buyer/eggs/festival; click dismisses
 - [ ] Night: "Sleep 'til dawn" jumps to 06:00 and shows the card
-- [ ] Sell an egg; buy the incubator; next egg hatches in half a day
+- [ ] Sell an egg; buy the incubator; the next egg hatches in a quarter day instead of half
 - [ ] Pond capacity blocks adoption until expansion is bought
 - [ ] Reload mid-game: identical state (autosave)
 - [ ] Run 3 game-years at 16×: elders die to the memorial, no NaNs
