@@ -5,6 +5,7 @@
 import type { Game } from '../game';
 import type { Renderer } from '../render/renderer';
 import type { PanelKind } from './ui';
+import type { ToastTone } from './notices';
 import { catchBugAt } from '../sim/bugs';
 import { claimHatch } from '../sim/lifecycle';
 import { treatVisitor, VISITOR_CLICK_RADIUS } from '../sim/visitors';
@@ -20,7 +21,7 @@ const DECOR_PICK_RADIUS = 26;
 interface CanvasHost {
   game: Game;
   renderer: Renderer;
-  toast(msg: string): void;
+  toast(msg: string, tone?: ToastTone): void;
   feedModeNow(): 'none' | FoodKind | 'brush';
   toggleFeedMode(kind: FoodKind | 'brush'): void;
   decorModeActive(): boolean;
@@ -119,19 +120,19 @@ export function bindCanvasInput(host: CanvasHost): void {
       play('sparkle');
       switch (pickup.kind) {
         case 'feather':
-          host.toast(`${pickup.source ?? 'A duck'}'s feather — added to the album (+${pickup.coins} coins)`);
+          host.toast(`${pickup.source ?? 'A duck'}'s feather · +${pickup.coins} coins`, 'echo');
           break;
         case 'duckweed':
-          host.toast(`Gathered duckweed — +${pickup.feed} feed`);
+          host.toast(`+${pickup.feed} feed`, 'echo');
           break;
         case 'firefly':
-          host.toast(`Caught a firefly! +${pickup.coins} coin`);
+          host.toast(`Firefly · +${pickup.coins} coin`, 'echo');
           break;
         case 'henEgg':
-          host.toast(`${pickup.source ?? 'A hen'} laid an egg — basket: ${host.game.state.inventory.eggs}`);
+          host.toast(`${pickup.source ?? 'A hen'}'s egg · basket ${host.game.state.inventory.eggs}`, 'echo');
           break;
         default:
-          host.toast(`Caught it! +${pickup.coins} coins`);
+          host.toast(`+${pickup.coins} coins`, 'echo');
       }
       return;
     }
@@ -145,7 +146,7 @@ export function bindCanvasInput(host: CanvasHost): void {
       world.y < FEEDER_POS.y + 28
     ) {
       const moved = fillFeeder(host.game.state);
-      if (moved > 0) host.toast(`Poured ${moved} feed into the trough`);
+      if (moved > 0) host.toast(`Poured ${moved} feed`, 'echo');
       else if (host.game.state.inventory.feed <= 0)
         host.toast('No feed to pour — visit the shop!');
       else host.toast('The trough is already full');
@@ -185,7 +186,7 @@ export function bindCanvasInput(host: CanvasHost): void {
       }
       if (tuckEgg(host.game.state, egg.id)) {
         host.renderer.spawnParticle(egg.pos.x, egg.pos.y - 14, 'heart');
-        host.toast('Tucked the egg into the warm straw');
+        host.toast('Tucked in', 'echo');
       }
     }
     // With the Breeding panel open, clicking an adult on the pond drops it

@@ -3716,6 +3716,57 @@ body.feeding #pond-canvas {
   transform: translateY(0);
 }
 
+/* Alerts are the toasts you didn't cause; they earn a gold edge so they
+   read differently from the feedback for your own clicks. */
+.toast.alert {
+  border-color: var(--gold-dim);
+  box-shadow: 0 6px 18px var(--shadow), inset 3px 0 0 var(--gold);
+  padding-left: 18px;
+}
+
+.toast-count {
+  margin-left: 8px;
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.toast-count:empty {
+  display: none;
+}
+
+/* Echoes: a pickup or a pour answers right where you clicked and floats
+   away, so a burst of them never buries the top stack. */
+.echo-host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 24;
+}
+
+.echo {
+  position: absolute;
+  transform: translate(-50%, 0);
+  background: rgba(18, 24, 32, 0.85);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.25s, transform 0.9s ease-out;
+}
+
+.echo.show {
+  opacity: 1;
+  transform: translate(-50%, -22px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .echo.show {
+    transform: translate(-50%, -6px);
+  }
+}
+
 /* Life banners: growth, elderhood, and passings — bigger and longer-lived
    than a toast so the pond's big moments can't slip past unnoticed. */
 .banner-host {

@@ -36,7 +36,7 @@ import { TUNING } from '../sim/tuning';
 import { plural } from '../text';
 import { FloatWindows } from './floatWindows';
 import { DecorMode } from './decorMode';
-import { Notices } from './notices';
+import { Notices, type ToastTone } from './notices';
 import { SideWidgets } from './sideWidgets';
 
 export type PanelKind = 'duck' | 'breeding' | 'shop' | 'roster' | 'save' | 'book' | 'settings' | 'goals';
@@ -157,7 +157,9 @@ export class UI {
       { passive: false },
     );
 
-    events.on('toast', (msg) => this.toast(String(msg)));
+    // Sim-originated toasts are things the player didn't do (a duck fell
+    // sick, a festival opened): they get the louder, longer-lived look.
+    events.on('toast', (msg) => this.toast(String(msg), 'alert'));
     events.on('dawn', () => this.notices.showDawnCard());
     events.on('favourite-found', (d) => {
       const duck = d as { pos: { x: number; y: number } };
@@ -783,8 +785,8 @@ export class UI {
     }
   }
 
-  toast(msg: string): void {
-    this.notices.toast(msg);
+  toast(msg: string, tone?: ToastTone): void {
+    this.notices.toast(msg, tone);
   }
 }
 

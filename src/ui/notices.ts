@@ -27,8 +27,38 @@ interface NoticesHost {
   closePanel(): void;
 }
 
+// How much a toast is allowed to interrupt. `echo` is feedback for the
+// thing you just clicked (a pickup, a pour): it appears at the pointer for
+// a moment and never enters the main stack. `info` is the default. `alert`
+// is something you didn't cause — a duck fell sick, a festival opened — so
+// it lives longer, looks louder, and is never pushed off by echoes.
+export type ToastTone = 'echo' | 'info' | 'alert';
+
+const TOAST_STACK_MAX = 3;
+const TOAST_LIFE_MS: Record<Exclude<ToastTone, 'echo'>, number> = { info: 3500, alert: 6000 };
+const ECHO_LIFE_MS = 1300;
+
+interface LiveToast {
+  msg: string;
+  node: HTMLElement;
+  count: number;
+  countNode: HTMLElement;
+  timer: ReturnType<typeof setTimeout>;
+}
+
 export class Notices {
-  constructor(private host: NoticesHost) {}
+  // Where the last pointer press landed, so echoes can appear beside it.
+  private lastPointer = { x: window.innerWidth / 2, y: 120 };
+  private echoHost: HTMLElement;
+  private live: LiveToast[] = [];
+
+  constructor(private host: NoticesHost) {
+    this.echoHost = el('div', { class: 'echo-host' });
+    host.root.append(this.echoHost);
+    window.addEventListener('pointerdown', (e) => {
+      this.lastPointer = { x: e.clientX, y: e.clientY };
+    }, { passive: true });
+  }
 
   // A chapter closing is a moment, not a toast.
   chapterBanner(ch: ChapterDef): void {
@@ -236,13 +266,52 @@ export class Notices {
     this.showBanner(tone, el('span', { class: 'life-portrait' }, duckPortrait(duck, 44)), title, lines, tone === 'passing' ? 12_000 : 8_000);
   }
 
-  toast(msg: string): void {
-    const node = el('div', { class: 'toast' }, msg);
+  toast(msg: string, tone: ToastTone = 'info'): void {
+    if (tone === 'echo') {
+      this.echo(msg);
+      return;
+    }
+    // The same message again while it's still up: bump its count and give
+    // it a fresh life instead of stacking three copies of "got sick!".
+    const same = this.live.find((t) => t.msg === msg);
+    if (same) {
+      same.count += 1;
+      same.countNode.textContent = `×${same.count}`;
+      clearTimeout(same.timer);
+      same.timer = setTimeout(() => this.dismissToast(same), TOAST_LIFE_MS[tone]);
+      return;
+    }
+    while (this.live.length >= TOAST_STACK_MAX) this.dismissToast(this.live[0]);
+    const countNode = el('span', { class: 'toast-count' });
+    const node = el('div', { class: `toast ${tone}` }, msg, countNode);
+    const entry: LiveToast = { msg, node, count: 1, countNode, timer: setTimeout(() => this.dismissToast(entry), TOAST_LIFE_MS[tone]) };
+    this.live.push(entry);
     this.host.toastHost.append(node);
+    setTimeout(() => node.classList.add('show'), 10);
+  }
+
+  private dismissToast(entry: LiveToast): void {
+    const i = this.live.indexOf(entry);
+    if (i >= 0) this.live.splice(i, 1);
+    clearTimeout(entry.timer);
+    entry.node.classList.remove('show');
+    setTimeout(() => entry.node.remove(), 400);
+  }
+
+  // A short label that floats up from where you clicked and is gone. Kept
+  // out of the top stack on purpose: a burst of pickups must not bury the
+  // notice that a duck fell sick.
+  private echo(msg: string): void {
+    const rect = this.host.root.getBoundingClientRect();
+    const node = el('div', { class: 'echo' }, msg);
+    node.style.left = `${this.lastPointer.x - rect.left}px`;
+    node.style.top = `${this.lastPointer.y - rect.top - 28}px`;
+    while (this.echoHost.children.length >= TOAST_STACK_MAX) this.echoHost.firstElementChild!.remove();
+    this.echoHost.append(node);
     setTimeout(() => node.classList.add('show'), 10);
     setTimeout(() => {
       node.classList.remove('show');
-      setTimeout(() => node.remove(), 400);
-    }, 3500);
+      setTimeout(() => node.remove(), 300);
+    }, ECHO_LIFE_MS);
   }
 }
