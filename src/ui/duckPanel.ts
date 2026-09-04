@@ -1,12 +1,12 @@
 import type { PanelCtx } from './ui';
-import { el } from './dom';
+import { confirmButton, eggWarmthColor, el, NEED_ROWS, needColor, statBar, tabBar, type TabDef } from './dom';
 import { elderDaysLeft, passingPoints } from '../sim/elders';
 import { MASTER_COUNT } from '../sim/awards';
 import { icon, sexBadge, starRow, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { buildGeneticsCard } from './geneticsCard';
 import { buildPedigreeCard, buildStandardCard } from './pedigreeCard';
-import { commissionGap, describeCommission, duckFits, fulfilCommission } from '../sim/commissions';
+import { commissionGap, describeCommission, duckFits, fulfilCommission, type Commission } from '../sim/commissions';
 import { championTitle } from '../sim/society';
 import { canPen, penCapacity, penDuck, penDucks, releaseDuck } from '../sim/pen';
 import { sellDuck, sellPrice } from '../sim/economy';
@@ -31,16 +31,10 @@ import {
   petDuck,
   tuckEgg,
 } from '../sim/needs';
-import { claimHatch, eggIncubationTicks } from '../sim/lifecycle';
-import { TICKS_PER_DAY } from '../sim/time';
+import { claimHatch, incubationPct } from '../sim/lifecycle';
 import { favouriteTreat, FOODS, TREATS, type FoodKind } from '../sim/food';
-
-const NEED_LABELS: Array<[keyof import('../sim/duck').Needs, IconName, string]> = [
-  ['hunger', 'wheat', 'Hunger'],
-  ['cleanliness', 'bubbles', 'Clean'],
-  ['happiness', 'smile', 'Happy'],
-  ['health', 'heart', 'Health'],
-];
+import { ageLabel } from '../sim/duck';
+import { duckById } from '../state';
 
 export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   const { game } = ctx;
@@ -63,7 +57,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
               'div',
               { class: 'muted' },
               sexBadge(duck.sex),
-              ` ${duck.stage} · ${(duck.ageTicks / TICKS_PER_DAY).toFixed(1)}d${duck.sick ? ' · sick' : ''}`,
+              ` ${ageLabel(duck)}${duck.sick ? ' · sick' : ''}`,
             ),
         starRow(duck.phenotype.rarityScore),
       ),
@@ -126,7 +120,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
     const title = championTitle(game.state, duck);
     if (title) traits.append(el('span', { class: 'chip chip-rare with-icon', title: 'A Society title held by the pond\'s top-pedigree duck' }, icon('star', 9), title));
     const friend = duck.friendId
-      ? game.state.ducks.find((d) => d.id === duck.friendId)
+      ? duckById(game.state, duck.friendId)
       : undefined;
     if (friend) {
       traits.append(
@@ -138,8 +132,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
 
   // Eggs are short: everything fits without tabs.
   if (duck.stage === 'egg') {
-    const target = eggIncubationTicks(game.state);
-    const pct = Math.min(100, (duck.incubationTicks / target) * 100);
+    const pct = incubationPct(game.state, duck);
     const warmth = eggWarmth(duck);
     const speed = eggSpeedFor(warmth);
     const incubator = (game.state.upgrades.incubator ?? 0) > 0;
@@ -153,12 +146,12 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
           { class: 'muted' },
           duck.readyToHatch ? 'Cracking — ready to hatch!' : `Incubating… ${pct.toFixed(0)}%`,
         ),
-        bar(pct, '#e8b83a'),
+        statBar(pct, '#e8b83a'),
         el(
           'div',
           { class: 'need-row' },
           el('span', { class: 'need-label' }, icon('sparkle', 13), ' Warmth'),
-          bar(warmth, warmth > 40 ? '#e0893a' : '#6aa0d8'),
+          statBar(warmth, eggWarmthColor(warmth)),
         ),
         el(
           'div',
@@ -196,14 +189,14 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   const sellTab = el('div', { class: 'card-tab-body' });
   {
     const needsBox = el('div', { class: 'section' });
-    for (const [key, iconName, label] of NEED_LABELS) {
+    for (const [key, iconName, label] of NEED_ROWS) {
       const value = duck.needs[key];
       needsBox.append(
         el(
           'div',
           { class: 'need-row' },
           el('span', { class: 'need-label' }, icon(iconName, 13), ` ${label}`),
-          bar(value, value > 60 ? '#69b356' : value > 30 ? '#e0a93a' : '#d4544a'),
+          statBar(value, needColor(value)),
         ),
       );
     }
@@ -276,7 +269,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
           'div',
           { class: 'need-row', title: TRAIN_STAT_META[stat].blurb },
           el('span', { class: 'need-label' }, TRAIN_STAT_META[stat].label),
-          bar(t[stat], '#6aa0d8'),
+          statBar(t[stat], '#6aa0d8'),
           el('span', { class: 'muted small train-num' }, String(Math.round(t[stat]))),
         ),
       );
@@ -415,28 +408,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
       );
     }
     for (const c of fits) {
-      box.append(
-        el(
-          'button',
-          {
-            class: 'action-btn primary',
-            title: describeCommission(c),
-            onclick: () => {
-              if (pendingCommissionFor === `${duck.id}:${c.id}`) {
-                pendingCommissionFor = null;
-                fulfilCommission(game.state, c.id, duck.id);
-                ctx.close();
-              } else {
-                pendingCommissionFor = `${duck.id}:${c.id}`;
-                ctx.ui.refreshPanel();
-              }
-            },
-          },
-          pendingCommissionFor === `${duck.id}:${c.id}` ? `Really deliver ${duck.name} to ${c.client}?` : `Deliver to ${c.client} `,
-          pendingCommissionFor === `${duck.id}:${c.id}` ? null : icon('coin', 12),
-          pendingCommissionFor === `${duck.id}:${c.id}` ? '' : ` ${c.reward}`,
-        ),
-      );
+      box.append(commissionDeliverButton(ctx, duck, c, `Deliver to ${c.client} `, `Really deliver ${duck.name} to ${c.client}?`));
     }
     sellTab.append(box);
   }
@@ -445,50 +417,28 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   if (game.state.request && matchesRequest(duck, game.state.request)) {
     const buyerPrice = requestPrice(game.state, duck);
     const buyerSection = el('div', { class: 'section actions' });
-    if (pendingBuyerSellFor === duck.id) {
-      buyerSection.append(
-        el(
-          'button',
-          {
-            class: 'action-btn primary',
-            onclick: () => {
-              pendingBuyerSellFor = null;
-              sellToBuyer(game.state, duck.id);
-              ctx.close();
-            },
-          },
-          `Really sell ${duck.name} to the buyer?`,
-        ),
-        el(
-          'button',
-          {
-            class: 'action-btn',
-            onclick: () => {
-              pendingBuyerSellFor = null;
-              ctx.ui.refreshPanel();
-            },
-          },
-          'Cancel',
-        ),
-      );
-    } else {
-      buyerSection.append(
-        el(
-          'button',
-          {
-            class: 'action-btn primary',
-            title: 'Matches the buyer request',
-            onclick: () => {
-              pendingBuyerSellFor = duck.id;
-              ctx.ui.refreshPanel();
-            },
-          },
-          'Sell to buyer ',
-          icon('coin', 12),
-          ` ${buyerPrice}`,
-        ),
-      );
-    }
+    buyerSection.append(
+      ...confirmButton({
+        armed: pendingBuyerSellFor === duck.id,
+        cls: 'action-btn primary',
+        title: 'Matches the buyer request',
+        label: ['Sell to buyer ', icon('coin', 12), ` ${buyerPrice}`],
+        confirmLabel: `Really sell ${duck.name} to the buyer?`,
+        arm: () => {
+          pendingBuyerSellFor = duck.id;
+          ctx.ui.refreshPanel();
+        },
+        onConfirm: () => {
+          pendingBuyerSellFor = null;
+          sellToBuyer(game.state, duck.id);
+          ctx.close();
+        },
+        cancel: () => {
+          pendingBuyerSellFor = null;
+          ctx.ui.refreshPanel();
+        },
+      }),
+    );
     sellTab.append(buyerSection);
   }
 
@@ -498,31 +448,21 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   const tab = cardTabs.get(duck.id) ?? 'care';
   const fitsAny = game.state.commissions.some((c) => duckFits(duck, c)) || (game.state.request !== null && matchesRequest(duck, game.state.request));
   const drillBadge = duck.stage !== 'duckling' ? drillsLeft(game.state, duck) : 0;
-  const tabs: Array<[CardTab, IconName, string, string | null]> = [
-    ['care', 'hand', 'Care', drillBadge > 0 ? String(drillBadge) : null],
-    ['genes', 'book', 'Genes', null],
-    ['line', 'star', 'Line', null],
-    ['sell', 'coin', 'Sell', fitsAny ? '!' : null],
+  const tabs: Array<TabDef<CardTab>> = [
+    { id: 'care', icon: 'hand', label: 'Care', badge: drillBadge > 0 ? String(drillBadge) : null },
+    { id: 'genes', icon: 'book', label: 'Genes' },
+    { id: 'line', icon: 'star', label: 'Line' },
+    { id: 'sell', icon: 'coin', label: 'Sell', badge: fitsAny ? '!' : null },
   ];
-  const bar_ = el('div', { class: 'shop-tabs card-tabs' });
-  for (const [id, ic, label, badge] of tabs) {
-    bar_.append(
-      el(
-        'button',
-        {
-          class: `shop-tab${tab === id ? ' active' : ''}`,
-          'aria-pressed': String(tab === id),
-          onclick: () => {
-            cardTabs.set(duck.id, id);
-            ctx.ui.refreshPanel();
-          },
-        },
-        icon(ic, 12),
-        label,
-        badge ? el('span', { class: 'shop-tab-badge' }, badge) : null,
-      ),
-    );
-  }
+  const bar_ = tabBar(
+    tabs,
+    tab,
+    (id) => {
+      cardTabs.set(duck.id, id);
+      ctx.ui.refreshPanel();
+    },
+    'shop-tabs card-tabs',
+  );
   panel.append(bar_, tab === 'care' ? careTab : tab === 'genes' ? genesTab : tab === 'line' ? lineTab : sellTab);
   return panel;
 }
@@ -546,61 +486,38 @@ function buildSellSection(ctx: PanelCtx, duck: import('../sim/duck').Duck): HTML
   if (duck.stage === 'egg') {
     // Egg commissions this egg's parents satisfy.
     for (const c of game.state.commissions.filter((x) => duckFits(duck, x))) {
-      sellSection.append(
-        el(
-          'button',
-          {
-            class: 'action-btn primary',
-            title: describeCommission(c),
-            onclick: () => {
-              if (pendingCommissionFor === `${duck.id}:${c.id}`) {
-                pendingCommissionFor = null;
-                fulfilCommission(game.state, c.id, duck.id);
-                ctx.close();
-              } else {
-                pendingCommissionFor = `${duck.id}:${c.id}`;
-                ctx.ui.refreshPanel();
-              }
-            },
-          },
-          pendingCommissionFor === `${duck.id}:${c.id}` ? `Really deliver this egg to ${c.client}?` : `Deliver the egg to ${c.client} `,
-          pendingCommissionFor === `${duck.id}:${c.id}` ? null : icon('coin', 12),
-          pendingCommissionFor === `${duck.id}:${c.id}` ? '' : ` ${c.reward}`,
-        ),
-      );
+      sellSection.append(commissionDeliverButton(ctx, duck, c, `Deliver the egg to ${c.client} `, `Really deliver this egg to ${c.client}?`));
     }
     // The rivals' standing market: priced on the parents, never the shell's
     // secret — and the buyer may fold the bloodline into their own flock.
     const offer = rivalEggOffer(game.state, duck);
     if (offer) {
+      const title = `${offer.rivalName} rates this pairing ${offer.score}/100 for their programme. A sold egg can hatch on their pond — coins now, a sharper rival later.`;
       sellSection.append(
-        el(
-          'button',
-          {
-            class: 'action-btn primary',
-            title: `${offer.rivalName} rates this pairing ${offer.score}/100 for their programme. A sold egg can hatch on their pond — coins now, a sharper rival later.`,
-            onclick: () => {
-              if (pendingBuyerSellFor === duck.id) {
-                pendingBuyerSellFor = null;
-                sellEggToRival(game.state, duck.id, game.rng);
-                ctx.close();
-              } else {
-                pendingBuyerSellFor = duck.id;
-                ctx.ui.refreshPanel();
-              }
-            },
+        ...confirmButton({
+          armed: pendingBuyerSellFor === duck.id,
+          cls: 'action-btn primary',
+          title,
+          confirmTitle: title,
+          label: [`Sell to ${offer.rivalName} `, icon('coin', 12), ` ${offer.price}`],
+          confirmLabel: `Really sell the egg to ${offer.rivalName}?`,
+          arm: () => {
+            pendingBuyerSellFor = duck.id;
+            ctx.ui.refreshPanel();
           },
-          pendingBuyerSellFor === duck.id ? `Really sell the egg to ${offer.rivalName}?` : `Sell to ${offer.rivalName} `,
-          pendingBuyerSellFor === duck.id ? null : icon('coin', 12),
-          pendingBuyerSellFor === duck.id ? '' : ` ${offer.price}`,
-        ),
+          onConfirm: () => {
+            pendingBuyerSellFor = null;
+            sellEggToRival(game.state, duck.id, game.rng);
+            ctx.close();
+          },
+        }),
       );
       sellSection.append(el('div', { class: 'muted small' }, `${offer.rivalName} wants this pairing (${offer.score}/100) — one egg a day per buyer, and the bloodline may hatch on their pond.`));
     }
   }
   // The sell-button conscience, part one: a bond about to be broken.
   if (duck.stage !== 'egg' && duck.friendId) {
-    const friend = game.state.ducks.find((d) => d.id === duck.friendId);
+    const friend = duckById(game.state, duck.friendId);
     if (friend) {
       sellSection.append(
         el(
@@ -626,50 +543,53 @@ function buildSellSection(ctx: PanelCtx, duck: import('../sim/duck').Duck): HTML
     }
     sellSection.append(el('div', { class: 'muted small elder-note' }, lines.join(' ')));
   }
-  if (pendingSellFor === duck.id) {
-    sellSection.append(
-      el(
-        'button',
-        {
-          class: 'danger-btn',
-          onclick: () => {
-            pendingSellFor = null;
-            sellDuck(game.state, duck.id);
-            ctx.close();
-          },
-        },
-        `Really sell ${duck.name}?`,
-      ),
-      el(
-        'button',
-        {
-          class: 'action-btn',
-          onclick: () => {
-            pendingSellFor = null;
-            ctx.ui.refreshPanel();
-          },
-        },
-        'Cancel',
-      ),
-    );
-  } else {
-    sellSection.append(
-      el(
-        'button',
-        {
-          class: 'danger-btn',
-          onclick: () => {
-            pendingSellFor = duck.id;
-            ctx.ui.refreshPanel();
-          },
-        },
-        'Sell for ',
-        icon('coin', 12),
-        ` ${price}`,
-      ),
-    );
-  }
+  sellSection.append(
+    ...confirmButton({
+      armed: pendingSellFor === duck.id,
+      cls: 'danger-btn',
+      label: ['Sell for ', icon('coin', 12), ` ${price}`],
+      confirmLabel: `Really sell ${duck.name}?`,
+      arm: () => {
+        pendingSellFor = duck.id;
+        ctx.ui.refreshPanel();
+      },
+      onConfirm: () => {
+        pendingSellFor = null;
+        sellDuck(game.state, duck.id);
+        ctx.close();
+      },
+      cancel: () => {
+        pendingSellFor = null;
+        ctx.ui.refreshPanel();
+      },
+    }),
+  );
   return sellSection;
+}
+
+// "Deliver to <client>" with its two-step confirm; the adult card and the
+// egg card word it differently but behave the same.
+function commissionDeliverButton(ctx: PanelCtx, duck: import('../sim/duck').Duck, c: Commission, label: string, confirmLabel: string): HTMLElement {
+  const { game } = ctx;
+  const key = `${duck.id}:${c.id}`;
+  const title = describeCommission(c);
+  return confirmButton({
+    armed: pendingCommissionFor === key,
+    cls: 'action-btn primary',
+    title,
+    confirmTitle: title,
+    label: [label, icon('coin', 12), ` ${c.reward}`],
+    confirmLabel,
+    arm: () => {
+      pendingCommissionFor = key;
+      ctx.ui.refreshPanel();
+    },
+    onConfirm: () => {
+      pendingCommissionFor = null;
+      fulfilCommission(game.state, c.id, duck.id);
+      ctx.close();
+    },
+  })[0];
 }
 
 function buildNameEditor(ctx: PanelCtx, duckId: string, name: string): HTMLElement {
@@ -677,7 +597,7 @@ function buildNameEditor(ctx: PanelCtx, duckId: string, name: string): HTMLEleme
     class: 'name-input',
     value: name,
     onchange: (e) => {
-      const duck = ctx.game.state.ducks.find((d) => d.id === duckId);
+      const duck = duckById(ctx.game.state, duckId);
       const value = (e.target as HTMLInputElement).value.trim();
       if (duck && value) duck.name = value.slice(0, 24);
     },
@@ -686,13 +606,6 @@ function buildNameEditor(ctx: PanelCtx, duckId: string, name: string): HTMLEleme
     },
   });
   return input;
-}
-
-function bar(pct: number, color: string): HTMLElement {
-  const fill = el('div', { class: 'bar-fill' });
-  fill.style.width = `${pct}%`;
-  fill.style.background = color;
-  return el('div', { class: 'bar' }, fill);
 }
 
 function actionBtn(

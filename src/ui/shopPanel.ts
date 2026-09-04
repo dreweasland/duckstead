@@ -2,7 +2,8 @@
 // name, stat chips, a short blurb, and a price button pinned to the bottom —
 // so the eye can scan prices and effects without reading paragraphs.
 import type { PanelCtx } from './ui';
-import { el, panelHeader } from './dom';
+import { el, gaugeBar, panelHeader, tabBar, type TabDef } from './dom';
+import { resultRow } from './eventCard';
 import { icon, type IconName } from './icons';
 import { decorPortrait } from './portrait';
 import {
@@ -36,14 +37,14 @@ import { createDuck } from '../sim/duck';
 import { randomCommonGenome, type Genome } from '../sim/genetics';
 import { FESTIVAL_NAMES, festivalTier, festivalToday, upcomingFestival } from '../sim/festivals';
 import { buyRivalEgg, hireStud, rivalDef, rivalDuck, rivalEggsForSale, rivalStrength, studOffers } from '../sim/rivals';
-import { eggsIncubating } from '../sim/breeding';
-import { nestCapacity } from '../sim/economy';
+import { nestFull as isNestFull } from '../sim/breeding';
 import { canEnterCup, cupOpen, cupPrize, cupStandings, enterCup } from '../sim/cup';
 import { TUNING } from '../sim/tuning';
 import { canBreedPair } from '../sim/needs';
 import { buildGeneStrip, carriedTraits } from './geneticsCard';
 import type { Duck } from '../sim/duck';
 import { yearOf } from '../sim/time';
+import { plural } from '../text';
 
 type Tab = 'supplies' | 'upgrades' | 'decor' | 'sell' | 'board' | 'society';
 const TABS: Array<{ id: Tab; label: string; icon: IconName }> = [
@@ -62,13 +63,20 @@ export function showShopTab(tab: string): void {
   if (TABS.some((t) => t.id === tab)) activeTab = tab as Tab;
 }
 
+// Food chips read straight from the food table so a tuning change can't
+// leave the shop quoting stale numbers.
+function foodChips(kind: FoodKind): string[] {
+  const def = FOODS[kind];
+  return def.happiness > 0 ? [`+${def.restore} hunger`, `+${def.happiness} happy`] : [`+${def.restore} hunger`];
+}
+
 // Per-item presentation: icon, terse blurb, and stat chips.
 const SUPPLY_META: Record<ShopItemDef['id'], { icon: IconName; blurb: string; chips: string[]; food?: FoodKind }> = {
-  feed: { icon: 'wheat', blurb: 'Everyday pellets.', chips: ['+40 hunger'], food: 'feed' },
-  premiumFeed: { icon: 'sparkle', blurb: 'Rich feed; also wins over wild ducks.', chips: ['+60 hunger', '+5 happy'], food: 'premiumFeed' },
-  peas: { icon: 'heart', blurb: 'A treat some ducks love.', chips: ['+40 hunger', '+2 happy'], food: 'peas' },
-  worms: { icon: 'heart', blurb: 'A treat some ducks love.', chips: ['+45 hunger', '+2 happy'], food: 'worms' },
-  berries: { icon: 'heart', blurb: 'A treat some ducks love.', chips: ['+40 hunger', '+3 happy'], food: 'berries' },
+  feed: { icon: 'wheat', blurb: 'Everyday pellets.', chips: foodChips('feed'), food: 'feed' },
+  premiumFeed: { icon: 'sparkle', blurb: 'Rich feed; also wins over wild ducks.', chips: foodChips('premiumFeed'), food: 'premiumFeed' },
+  peas: { icon: 'heart', blurb: 'A treat some ducks love.', chips: foodChips('peas'), food: 'peas' },
+  worms: { icon: 'heart', blurb: 'A treat some ducks love.', chips: foodChips('worms'), food: 'worms' },
+  berries: { icon: 'heart', blurb: 'A treat some ducks love.', chips: foodChips('berries'), food: 'berries' },
   medicine: { icon: 'pill', blurb: 'Cures sickness on the spot.', chips: ['cures', '+30 health'] },
   starterDuck: { icon: 'duck', blurb: 'A random adult with common genes.', chips: ['adult', 'common genes'] },
 };
@@ -100,26 +108,16 @@ export function renderShopPanel(ctx: PanelCtx): HTMLElement {
   );
 
   // Tabs.
-  const tabs = el('div', { class: 'shop-tabs' });
-  for (const t of TABS) {
-    const badge = tabBadge(state, t.id);
-    tabs.append(
-      el(
-        'button',
-        {
-          class: `shop-tab${activeTab === t.id ? ' active' : ''}`,
-          onclick: () => {
-            activeTab = t.id;
-            ctx.ui.refreshPanel();
-          },
-        },
-        icon(t.icon, 12),
-        t.label,
-        badge ? el('span', { class: 'shop-tab-badge' }, badge) : null,
-      ),
-    );
-  }
-  panel.append(tabs);
+  panel.append(
+    tabBar(
+      TABS.map((t) => ({ ...t, badge: tabBadge(state, t.id) })),
+      activeTab,
+      (id) => {
+        activeTab = id;
+        ctx.ui.refreshPanel();
+      },
+    ),
+  );
 
   switch (activeTab) {
     case 'supplies':
@@ -249,7 +247,7 @@ function upgradesTab(ctx: PanelCtx): HTMLElement {
     card({
       badge: icon('flag', 18),
       name: `Sponsor the ${FESTIVAL_NAMES[kind]}`,
-      sub: today ? 'today' : `in ${next.inDays} day${next.inDays === 1 ? '' : 's'}`,
+      sub: today ? 'today' : `in ${plural(next.inDays, 'day')}`,
       chips: ['+1 tier this year', '+75% purse', 'tougher field'],
       blurb: already ? 'Sponsored — this year’s edition is raised a tier.' : 'Put your name on the next festival: a bigger event, bigger prizes, more Society points.',
       button: already
@@ -356,9 +354,9 @@ function hintFor(state: GameState, c: Commission): string {
   // A duck of the right breed that just misses: say what it lacks.
   const nearMiss = state.ducks
     .map((d) => ({ d, gap: commissionGap(d, c) }))
-    .filter((x) => x.gap && x.gap.length > 0)
-    .sort((a, b) => a.gap!.length - b.gap!.length)[0];
-  if (nearMiss) return `${nearMiss.d.name} is the breed but ${nearMiss.gap!.join('; ')}.`;
+    .filter((x): x is { d: Duck; gap: string[] } => x.gap !== null && x.gap.length > 0)
+    .sort((a, b) => a.gap.length - b.gap.length)[0];
+  if (nearMiss) return `${nearMiss.d.name} is the breed but ${nearMiss.gap.join('; ')}.`;
   const pair = bestPairFor(state, c.key);
   if (!pair) return `Nobody on the pond fits, and no pairing can hatch a ${breedLabel(c.key)} yet — look for the genes at the shop or among wild visitors.`;
   const extra = [c.minGen ? `gen ${c.minGen}+` : '', c.minStandard ? `${c.minStandard}% standard` : '', c.pinkBill ? 'a pink bill' : ''].filter(Boolean);
@@ -383,30 +381,24 @@ function boardTab(ctx: PanelCtx): HTMLElement {
   }
   const ready = state.commissions.filter((c) => state.ducks.some((d) => duckFits(d, c))).length;
   const eggsLeft = rivalEggsForSale(state).filter((s) => !s.soldToday).length;
-  const sections: Array<{ id: BoardSection; label: string; icon: IconName; count: number; hot: boolean }> = [
-    { id: 'commissions', label: 'Commissions', icon: 'flag', count: state.commissions.length, hot: ready > 0 },
-    { id: 'eggs', label: 'Eggs for sale', icon: 'egg', count: eggsLeft, hot: false },
-    { id: 'stud', label: 'Stud service', icon: 'duck', count: studOffers(state).length, hot: false },
+  const count = (n: number): string | null => (n > 0 ? String(n) : null);
+  const sections: Array<TabDef<BoardSection>> = [
+    { id: 'commissions', label: 'Commissions', icon: 'flag', badge: count(state.commissions.length), badgeFull: ready > 0 },
+    { id: 'eggs', label: 'Eggs for sale', icon: 'egg', badge: count(eggsLeft) },
+    { id: 'stud', label: 'Stud service', icon: 'duck', badge: count(studOffers(state).length) },
   ];
-  const pills = el('div', { class: 'board-pills' });
-  for (const s of sections) {
-    pills.append(
-      el(
-        'button',
-        {
-          class: `board-pill${boardSection === s.id ? ' active' : ''}`,
-          onclick: () => {
-            boardSection = s.id;
-            ctx.ui.refreshPanel();
-          },
-        },
-        icon(s.icon, 12),
-        s.label,
-        s.count > 0 ? el('span', { class: `shop-tab-badge${s.hot ? ' full' : ''}` }, String(s.count)) : null,
-      ),
-    );
-  }
-  box.append(pills);
+  box.append(
+    tabBar(
+      sections,
+      boardSection,
+      (id) => {
+        boardSection = id;
+        ctx.ui.refreshPanel();
+      },
+      'board-pills',
+      'board-pill',
+    ),
+  );
   if (boardSection === 'commissions') box.append(commissionsSection(ctx));
   else if (boardSection === 'eggs') box.append(eggSaleSection(ctx));
   else box.append(studSection(ctx));
@@ -440,9 +432,9 @@ function commissionsSection(ctx: PanelCtx): HTMLElement {
       card({
         badge: duckPortrait(commissionSpecimen(c), 40),
         name: c.client,
-        sub: `${left} day${left === 1 ? '' : 's'} left · +${c.points} Society`,
+        sub: `${plural(left, 'day')} left · +${c.points} Society`,
         chips,
-        blurb: fits > 0 ? `${fits} duck${fits === 1 ? '' : 's'} on the pond would do — open its card to deliver.` : hintFor(state, c),
+        blurb: fits > 0 ? `${plural(fits, 'duck')} on the pond would do — open its card to deliver.` : hintFor(state, c),
         button: el('button', { class: `action-btn shop-buy${fits > 0 ? ' primary' : ''}`, disabled: true }, 'Pays ', icon('coin', 11), `${c.reward}`),
         note: fits > 0 ? 'Ready to deliver' : undefined,
       }),
@@ -491,7 +483,7 @@ function marketHead(portraits: Element[], title: string, rivalId: string, rivalN
 function eggSaleSection(ctx: PanelCtx): HTMLElement {
   const state = ctx.game.state;
   const box = el('div', {});
-  const nestFull = eggsIncubating(state) + state.pendingClutches.length >= nestCapacity(state);
+  const nestFull = isNestFull(state);
   box.append(
     el(
       'div',
@@ -634,7 +626,7 @@ function rivalsSection(ctx: PanelCtx): HTMLElement {
           { class: 'gene-badges' },
           el('span', { class: 'chip chip-trait', title: 'How formidable they are this year' }, `strength ${Math.round(strength * 100)}%`),
           el('span', { class: 'chip chip-trait', title: 'Their drilled stats' }, `training ${Math.round(rival.training)}`),
-          el('span', { class: 'chip chip-trait' }, `${rival.wins} win${rival.wins === 1 ? '' : 's'}`),
+          el('span', { class: 'chip chip-trait' }, `${plural(rival.wins, 'win')}`),
           el('span', { class: 'chip chip-trait', title: 'Their Society Cup tally this year' }, `${rival.yearPoints} pts this year`),
         ),
       ),
@@ -648,15 +640,7 @@ function rivalsSection(ctx: PanelCtx): HTMLElement {
   if (cupOpen(state)) {
     const rows = el('div', { class: 'race-results' });
     cupStandings(state).forEach((s, i) => {
-      rows.append(
-        el(
-          'div',
-          { class: `race-result-row${s.isPlayer ? ' mine' : ''}` },
-          el('span', { class: `race-place p${i + 1}` }, String(i + 1)),
-          el('span', { class: 'race-result-name' }, s.name),
-          el('span', { class: 'muted small' }, `${s.score} pts`),
-        ),
-      );
+      rows.append(resultRow(i + 1, { mine: s.isPlayer, name: s.name, note: `${s.score} pts` }));
     });
     box.append(
       el('div', { class: 'muted small shop-tab-hint' }, `Entered. Every Society point you earn until the last night of winter counts; the winner takes ${cupPrize(state)} coins.`),
@@ -693,15 +677,14 @@ function societyTab(ctx: PanelCtx): HTMLElement {
     const gate = canAdvance(state);
     const coinPct = Math.min(100, (state.money / next.cost) * 100);
     const ptPct = Math.min(100, (soc.points / next.points) * 100);
-    const bar = (pct: number, ok: boolean) => { const f = el('div', { class: `br-gauge-fill ${ok ? 'ok' : 'mid'}` }); f.style.width = `${pct}%`; return el('div', { class: 'br-gauge' }, f); };
     box.append(
       el(
         'div',
         { class: 'society-next' },
         el('div', { class: 'br-section-title' }, `Next: ${next.name} (rank ${next.rank})`),
         el('div', { class: 'society-reward with-icon' }, icon('sparkle', 12), ` ${rewardLabel(next)}`),
-        el('div', { class: 'br-gauge-row' }, el('span', { class: 'br-gauge-label' }, 'Coins'), bar(coinPct, state.money >= next.cost), el('span', { class: 'small' }, `${Math.min(state.money, next.cost)}/${next.cost}`)),
-        el('div', { class: 'br-gauge-row' }, el('span', { class: 'br-gauge-label' }, 'Points'), bar(ptPct, soc.points >= next.points), el('span', { class: 'small' }, `${Math.min(soc.points, next.points)}/${next.points}`)),
+        el('div', { class: 'br-gauge-row' }, el('span', { class: 'br-gauge-label' }, 'Coins'), gaugeBar(coinPct, state.money >= next.cost ? 'ok' : 'mid'), el('span', { class: 'small' }, `${Math.min(state.money, next.cost)}/${next.cost}`)),
+        el('div', { class: 'br-gauge-row' }, el('span', { class: 'br-gauge-label' }, 'Points'), gaugeBar(ptPct, soc.points >= next.points ? 'ok' : 'mid'), el('span', { class: 'small' }, `${Math.min(soc.points, next.points)}/${next.points}`)),
         el(
           'button',
           { class: 'action-btn primary shop-buy', disabled: !gate.ok, title: gate.reason ?? '', onclick: () => { advanceRank(state); ctx.ui.refreshPanel(); } },

@@ -16,7 +16,7 @@ import { backToPondRow, eventCard } from './eventCard';
 const W = 560;
 const H = 360;
 
-export function renderPhotoCard(game: Game, duck: Duck): HTMLCanvasElement {
+function renderPhotoCard(game: Game, duck: Duck): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = W * dpr;

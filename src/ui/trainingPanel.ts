@@ -56,8 +56,8 @@ import {
   type Balance,
   type TapGrade,
 } from './drillRules';
+import { CANVAS_W, drawBanner as drawSharedBanner, drawWater as drawSharedWater } from './minigameCanvas';
 
-const CANVAS_W = 860;
 const CANVAS_H = 220;
 
 export const DRILL_META: Record<TrainStat, { label: string; icon: IconName; hint: string }> = {
@@ -697,22 +697,9 @@ function drawPedestalDuck(ctx: CanvasRenderingContext2D, duck: Duck, b: Balance,
 }
 
 // --- Shared drawing ---
+// The drills' water: shimmer kept below the beat lane and the clock.
 function drawWater(ctx: CanvasRenderingContext2D, now: number): void {
-  const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
-  grad.addColorStop(0, '#4a90c2');
-  grad.addColorStop(1, '#2c6899');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i < 12; i += 1) {
-    const sx = ((i * 83 + now / 25) % (CANVAS_W + 40)) - 20;
-    const sy = 70 + ((i * 41) % (CANVAS_H - 70));
-    ctx.beginPath();
-    ctx.moveTo(sx - 8, sy);
-    ctx.lineTo(sx + 8, sy);
-    ctx.stroke();
-  }
+  drawSharedWater(ctx, CANVAS_W, CANVAS_H, now, { count: 12, xStride: 83, yTop: 70, yStride: 41 });
 }
 
 function drawSwimmer(ctx: CanvasRenderingContext2D, duck: Duck, x: number, now: number, stalled = false): void {
@@ -755,11 +742,5 @@ function drawTag(ctx: CanvasRenderingContext2D, text: string, x: number, y: numb
 }
 
 function drawBanner(ctx: CanvasRenderingContext2D, text: string): void {
-  ctx.fillStyle = 'rgba(16, 22, 30, 0.65)';
-  ctx.fillRect(0, CANVAS_H / 2 - 26, CANVAS_W, 52);
-  ctx.fillStyle = '#ffe08a';
-  ctx.font = 'bold 26px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(text, CANVAS_W / 2, CANVAS_H / 2 + 9);
-  ctx.textAlign = 'left';
+  drawSharedBanner(ctx, CANVAS_W, CANVAS_H, text);
 }

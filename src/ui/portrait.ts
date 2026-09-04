@@ -1,7 +1,6 @@
-import type { Duck } from '../sim/duck';
 import { drawDecoration } from '../render/scene';
 import type { DecorKind } from '../sim/economy';
-import { drawDuck } from '../render/duckPainter';
+import { drawDuck, type DuckLook } from '../render/duckPainter';
 
 const IDLE_ANIM = {
   bob: 0,
@@ -32,7 +31,7 @@ function hidpiCanvas(size: number): { canvas: HTMLCanvasElement; ctx: CanvasRend
 }
 
 // The procedural render, uncached.
-function renderPortrait(duck: Duck, size: number): HTMLCanvasElement {
+function renderPortrait(duck: DuckLook, size: number): HTMLCanvasElement {
   const { canvas, ctx } = hidpiCanvas(size);
   ctx.translate(size / 2 - 4, size / 2 + 6);
   const zoom = (size / 90) * (duck.stage === 'duckling' ? 1.6 : duck.stage === 'egg' ? 2 : 1);
@@ -56,14 +55,14 @@ function renderPortrait(duck: Duck, size: number): HTMLCanvasElement {
 const portraitCache = new Map<string, HTMLCanvasElement>();
 const PORTRAIT_CACHE_CAP = 300;
 
-function portraitKey(duck: Duck, size: number): string {
+function portraitKey(duck: DuckLook, size: number): string {
   const dpr = window.devicePixelRatio || 1;
   const clean = duck.stage === 'egg' ? 9 : Math.round(duck.needs.cleanliness / 15);
   const sad = duck.stage !== 'egg' && duck.needs.happiness < 25 ? 1 : 0;
   return `${duck.id}|${size}|${dpr}|${duck.stage}|${duck.sick ? 1 : 0}|${clean}|${sad}`;
 }
 
-export function duckPortrait(duck: Duck, size = 72): HTMLCanvasElement {
+export function duckPortrait(duck: DuckLook, size = 72): HTMLCanvasElement {
   const key = portraitKey(duck, size);
   let src = portraitCache.get(key);
   if (!src) {

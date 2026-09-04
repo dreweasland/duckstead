@@ -9,10 +9,11 @@ import { FOODS, TREATS, type FoodKind } from '../sim/food';
 import { el } from './dom';
 import { icon } from './icons';
 import { keyFor, keyLabel } from './settings';
+import { TUNING } from '../sim/tuning';
 
-export type HudCountKey = 'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society';
+type HudCountKey = 'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society';
 
-export interface HudHost {
+interface HudHost {
   game: Game;
   toast(msg: string): void;
   onFestivalChip(): void;
@@ -26,7 +27,7 @@ export interface HudHost {
   openRace(): void;
 }
 
-export interface HudRefs {
+interface HudRefs {
   element: HTMLElement;
   hudClock: HTMLElement;
   festivalChip: HTMLElement;
@@ -86,7 +87,7 @@ export function buildHud(host: HudHost): HudRefs {
     chip('premium', 'sparkle', 'Premium feed'),
     chip('medicine', 'pill', 'Medicine'),
     chip('eggs', 'egg', 'Egg basket — hens lay daily; sell at the shop'),
-    chip('pond', 'bubbles', 'Pond cleanliness — wild ducks only visit above 70%'),
+    chip('pond', 'bubbles', `Pond cleanliness — wild ducks only visit above ${TUNING.visitors.inviteCleanliness}%`),
     chip('flock', 'duck', 'Ducks on the pond / capacity — over it, the flock is stressed. Elders have earned a free spot and don\'t count.'),
     chip('society', 'star', 'Society points — earned from breed awards, commissions, and festival placings'),
   );

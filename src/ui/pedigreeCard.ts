@@ -14,6 +14,7 @@ import { pedigree, PEDIGREE_MAX } from '../sim/pedigree';
 import { breedKey, breedLabel } from '../sim/breedBook';
 import { describeStandard, standardMatch, STANDARD_THRESHOLD } from '../sim/standards';
 import { upgradeLevel } from '../sim/economy';
+import { plural } from '../text';
 
 // Ancestor stills are recomputed identically on every 500ms card refresh —
 // memoize the synthetic Duck so its stable id also hits the portrait cache.
@@ -54,7 +55,7 @@ export function buildPedigreeCard(state: GameState, duck: Duck): HTMLElement {
   if (p.rare > 0) bits.append(el('span', { class: 'chip chip-rare', title: 'Rare alleles carried (blue, pink bill, crest)' }, `${p.rare} rare`));
   if (p.pure) bits.append(el('span', { class: 'chip chip-ready', title: 'Both parents were the same breed' }, 'purebred'));
   const kids = livingDescendants(state, duck.id).length;
-  if (kids > 0) bits.append(el('span', { class: 'chip chip-friend', title: 'Living children and grandchildren' }, `${kids} descendant${kids === 1 ? '' : 's'}`));
+  if (kids > 0) bits.append(el('span', { class: 'chip chip-friend', title: 'Living children and grandchildren' }, `${plural(kids, 'descendant')}`));
   card.append(bits);
 
   // Family tree: parents on the first row, grandparents on the second.

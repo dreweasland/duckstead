@@ -1,7 +1,8 @@
 import type { PanelCtx } from './ui';
-import { el, statBar, panelHeader } from './dom';
+import { el, statBar, panelHeader, tabBar, type TabDef } from './dom';
 import { icon } from './icons';
 import { duckPortrait } from './portrait';
+import type { DuckLook } from '../render/duckPainter';
 import {
   ALL_BREED_KEYS,
   breedLabel,
@@ -9,7 +10,7 @@ import {
   representativeGenome,
 } from '../sim/breedBook';
 import { createDuck } from '../sim/duck';
-import { createRng } from '../rng';
+import { createRng, hashString } from '../rng';
 import type { GameState, DuckSummary } from '../state';
 import { flock } from '../state';
 import type { Duck } from '../sim/duck';
@@ -20,6 +21,7 @@ import { generationOf } from '../sim/lineage';
 import { dayOf } from '../sim/time';
 import { AWARD_LABELS, AWARD_TIERS, awardCount } from '../sim/awards';
 import { describeStandard } from '../sim/standards';
+import { plural } from '../text';
 
 type Tab = 'breeds' | 'chronicle' | 'records';
 let activeTab: Tab = 'breeds';
@@ -38,24 +40,12 @@ export function renderBookPanel(ctx: PanelCtx): HTMLElement {
   panel.append(
     panelHeader('book', 'Breed Book', ctx.close, el('span', { class: 'br-nest-pill' }, ` ${discovered}/${total}`)),
   );
-  const tabs = el('div', { class: 'shop-tabs' });
-  const defs: Array<{ id: Tab; label: string; icon: Parameters<typeof icon>[0]; badge?: string }> = [
+  const defs: Array<TabDef<Tab>> = [
     { id: 'breeds', label: 'Breeds', icon: 'book' },
     { id: 'chronicle', label: 'Chronicle', icon: 'flag', badge: state.chronicle.length ? String(state.chronicle.length) : undefined },
     { id: 'records', label: 'Records', icon: 'star' },
   ];
-  for (const t of defs) {
-    tabs.append(
-      el(
-        'button',
-        { class: `shop-tab${activeTab === t.id ? ' active' : ''}`, onclick: () => { activeTab = t.id; ctx.ui.refreshPanel(); } },
-        icon(t.icon, 12),
-        t.label,
-        t.badge ? el('span', { class: 'shop-tab-badge' }, t.badge) : null,
-      ),
-    );
-  }
-  panel.append(tabs);
+  panel.append(tabBar(defs, activeTab, (id) => { activeTab = id; ctx.ui.refreshPanel(); }));
 
   if (activeTab === 'breeds') panel.append(breedsTab(state, discovered, total));
   else if (activeTab === 'chronicle') panel.append(chronicleTab(state));
@@ -132,7 +122,7 @@ function breedsTab(state: GameState, discovered: number, total: number): HTMLEle
     { class: 'section' },
     el('strong', {}, 'Feather Album'),
     el('div', { class: 'muted small' }, album.length > 0
-      ? `${state.stats.feathersCollected} feather${state.stats.feathersCollected === 1 ? '' : 's'} in ${album.length} color${album.length === 1 ? '' : 's'} — pick up what your ducks molt.`
+      ? `${plural(state.stats.feathersCollected, 'feather')} in ${plural(album.length, 'color')} — pick up what your ducks molt.`
       : 'Your ducks molt feathers on the grass — tap one to start the album.'),
   );
   if (album.length > 0) {
@@ -256,7 +246,7 @@ function memorialCard(gone: DuckSummary): HTMLElement {
   const elder = gone.diedStage === 'elder';
   const card = el('div', { class: `memorial-card${elder ? ' honoured' : ''}` });
   if (gone.genome) {
-    const stub = {
+    const stub: DuckLook = {
       id: `memorial-${gone.name}`,
       genome: gone.genome,
       phenotype: computePhenotype(gone.genome),
@@ -265,7 +255,7 @@ function memorialCard(gone: DuckSummary): HTMLElement {
       sick: false,
       activity: 'idle',
       needs: { hunger: 100, cleanliness: 100, happiness: 100, health: 100 },
-    } as unknown as Duck;
+    };
     card.append(el('div', { class: 'memorial-portrait' }, duckPortrait(stub, 54)));
   } else {
     const feather = el('div', { class: 'memorial-portrait memorial-feather' }, icon('feather', 30));
@@ -296,13 +286,11 @@ function memorialCard(gone: DuckSummary): HTMLElement {
       el(
         'div',
         { class: 'memorial-line memorial-legacy' },
-        `${gone.sex === 'F' ? 'Her' : 'His'} line lives on in ${gone.descendants} duck${gone.descendants === 1 ? '' : 's'}.`,
+        `${gone.sex === 'F' ? 'Her' : 'His'} line lives on in ${plural(gone.descendants, 'duck')}.`,
       ),
     );
   }
   // A small deterministic epitaph, so each stone reads the same every visit.
-  let hash = 0;
-  for (const ch of gone.name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  card.append(el('div', { class: 'memorial-epitaph' }, `“${EPITAPHS[hash % EPITAPHS.length]}”`));
+  card.append(el('div', { class: 'memorial-epitaph' }, `“${EPITAPHS[hashString(gone.name) % EPITAPHS.length]}”`));
   return card;
 }

@@ -6,7 +6,7 @@ import type { Duck } from '../sim/duck';
 import { createDuck } from '../sim/duck';
 import { createRng } from '../rng';
 import { dayOf } from '../sim/time';
-import { ordinal } from '../text';
+import { ordinal, plural } from '../text';
 import {
   closeMarket,
   festivalEnteredToday,
@@ -31,9 +31,10 @@ import { markFestivalEntered } from '../sim/festivals';
 import { rivalRacers } from '../sim/rivals';
 import { el, statTile } from './dom';
 import { icon } from './icons';
-import { backToPondRow, eventCard } from './eventCard';
+import { backToPondRow, eventCard, resultRow } from './eventCard';
 import { duckPortrait } from './portrait';
 import { openRacePanel } from './racePanel';
+import { duckById } from '../state';
 
 export interface FestivalHost {
   game: Game;
@@ -104,19 +105,12 @@ export function openGrandPrix(host: FestivalHost): void {
 }
 
 // A finished Grand Prix, recapped from the festival chip.
-export function showRaceRecap(host: FestivalHost, race: { heatPlace: number; finalPlace?: number; prize: number }): void {
+function showRaceRecap(host: FestivalHost, race: { heatPlace: number; finalPlace?: number; prize: number }): void {
   const won = race.finalPlace === 0;
   const ev = eventCard(host.root, 'derby', won ? 'win' : '');
   if (!ev) return;
   const round = (label: string, placed: number, note: string, reward: number) =>
-    el(
-      'div',
-      { class: 'race-result-row mine' },
-      el('span', { class: `race-place p${placed + 1}` }, String(placed + 1)),
-      el('span', { class: 'race-result-name' }, label),
-      el('span', { class: 'muted small' }, note),
-      reward > 0 ? el('span', { class: 'goal-reward with-icon' }, icon('coin', 11), String(reward)) : null,
-    );
+    resultRow(placed + 1, { mine: true, name: label, note, reward });
   const rows = el(
     'div',
     { class: 'race-results' },
@@ -205,16 +199,12 @@ export function openMarketStall(host: FestivalHost): void {
             ? 'The last buyer tips their hat — and the fair\'s steward notes the day\'s takings. Next year\'s market is a bigger one.'
             : `The last buyer tips their hat. The stalls pack up until next autumn${market.earned > 0 ? ` — ${target - market.earned} short of the fair's mark` : ''}.`,
         ),
-        el(
-          'div',
-          { class: 'actions race-actions' },
-          el('button', { class: 'action-btn primary', onclick: close }, 'Back to the pond'),
-        ),
+        backToPondRow(close),
       );
       return;
     }
     const buyer = buyers[index];
-    const duck = state.ducks.find((d) => d.id === buyer.duckId);
+    const duck = duckById(state, buyer.duckId);
     if (!duck) {
       dismiss(buyer);
       showBuyer();
@@ -270,7 +260,7 @@ export function openMarketStall(host: FestivalHost): void {
       ),
     );
     card.replaceChildren(
-      header('cart', `Market Day — ${buyers.length} buyer${buyers.length === 1 ? '' : 's'} waiting`),
+      header('cart', `Market Day — ${plural(buyers.length, 'buyer')} waiting`),
       el('div', { class: 'muted small race-blurb' }, `Sell ${target} coins' worth today to win the fair (${market.earned} so far).`),
       el(
         'div',
@@ -388,11 +378,7 @@ export function openWinterLights(host: FestivalHost): void {
           )
         : null,
       reward ? el('div', { class: 'egg-comment' }, reward.wishText) : null,
-      el(
-        'div',
-        { class: 'actions race-actions' },
-        el('button', { class: 'action-btn primary', onclick: close }, 'Stay a while, then head back'),
-      ),
+      backToPondRow(close, 'Stay a while, then head back'),
     );
     if (reward) state.lastFestival = { day: dayOf(state.clock), kind: 'winterLights', winter: reward };
     card.replaceChildren(finale);
@@ -470,22 +456,18 @@ export function openEggShow(host: FestivalHost): void {
     result.entries.forEach((entry, i) => {
       const sample = sampleEgg(entry.genome);
       list.append(
-        el(
-          'div',
-          { class: `race-result-row${entry.isPlayer ? ' mine' : ''}` },
-          el('span', { class: `race-place p${i + 1}` }, `${i + 1}`),
-          duckPortrait(sample, 34),
-          el(
+        resultRow(i + 1, {
+          mine: entry.isPlayer,
+          portrait: duckPortrait(sample, 34),
+          name: el(
             'span',
             { class: 'race-result-name egg-standing' },
             el('span', {}, `${entry.eggName} — ${entry.breeder}`),
             el('span', { class: 'chip chip-trait' }, entry.breed),
           ),
-          el('span', { class: 'muted small' }, `${entry.score} pts`),
-          entry.isPlayer && result.prize > 0
-            ? el('span', { class: 'goal-reward with-icon' }, icon('coin', 11), `${result.prize}`)
-            : null,
-        ),
+          note: `${entry.score} pts`,
+          reward: entry.isPlayer ? result.prize : 0,
+        }),
       );
     });
     card.classList.toggle('win', result.playerPlace === 0);
@@ -497,11 +479,7 @@ export function openEggShow(host: FestivalHost): void {
         'The judges reveal each bloodline after the verdict:',
       ),
       list,
-      el(
-        'div',
-        { class: 'actions race-actions' },
-        el('button', { class: 'action-btn primary', onclick: close }, 'Back to the pond'),
-      ),
+      backToPondRow(close),
     );
     if (result.prize > 0 && !replay) host.toast(`Placed ${ordinal(result.playerPlace + 1)} — +${result.prize} coins!`);
   };

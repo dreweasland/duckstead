@@ -1,13 +1,13 @@
 import type { PanelCtx } from './ui';
-import { el, needColor, statBar, panelHeader } from './dom';
+import { el, NEED_ROWS, needColor, statBar, panelHeader, tabBar } from './dom';
 import { icon, sexBadge, starRow, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { quickActions } from './quickActions';
+import { byAge, byHunger, byName, byPedigree } from './duckSort';
 import { duckCapacity, isOvercrowded, pondOccupancy } from '../sim/economy';
 import { breedingValue, keepVerdict, verdictReason, type KeepVerdict } from '../sim/advisor';
-import { eggIncubationTicks } from '../sim/lifecycle';
-import { TICKS_PER_DAY } from '../sim/time';
-import type { Duck, Needs } from '../sim/duck';
+import { incubationPct } from '../sim/lifecycle';
+import type { Duck } from '../sim/duck';
 import { breedReadiness } from '../sim/needs';
 import { pedigreeScore } from '../sim/pedigree';
 import { drillsLeft } from '../sim/training';
@@ -16,6 +16,7 @@ import type { GameState } from '../state';
 import { generationOf } from '../sim/lineage';
 import { describeBalance, flockBalance, HENS_PER_DRAKE } from '../sim/flockBalance';
 import { buildGeneTable, clearPicks, isPicked, pickedCount } from './geneTable';
+import { ageLabel } from '../sim/duck';
 
 type View = 'cards' | 'genes';
 let activeView: View = 'cards';
@@ -89,20 +90,17 @@ function matchesFilter(state: GameState, duck: Duck, filter: Filter, verdicts: R
 }
 
 function compare(sort: Sort, verdicts: ReadonlyMap<string, KeepVerdict>): (a: Duck, b: Duck) => number {
-  // Oldest first: the life stage is the age (ageTicks resets per stage), so
-  // elders lead and eggs trail, with time-in-stage breaking ties.
-  const stageOrder = { egg: 5, duckling: 4, juvenile: 3, adult: 2, elder: 1 } as const;
   switch (sort) {
     case 'name':
-      return (a, b) => a.name.localeCompare(b.name);
+      return byName;
     case 'hunger':
-      return (a, b) => a.needs.hunger - b.needs.hunger;
+      return byHunger;
     case 'happiness':
       return (a, b) => a.needs.happiness - b.needs.happiness;
     case 'rarity':
       return (a, b) => b.phenotype.rarityScore - a.phenotype.rarityScore;
     case 'pedigree':
-      return (a, b) => pedigreeScore(b) - pedigreeScore(a);
+      return byPedigree;
     case 'value':
       return (a, b) => {
         // Eggs are unknown quantities; elders have no breeding value at all
@@ -113,16 +111,9 @@ function compare(sort: Sort, verdicts: ReadonlyMap<string, KeepVerdict>): (a: Du
       };
     case 'age':
     default:
-      return (a, b) => stageOrder[a.stage] - stageOrder[b.stage] || b.ageTicks - a.ageTicks;
+      return byAge;
   }
 }
-
-const NEED_ROWS: Array<[keyof Needs, IconName]> = [
-  ['hunger', 'wheat'],
-  ['cleanliness', 'bubbles'],
-  ['happiness', 'smile'],
-  ['health', 'heart'],
-];
 
 export function renderRosterPanel(ctx: PanelCtx): HTMLElement {
   const { game } = ctx;
@@ -198,11 +189,14 @@ export function renderRosterPanel(ctx: PanelCtx): HTMLElement {
   });
   // Cards or the genes table; and a "picked only" chip once any are ticked.
   const nPicked = pickedCount(state);
-  const viewToggle = el(
-    'div',
-    { class: 'shop-tabs roster-view' },
-    el('button', { class: `shop-tab${activeView === 'cards' ? ' active' : ''}`, onclick: () => { activeView = 'cards'; ctx.ui.refreshPanel(); } }, icon('cards', 12), 'Cards'),
-    el('button', { class: `shop-tab${activeView === 'genes' ? ' active' : ''}`, title: 'Every duck\'s genes side by side', onclick: () => { activeView = 'genes'; ctx.ui.refreshPanel(); } }, icon('book', 12), 'Genes'),
+  const viewToggle = tabBar<View>(
+    [
+      { id: 'cards', label: 'Cards', icon: 'cards' },
+      { id: 'genes', label: 'Genes', icon: 'book', title: 'Every duck\'s genes side by side' },
+    ],
+    activeView,
+    (id) => { activeView = id; ctx.ui.refreshPanel(); },
+    'shop-tabs roster-view',
   );
   if (nPicked > 0) {
     filters.append(
@@ -310,7 +304,7 @@ function duckCard(ctx: PanelCtx, duck: Duck): HTMLElement {
         el(
           'div',
           { class: 'muted small' },
-          `${duck.stage} · ${(duck.ageTicks / TICKS_PER_DAY).toFixed(1)}d`,
+          ageLabel(duck),
           generationOf(duck) > 0 ? ` · gen ${generationOf(duck)}` : '',
         ),
         el('div', { class: 'muted small with-icon card-pedigree', title: 'Pedigree' }, icon('star', 9), ` ${pedigreeScore(duck)}`),
@@ -327,8 +321,7 @@ function duckCard(ctx: PanelCtx, duck: Duck): HTMLElement {
 }
 
 function eggCard(ctx: PanelCtx, egg: Duck): HTMLElement {
-  const target = eggIncubationTicks(ctx.game.state);
-  const pct = Math.min(100, (egg.incubationTicks / target) * 100);
+  const pct = incubationPct(ctx.game.state, egg);
   return el(
     'button',
     { class: 'duck-card egg-card', onclick: (e) => ctx.ui.selectDuck(egg.id, (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey) },

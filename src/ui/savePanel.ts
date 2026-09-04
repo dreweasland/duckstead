@@ -1,12 +1,12 @@
 import type { PanelCtx } from './ui';
-import { el, panelHeader } from './dom';
+import { confirmButton, el, panelHeader } from './dom';
 import { icon } from './icons';
 import { deserialize, serialize } from '../save/save';
 import { canRetire } from '../sim/heritage';
 import { pedigreeScore } from '../sim/pedigree';
 import { duckPortrait } from './portrait';
 import { attachCloudSync, detachCloudSync } from '../sync/sync';
-import { claimSave, pairStart } from '../sync/syncClient';
+import { claimSave, pairStart, rotateSecret } from '../sync/syncClient';
 import { isSyncConfigured, loadSyncMeta, newDeviceId, saveSyncMeta, unlinkSync } from '../sync/syncMeta';
 
 let confirmingNewGame = false;
@@ -33,6 +33,26 @@ export function renderSavePanel(ctx: PanelCtx): HTMLElement {
   const textarea = el('textarea', { class: 'save-textarea', rows: 6 }) as HTMLTextAreaElement;
   textarea.value = exportedJson;
 
+  // The armed pair sits in its own row.
+  const newGame = confirmButton({
+    armed: confirmingNewGame,
+    cls: 'danger-btn',
+    label: 'New game',
+    confirmLabel: 'Really abandon this flock?',
+    arm: () => {
+      confirmingNewGame = true;
+      ctx.ui.refreshPanel();
+    },
+    onConfirm: () => {
+      confirmingNewGame = false;
+      game.newGame();
+      ctx.close();
+    },
+    cancel: () => {
+      confirmingNewGame = false;
+      ctx.ui.refreshPanel();
+    },
+  });
   panel.append(
     el(
       'div',
@@ -48,45 +68,7 @@ export function renderSavePanel(ctx: PanelCtx): HTMLElement {
         },
         'Save now',
       ),
-      confirmingNewGame
-        ? el(
-            'span',
-            { class: 'actions' },
-            el(
-              'button',
-              {
-                class: 'danger-btn',
-                onclick: () => {
-                  confirmingNewGame = false;
-                  game.newGame();
-                  ctx.close();
-                },
-              },
-              'Really abandon this flock?',
-            ),
-            el(
-              'button',
-              {
-                class: 'action-btn',
-                onclick: () => {
-                  confirmingNewGame = false;
-                  ctx.ui.refreshPanel();
-                },
-              },
-              'Cancel',
-            ),
-          )
-        : el(
-            'button',
-            {
-              class: 'danger-btn',
-              onclick: () => {
-                confirmingNewGame = true;
-                ctx.ui.refreshPanel();
-              },
-            },
-            'New game',
-          ),
+      confirmingNewGame ? el('span', { class: 'actions' }, ...newGame) : newGame[0],
     ),
     el(
       'div',
@@ -119,7 +101,8 @@ export function renderSavePanel(ctx: PanelCtx): HTMLElement {
                 game.save();
                 ctx.ui.toast('Save imported!');
                 ctx.close();
-              } catch {
+              } catch (err) {
+                console.warn('Save import failed', err);
                 ctx.ui.toast('That save data could not be read.');
               }
             },
@@ -138,6 +121,7 @@ export function renderSavePanel(ctx: PanelCtx): HTMLElement {
 let pairInfo: { code: string; expiresAt: number } | null = null;
 let pairBusy = false;
 let confirmingUnlink = false;
+let confirmingCutOff = false;
 
 function linkDeviceSection(ctx: PanelCtx): HTMLElement {
   const { game } = ctx;
@@ -192,6 +176,25 @@ function linkDeviceSection(ctx: PanelCtx): HTMLElement {
     );
   } else {
     const meta = loadSyncMeta()!;
+    // A lost or lent phone keeps the shared secret forever; rotating it is
+    // the only way to revoke. This device stores the new secret and stays
+    // linked; everyone else must pair again with a fresh code.
+    const cutOff = async (): Promise<void> => {
+      if (pairBusy) return;
+      pairBusy = true;
+      confirmingCutOff = false;
+      try {
+        const secret = await rotateSecret(meta);
+        saveSyncMeta({ ...meta, secret });
+        detachCloudSync();
+        attachCloudSync(game);
+        ctx.ui.toast('Other devices are cut off. Show a new code to link one again.');
+      } catch {
+        ctx.ui.toast('Could not reach the cloud — try again in a moment.');
+      }
+      pairBusy = false;
+      ctx.ui.refreshPanel();
+    };
     box.append(
       el(
         'div',
@@ -206,33 +209,38 @@ function linkDeviceSection(ctx: PanelCtx): HTMLElement {
           { class: 'action-btn', disabled: pairBusy, onclick: () => void showCode({ syncId: meta.syncId, secret: meta.secret }) },
           'Show a pairing code',
         ),
-        confirmingUnlink
-          ? el(
-              'button',
-              {
-                class: 'danger-btn',
-                onclick: () => {
-                  detachCloudSync(); // kill the old push/poll closures first
-                  unlinkSync();
-                  confirmingUnlink = false;
-                  pairInfo = null;
-                  ctx.ui.toast('Unlinked. The cloud copy still exists; relink anytime.');
-                  ctx.ui.refreshPanel();
-                },
-              },
-              'Really unlink this device?',
-            )
-          : el(
-              'button',
-              {
-                class: 'danger-btn',
-                onclick: () => {
-                  confirmingUnlink = true;
-                  ctx.ui.refreshPanel();
-                },
-              },
-              'Unlink',
-            ),
+        ...confirmButton({
+          armed: confirmingCutOff,
+          cls: 'action-btn',
+          confirmCls: 'danger-btn',
+          disabled: pairBusy,
+          title: 'Revoke access for every other linked device (a lost phone, a shared code). This one stays linked.',
+          label: 'Cut off other devices',
+          confirmLabel: 'Really cut off every other device?',
+          arm: () => {
+            confirmingCutOff = true;
+            ctx.ui.refreshPanel();
+          },
+          onConfirm: () => void cutOff(),
+        }),
+        ...confirmButton({
+          armed: confirmingUnlink,
+          cls: 'danger-btn',
+          label: 'Unlink',
+          confirmLabel: 'Really unlink this device?',
+          arm: () => {
+            confirmingUnlink = true;
+            ctx.ui.refreshPanel();
+          },
+          onConfirm: () => {
+            detachCloudSync(); // kill the old push/poll closures first
+            unlinkSync();
+            confirmingUnlink = false;
+            pairInfo = null;
+            ctx.ui.toast('Unlinked. The cloud copy still exists; relink anytime.');
+            ctx.ui.refreshPanel();
+          },
+        }),
       ),
     );
   }
@@ -300,27 +308,26 @@ function heritageSection(ctx: PanelCtx): HTMLElement {
   box.append(el('div', { class: 'muted small' }, 'Founding hen'), picker('F', retireHen, (id) => { retireHen = id; }));
   const ready = retireDrake && retireHen && state.ducks.some((d) => d.id === retireDrake) && state.ducks.some((d) => d.id === retireHen);
   box.append(
-    el(
-      'button',
-      {
-        class: `action-btn ${confirmingRetire ? 'primary' : ''}`,
-        disabled: !ready,
-        onclick: () => {
-          if (!confirmingRetire) {
-            confirmingRetire = true;
-            ctx.ui.refreshPanel();
-            return;
-          }
-          game.retire(retireDrake!, retireHen!);
-          retireDrake = null;
-          retireHen = null;
-          confirmingRetire = false;
-          ctx.ui.toast('A new pond. The Book remembers everything.');
-          ctx.close();
-        },
+    ...confirmButton({
+      armed: confirmingRetire,
+      cls: 'action-btn',
+      confirmCls: 'action-btn primary',
+      disabled: !ready,
+      label: 'Retire the pond',
+      confirmLabel: 'Really retire the pond? Every other duck is rehomed.',
+      arm: () => {
+        confirmingRetire = true;
+        ctx.ui.refreshPanel();
       },
-      confirmingRetire ? 'Really retire the pond? Every other duck is rehomed.' : 'Retire the pond',
-    ),
+      onConfirm: () => {
+        game.retire(retireDrake!, retireHen!);
+        retireDrake = null;
+        retireHen = null;
+        confirmingRetire = false;
+        ctx.ui.toast('A new pond. The Book remembers everything.');
+        ctx.close();
+      },
+    }),
   );
   return box;
 }

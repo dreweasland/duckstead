@@ -5,18 +5,6 @@ import { el, panelHeader } from './dom';
 import { play } from '../audio/audio';
 import { bindableKey, DEFAULT_KEYS, KEY_ACTIONS, keyLabel, rebindKey, resetKeys, settings, updateSettings, type KeyAction, type Settings } from './settings';
 
-// The default bindings, for the guide and its test.
-export const SHORTCUTS: Array<[string, string]> = [
-  ['Esc', 'Close the open window, cancel placing a decoration'],
-  ['1 – 6', 'Breed · Shop · Flock · Book · Race · Save'],
-  ['C', 'Show or hide the duck cards'],
-  ['P', 'Pause / resume'],
-  ['+ / −', 'Faster / slower'],
-  ['Space', 'Paddle (in a race or drill)'],
-  ['Ctrl/Cmd-click a duck', 'Pin its card to compare'],
-  ['?', 'This sheet'],
-];
-
 // Which action is waiting for a key press, if any. Module state: the panel
 // rebuilds twice a second and must keep showing "press a key…".
 let capturing: KeyAction | null = null;

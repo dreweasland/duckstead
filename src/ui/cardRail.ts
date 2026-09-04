@@ -2,25 +2,19 @@
 // left edge, toggled from the HUD. Shows the same at-a-glance stats as the
 // Flock panel without covering the pond.
 import type { Game } from '../game';
-import type { Duck, Needs } from '../sim/duck';
-import { eggIncubationTicks } from '../sim/lifecycle';
-import { el, needColor, statBar } from './dom';
+import type { Duck } from '../sim/duck';
+import { incubationPct } from '../sim/lifecycle';
+import { el, NEED_ROWS, needColor, statBar } from './dom';
 import { icon, sexBadge, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { quickActions, type QuickHandlers } from './quickActions';
-import { pedigreeScore } from '../sim/pedigree';
+import { byAge, byHunger, byName, byPedigree } from './duckSort';
 import { drillsLeft } from '../sim/training';
+import { plural } from '../text';
 
-export interface RailHandlers extends QuickHandlers {
+interface RailHandlers extends QuickHandlers {
   select(id: string, pin?: boolean): void;
 }
-
-const NEED_ROWS: Array<[keyof Needs, IconName]> = [
-  ['hunger', 'wheat'],
-  ['cleanliness', 'bubbles'],
-  ['happiness', 'smile'],
-  ['health', 'heart'],
-];
 
 // Rail sort order, cycled by the little control at the head of the rail
 // and remembered between sessions.
@@ -43,13 +37,9 @@ let railSort: RailSort = (() => {
   }
 })();
 
+// Every rail order but "oldest" keeps the eggs at the bottom.
 function railCompare(sort: RailSort): (a: Duck, b: Duck) => number {
   const egg = (d: Duck) => (d.stage === 'egg' ? 1 : 0);
-  // Oldest first, for real: ageTicks resets at each stage transition, so the
-  // life stage is the age — elders first, eggs last — with time-in-stage
-  // breaking ties inside a stage.
-  const STAGE_AGE = { elder: 0, adult: 1, juvenile: 2, duckling: 3, egg: 4 } as const;
-  const byAge = (a: Duck, b: Duck) => STAGE_AGE[a.stage] - STAGE_AGE[b.stage] || b.ageTicks - a.ageTicks;
   const bySex = (first: 'M' | 'F') => (a: Duck, b: Duck) =>
     egg(a) - egg(b) || (a.sex === first ? 0 : 1) - (b.sex === first ? 0 : 1) || byAge(a, b);
   switch (sort) {
@@ -58,11 +48,11 @@ function railCompare(sort: RailSort): (a: Duck, b: Duck) => number {
     case 'hens':
       return bySex('F');
     case 'hungry':
-      return (a, b) => egg(a) - egg(b) || a.needs.hunger - b.needs.hunger;
+      return (a, b) => egg(a) - egg(b) || byHunger(a, b);
     case 'pedigree':
-      return (a, b) => egg(a) - egg(b) || pedigreeScore(b) - pedigreeScore(a);
+      return (a, b) => egg(a) - egg(b) || byPedigree(a, b);
     case 'name':
-      return (a, b) => egg(a) - egg(b) || a.name.localeCompare(b.name);
+      return (a, b) => egg(a) - egg(b) || byName(a, b);
     case 'age':
     default:
       return byAge;
@@ -167,13 +157,13 @@ export function trainingChip(game: Game, duck: Duck, size = 10, compact = false)
   const left = drillsLeft(game.state, duck);
   if (left > 0) {
     const label = compact ? (left > 1 ? String(left) : '') : left > 1 ? `${left} drills` : 'drill';
-    return el('span', { class: 'chip chip-drill', title: `${left} drill${left === 1 ? '' : 's'} left today — open the card to train` }, icon('flag', size), label);
+    return el('span', { class: 'chip chip-drill', title: `${plural(left, 'drill')} left today — open the card to train` }, icon('flag', size), label);
   }
   return el('span', { class: 'chip chip-trained', title: 'Trained today' }, icon('check', size), compact ? '' : 'trained');
 }
 
 function miniEggCard(game: Game, egg: Duck, handlers: RailHandlers): HTMLElement {
-  const pct = Math.min(100, (egg.incubationTicks / eggIncubationTicks(game.state)) * 100);
+  const pct = incubationPct(game.state, egg);
   return el(
     'div',
     {

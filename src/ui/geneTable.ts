@@ -16,6 +16,7 @@ import { generationOf } from '../sim/lineage';
 import { breedingValue, keepVerdict, type KeepVerdict } from '../sim/advisor';
 import { upgradeLevel } from '../sim/economy';
 import { personalityLabels } from '../sim/behavior';
+import { duckById } from '../state';
 
 type Col =
   | 'name' | 'breed'
@@ -149,7 +150,7 @@ export function buildGeneTable(ctx: PanelCtx, ducks: Duck[]): HTMLElement {
     });
     row.append(el('td', { class: 'pick-col' }, pick));
     const temper = personalityLabels(duck)[0] ?? '';
-    const friend = duck.friendId ? state.ducks.find((d) => d.id === duck.friendId) : undefined;
+    const friend = duck.friendId ? duckById(state, duck.friendId) : undefined;
     row.append(
       el(
         'td',

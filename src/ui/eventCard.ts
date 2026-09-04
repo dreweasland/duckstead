@@ -4,9 +4,9 @@
 import { el } from './dom';
 import { icon, type IconName } from './icons';
 
-export type EventTheme = 'derby' | 'market' | 'winter' | 'egg' | 'life' | 'drill';
+type EventTheme = 'derby' | 'market' | 'winter' | 'egg' | 'life' | 'drill';
 
-export interface EventCard {
+interface EventCard {
   overlay: HTMLElement;
   card: HTMLElement;
   close: () => void;
@@ -39,4 +39,27 @@ export function eventCard(root: HTMLElement, theme: EventTheme, extraCardClass =
 
 export function backToPondRow(close: () => void, label = 'Back to the pond'): HTMLElement {
   return el('div', { class: 'actions race-actions' }, el('button', { class: 'action-btn primary', onclick: close }, label));
+}
+
+// One line of a standings table: the place, an optional portrait, the name
+// (a string, or a prebuilt name node for richer layouts), an optional note,
+// and the prize when there is one. Four tables built this inline.
+export interface ResultRowOpts {
+  mine: boolean;
+  portrait?: HTMLElement;
+  name: string | HTMLElement;
+  note?: string;
+  reward?: number;
+}
+
+export function resultRow(place: number, o: ResultRowOpts): HTMLElement {
+  return el(
+    'div',
+    { class: `race-result-row${o.mine ? ' mine' : ''}` },
+    el('span', { class: `race-place p${place}` }, String(place)),
+    o.portrait,
+    typeof o.name === 'string' ? el('span', { class: 'race-result-name' }, o.name) : o.name,
+    o.note !== undefined ? el('span', { class: 'muted small' }, o.note) : null,
+    o.reward && o.reward > 0 ? el('span', { class: 'goal-reward with-icon' }, icon('coin', 11), String(o.reward)) : null,
+  );
 }

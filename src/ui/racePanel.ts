@@ -16,13 +16,13 @@ import { keyLabel, keyFor, matchesKey } from './settings';
 import { computeAnim } from '../render/animation';
 import { drawDuck } from '../render/duckPainter';
 import { el, statBar, statTile } from './dom';
-import { eventCard } from './eventCard';
+import { eventCard, resultRow } from './eventCard';
 import { icon } from './icons';
 import { duckPortrait } from './portrait';
+import { CANVAS_W, drawBanner, drawWater } from './minigameCanvas';
 
 const TRACK_LEN = 700;
 const LANES = 4;
-const CANVAS_W = 860;
 const CANVAS_H = 300;
 // Player paddle: full power only near the meter's sweet spot; mashing with
 // sloppy timing pays a fraction. Wild racers paddle like a competent player,
@@ -53,7 +53,7 @@ interface UiHooks {
   toast(msg: string): void;
 }
 
-export interface RaceOpts {
+interface RaceOpts {
   league?: boolean; // the daily league race: tier decides fee/purse/field
   title?: string;
   entryFee?: number;
@@ -160,9 +160,8 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     // seed also makes each race a real event in the sim's random stream.)
     const rng = createRng(game.rng.int(0xffffffff) >>> 0);
     const taken = [playerDuck.name];
-    const racers: Racer[] = [
-      makeRacer(playerDuck, true, rng),
-    ];
+    const player = makeRacer(playerDuck, true, rng);
+    const racers: Racer[] = [player];
     // Stamina: a trained duck's boosts fade more slowly.
     const playerHold = staminaHold(playerDuck);
     for (let i = 0; i < LANES - 1; i += 1) {
@@ -211,7 +210,6 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     const tryBoost = () => {
       const now = performance.now();
       if (now - lastBoost < BOOST_COOLDOWN_MS) return;
-      const player = racers.find((r) => r.isPlayer)!;
       if (player.finishedAt !== null) return;
       lastBoost = now;
       const meterVal = meterValue(now - start);
@@ -256,7 +254,6 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
       meterFill.style.left = `${meterValue(now - start) * 100}%`;
       drawRace(ctx, racers, elapsed, now);
 
-      const player = racers.find((r) => r.isPlayer)!;
       if (doneAt === null && (finishCount === racers.length || (player.finishedAt !== null && elapsed > 3))) {
         // Give trailing AI a beat to finish for a complete scoreboard.
         doneAt = now + 1200;
@@ -281,7 +278,8 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
       return b.x - a.x;
     });
     const playerPlace = ranked.findIndex((r) => r.isPlayer);
-    const playerId = racers.find((r) => r.isPlayer)!.duck.id;
+    const player = ranked[playerPlace] ?? ranked[0]; // the field always starts with the player's racer
+    const playerId = player.duck.id;
     const { prize, notice } = settleRace(game.state, {
       duckId: playerId,
       place: playerPlace,
@@ -297,22 +295,18 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     const list = el('div', { class: 'race-results' });
     ranked.forEach((racer, i) => {
       list.append(
-        el(
-          'div',
-          { class: `race-result-row${racer.isPlayer ? ' mine' : ''}` },
-          el('span', { class: `race-place p${i + 1}` }, `${i + 1}`),
-          duckPortrait(racer.duck, 36),
-          el('span', { class: 'race-result-name' }, racer.duck.name + (racer.isPlayer ? ' (you)' : '')),
-          racer.isPlayer && (prizes[i] ?? 0) > 0
-            ? el('span', { class: 'goal-reward with-icon' }, icon('coin', 11), `${prizes[i]}`)
-            : null,
-        ),
+        resultRow(i + 1, {
+          mine: racer.isPlayer,
+          portrait: duckPortrait(racer.duck, 36),
+          name: racer.duck.name + (racer.isPlayer ? ' (you)' : ''),
+          reward: racer.isPlayer ? prizes[i] ?? 0 : 0,
+        }),
       );
     });
     const next = opts.nextRace ? opts.nextRace(playerPlace) : undefined;
     const actionRow = el('div', { class: 'actions race-actions' });
     if (next) {
-      const advanceDuck = playerDuck ?? racers.find((r) => r.isPlayer)!.duck;
+      const advanceDuck = playerDuck ?? player.duck;
       actionRow.append(
         el(
           'button',
@@ -383,24 +377,8 @@ function drawRace(
 ): void {
   const laneH = CANVAS_H / LANES;
 
-  // Water background.
-  const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
-  grad.addColorStop(0, '#4a90c2');
-  grad.addColorStop(1, '#2c6899');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-
-  // Drifting shimmer.
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i < 10; i += 1) {
-    const x = ((i * 97 + now / 25) % (CANVAS_W + 40)) - 20;
-    const y = (i * 53) % CANVAS_H;
-    ctx.beginPath();
-    ctx.moveTo(x - 8, y);
-    ctx.lineTo(x + 8, y);
-    ctx.stroke();
-  }
+  // Water background with a drifting shimmer.
+  drawWater(ctx, CANVAS_W, CANVAS_H, now, { count: 10, xStride: 97, yTop: 0, yStride: 53 });
 
   // Lane ropes.
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
@@ -442,13 +420,5 @@ function drawRace(
   });
 
   // Countdown / go banner.
-  if (elapsed < 1.4) {
-    ctx.fillStyle = 'rgba(16, 22, 30, 0.65)';
-    ctx.fillRect(0, CANVAS_H / 2 - 26, CANVAS_W, 52);
-    ctx.fillStyle = '#ffe08a';
-    ctx.font = 'bold 26px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(elapsed < 1 ? 'Ready…' : 'GO!', CANVAS_W / 2, CANVAS_H / 2 + 9);
-    ctx.textAlign = 'left';
-  }
+  if (elapsed < 1.4) drawBanner(ctx, CANVAS_W, CANVAS_H, elapsed < 1 ? 'Ready…' : 'GO!');
 }

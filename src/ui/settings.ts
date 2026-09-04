@@ -115,7 +115,7 @@ export function bindableKey(key: string): boolean {
   return !['Shift', 'Control', 'Alt', 'Meta', 'Escape', 'Tab', 'CapsLock', 'Dead', 'Unidentified'].includes(key);
 }
 
-export const SETTINGS_KEY = 'ducksim:ui:settings';
+const SETTINGS_KEY = 'ducksim:ui:settings';
 
 const DEFAULTS: Settings = { volume: 0.6, muted: false, motion: 'system', textSize: 'normal', keys: { ...DEFAULT_KEYS } };
 
@@ -164,7 +164,7 @@ export function updateSettings(patch: Partial<Settings>): Settings {
 }
 
 // Does the player want less motion? Honours the OS setting unless overridden.
-export function reducedMotion(): boolean {
+function reducedMotion(): boolean {
   if (current.motion === 'reduced') return true;
   if (current.motion === 'full') return false;
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;

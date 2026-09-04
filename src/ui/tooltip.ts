@@ -40,7 +40,7 @@ function show(node: HTMLElement, text: string): void {
   bubble.style.top = `${y}px`;
 }
 
-export function hideTooltip(): void {
+function hideTooltip(): void {
   shownFor = null;
   bubble?.classList.remove('show');
 }

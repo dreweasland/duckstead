@@ -20,6 +20,13 @@
   --surface-5: #1c2530;
   --bad: #d4544a;
   --good: #69b356;
+  --btn: #2a3542;
+  --btn-hover: #37455a;
+  --chip: #24313f;
+  --line-2: #3a4a5c;
+  --hairline: rgba(255, 255, 255, 0.06);
+  --gold-dim: #b08a3f;
+  --shadow: rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -234,24 +241,47 @@ body.feeding #pond-canvas {
   flex: 1;
 }
 
+/* The button family: one base here; each family's own section keeps only
+   what differs (the HUD's tighter padding, the danger tint, the companion's
+   bigger touch targets). */
 .hud-btn,
-.speed-btn {
-  background: #2a3542;
+.speed-btn,
+.action-btn,
+.small-btn,
+.danger-btn,
+.comp-btn {
+  background: var(--btn);
   color: inherit;
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  padding: 5px 10px;
   cursor: pointer;
+}
+
+.hud-btn,
+.speed-btn,
+.action-btn,
+.small-btn,
+.danger-btn {
+  border-radius: 6px;
+  padding: 6px 10px;
   font-size: 13px;
+}
+
+.hud-btn,
+.speed-btn {
+  padding: 5px 10px;
 }
 
 .hud-btn:hover,
 .speed-btn:hover {
-  background: #37455a;
+  background: var(--btn-hover);
 }
 
+/* The "on" green: an armed HUD tool, a chosen treat, a primary action. */
 .hud-btn.active,
-.speed-btn.active {
+.speed-btn.active,
+.treat-pick.active,
+.action-btn.primary,
+.comp-btn.primary {
   background: #4a7a4e;
   border-color: #67a36b;
 }
@@ -263,7 +293,7 @@ body.feeding #pond-canvas {
 
 .pond-warn.urgent {
   background: #7a5a2a;
-  border-color: #b08a3f;
+  border-color: var(--gold-dim);
   animation: pulse 1.2s ease-in-out infinite;
 }
 
@@ -310,13 +340,10 @@ body.feeding #pond-canvas {
   text-align: left;
 }
 
-.treat-pick:hover {
+/* :not(.active) keeps a chosen treat's green border under the pointer now
+   that the green rule sits earlier, with the button base. */
+.treat-pick:hover:not(.active) {
   border-color: var(--gold);
-}
-
-.treat-pick.active {
-  background: #4a7a4e;
-  border-color: #67a36b;
 }
 
 .treat-dot {
@@ -364,7 +391,13 @@ body.feeding #pond-canvas {
   justify-content: space-between;
 }
 
-.pedigree-score {
+/* Gold, bold figures: a pedigree score, a society rank, coins, a reward,
+   the companion's festival line. */
+.pedigree-score,
+.society-step-rank,
+.shop-coins,
+.goal-reward,
+.comp-festival {
   color: var(--gold);
   font-weight: 700;
 }
@@ -376,7 +409,7 @@ body.feeding #pond-canvas {
   gap: 4px;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--hairline);
 }
 
 .tree-row {
@@ -403,7 +436,7 @@ body.feeding #pond-canvas {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  border: 1px dashed #3a4a5c;
+  border: 1px dashed var(--line-2);
   justify-content: center;
   color: #5a6a7a;
 }
@@ -506,7 +539,7 @@ body.feeding #pond-canvas {
   font-size: 10px;
   padding: 2px 7px;
   border-radius: 999px;
-  background: #24313f;
+  background: var(--chip);
   color: var(--muted);
   border: 1px solid transparent;
 }
@@ -583,8 +616,10 @@ body.feeding #pond-canvas {
   gap: 4px;
 }
 
-.society-next {
-  margin-top: 8px;
+/* The soft card shell: society's next step, a nest, the breeding verdict. */
+.society-next,
+.nest-card,
+.br-verdict {
   padding: 10px;
   border-radius: 12px;
   background: var(--surface-5);
@@ -592,6 +627,10 @@ body.feeding #pond-canvas {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.society-next {
+  margin-top: 8px;
 }
 
 .society-next .br-section-title {
@@ -648,11 +687,6 @@ body.feeding #pond-canvas {
 .society-step.next {
   color: var(--ink);
   background: rgba(232, 184, 58, 0.1);
-}
-
-.society-step-rank {
-  font-weight: 700;
-  color: var(--gold);
 }
 
 .society-step-cost {
@@ -756,7 +790,7 @@ body.feeding #pond-canvas {
   display: flex;
   flex-direction: column;
   background: #161c25;
-  border: 1px solid #3a4a5c;
+  border: 1px solid var(--line-2);
   border-radius: 14px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
   overflow: hidden;
@@ -846,7 +880,8 @@ body.feeding #pond-canvas {
   margin-bottom: 10px;
 }
 
-.dawn-tile {
+.dawn-tile,
+.race-tile {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -873,7 +908,7 @@ body.feeding #pond-canvas {
 }
 
 .dawn-tile.warn {
-  border-color: #b08a3f;
+  border-color: var(--gold-dim);
 }
 
 .dawn-tile.warn strong {
@@ -1215,7 +1250,7 @@ body.feeding #pond-canvas {
 }
 
 .chip-trait {
-  background: #24313f;
+  background: var(--chip);
   color: var(--ink-dim);
 }
 
@@ -1266,7 +1301,7 @@ body.feeding #pond-canvas {
   flex: 1;
   height: 6px;
   background: linear-gradient(90deg, var(--surface), var(--surface-3), var(--surface));
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--hairline);
   border-radius: 3px;
 }
 
@@ -1372,11 +1407,12 @@ body.feeding #pond-canvas {
   font-size: 13px;
 }
 
-.bar {
+.bar,
+.br-gauge {
   flex: 1;
   height: 10px;
   background: var(--bg);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--hairline);
   border-radius: 5px;
   overflow: hidden;
 }
@@ -1410,19 +1446,10 @@ body.feeding #pond-canvas {
   min-width: 0;
 }
 
-.action-btn,
-.small-btn {
-  background: #2a3542;
-  color: inherit;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
+/* .action-btn / .small-btn / .danger-btn take the shared button base (see
+   "The button family" beside .hud-btn). */
 .action-btn:hover:not(:disabled) {
-  background: #37455a;
+  background: var(--btn-hover);
 }
 
 .action-btn,
@@ -1455,19 +1482,9 @@ body.feeding #pond-canvas {
   cursor: default;
 }
 
-.action-btn.primary {
-  background: #4a7a4e;
-  border-color: #67a36b;
-}
-
 .danger-btn {
   background: #5c2f2c;
-  color: inherit;
-  border: 1px solid #8a4a45;
-  border-radius: 6px;
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 13px;
+  border-color: #8a4a45;
 }
 
 .small-btn {
@@ -1573,16 +1590,6 @@ body.feeding #pond-canvas {
   margin-bottom: 8px;
 }
 
-.nest-card {
-  background: var(--surface-5);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 .nest-card.ready {
   border-color: var(--gold);
   box-shadow: 0 0 0 1px rgba(232, 184, 58, 0.35);
@@ -1635,7 +1642,7 @@ body.feeding #pond-canvas {
   font-size: 11px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #24313f;
+  background: var(--chip);
   color: var(--ink-dim);
 }
 
@@ -1761,7 +1768,7 @@ body.feeding #pond-canvas {
   gap: 5px;
   margin-top: 4px;
   padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--hairline);
 }
 
 .gene-strip .gene-badges {
@@ -1860,7 +1867,8 @@ body.feeding #pond-canvas {
   min-width: 0;
 }
 
-.br-cand-name {
+.br-cand-name,
+.mini-name {
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
@@ -1887,7 +1895,7 @@ body.feeding #pond-canvas {
   font-size: 9px;
   padding: 1px 5px;
   border-radius: 999px;
-  background: #24313f;
+  background: var(--chip);
   color: var(--ink-dim);
 }
 
@@ -1909,13 +1917,6 @@ body.feeding #pond-canvas {
 /* Verdict */
 .br-verdict {
   margin-top: 12px;
-  padding: 10px;
-  border-radius: 12px;
-  background: var(--surface-5);
-  border: 1px solid var(--line);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .br-gauge-row {
@@ -1930,38 +1931,27 @@ body.feeding #pond-canvas {
   white-space: nowrap;
 }
 
-.br-gauge {
-  flex: 1;
-  height: 10px;
-  border-radius: 5px;
-  background: var(--bg);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  overflow: hidden;
-}
-
+/* .br-gauge shares .bar's track (grouped with it, under the needs bars). */
 .br-gauge-fill {
   height: 100%;
   border-radius: 5px;
   transition: width 0.3s;
 }
 
-.br-gauge-fill.ok,
-.br-gauge-pct.ok {
+.br-gauge-fill.ok {
   background: var(--good);
 }
 
-.br-gauge-fill.mid,
-.br-gauge-pct.mid {
+.br-gauge-fill.mid {
   background: var(--amber);
 }
 
-.br-gauge-fill.warn,
-.br-gauge-pct.warn {
+.br-gauge-fill.warn {
   background: var(--bad);
 }
 
+/* The figure beside the gauge takes its tone as a text colour only. */
 .br-gauge-pct {
-  background: none !important;
   font-size: 13px;
   min-width: 36px;
   text-align: right;
@@ -2097,13 +2087,6 @@ body.feeding #pond-canvas {
 }
 
 
-.br-egg-row.ready {
-  background: rgba(232, 184, 58, 0.07);
-  border-radius: 8px;
-  padding: 6px;
-  margin: 2px -6px;
-}
-
 
 
 .br-egg-actions {
@@ -2115,11 +2098,6 @@ body.feeding #pond-canvas {
 /* Shop */
 .panel.shop {
   width: min(780px, calc(100vw - 32px));
-}
-
-.shop-coins {
-  color: var(--gold);
-  font-weight: 700;
 }
 
 .shop-tabs {
@@ -2154,7 +2132,7 @@ body.feeding #pond-canvas {
 
 .shop-tab.active {
   background: #26313d;
-  border-color: #3a4a5c;
+  border-color: var(--line-2);
   color: var(--ink);
 }
 
@@ -2248,7 +2226,7 @@ body.feeding #pond-canvas {
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 999px;
-  background: #24313f;
+  background: var(--chip);
   color: var(--ink-dim);
   white-space: nowrap;
 }
@@ -2298,9 +2276,10 @@ body.feeding #pond-canvas {
 
 .roster-controls {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   margin: 10px 0 12px;
 }
 
@@ -2462,7 +2441,7 @@ body.feeding #pond-canvas {
 }
 
 .chip-trained {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--hairline);
   color: var(--muted);
 }
 
@@ -2639,15 +2618,6 @@ body.feeding #pond-canvas {
   min-width: 0;
   flex: 1;
 }
-
-.mini-name {
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .mini-stage {
   font-size: 10px;
 }
@@ -2675,7 +2645,7 @@ body.feeding #pond-canvas {
   justify-content: center;
   width: 24px;
   height: 22px;
-  background: #2a3542;
+  background: var(--btn);
   border: 1px solid var(--line-strong);
   border-radius: 5px;
   color: inherit;
@@ -2684,7 +2654,7 @@ body.feeding #pond-canvas {
 }
 
 .quick-btn:hover:not(:disabled) {
-  background: #37455a;
+  background: var(--btn-hover);
 }
 
 .quick-btn:active:not(:disabled) {
@@ -2834,11 +2804,6 @@ body.feeding #pond-canvas {
   color: var(--muted);
 }
 
-.goal-reward {
-  color: var(--gold);
-  font-weight: 700;
-}
-
 .goal-progress {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
@@ -2904,7 +2869,7 @@ body.feeding #pond-canvas {
 }
 
 .chapter.open {
-  border-color: #3a4a5c;
+  border-color: var(--line-2);
 }
 
 .chapter-head {
@@ -2933,7 +2898,7 @@ body.feeding #pond-canvas {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #24313f;
+  background: var(--chip);
   color: var(--ink-dim);
   font-size: 11px;
   font-weight: 700;
@@ -3132,7 +3097,7 @@ body.feeding #pond-canvas {
   flex-direction: column;
   gap: 12px;
   background: #141c26;
-  border: 1px solid #3a4a5c;
+  border: 1px solid var(--line-2);
   border-radius: 14px;
   padding: 0 20px 18px;
   max-width: 920px;
@@ -3158,7 +3123,7 @@ body.feeding #pond-canvas {
   margin: 0 -20px;
   padding: 13px 20px;
   border-radius: 13px 13px 0 0;
-  background: linear-gradient(135deg, #2c3c50, #3a4a5c);
+  background: linear-gradient(135deg, #2c3c50, var(--line-2));
   color: #f7f1e2;
   flex: 0 0 auto;
   position: sticky;
@@ -3234,17 +3199,7 @@ body.feeding #pond-canvas {
   gap: 8px;
 }
 
-.race-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 8px 4px;
-  border-radius: 10px;
-  background: var(--surface-4);
-  border: 1px solid var(--line);
-}
-
+/* .race-tile shares .dawn-tile's shell (grouped with it, up in the dawn report). */
 .race-tile > .icon {
   opacity: 0.7;
 }
@@ -3375,7 +3330,7 @@ body.feeding #pond-canvas {
   background: #26354a;
   border-color: #3d5372;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 16px var(--shadow);
 }
 
 .race-pick:disabled {
@@ -3401,7 +3356,7 @@ body.feeding #pond-canvas {
       #5c2f2c 100%
     );
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 2px 6px var(--shadow);
   overflow: hidden;
 }
 
@@ -3452,7 +3407,7 @@ body.feeding #pond-canvas {
 
 @keyframes meter-flash-weak {
   from {
-    box-shadow: 0 0 0 4px rgba(224, 169, 58, 0.7), inset 0 2px 6px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 0 0 4px rgba(224, 169, 58, 0.7), inset 0 2px 6px var(--shadow);
   }
 }
 
@@ -3553,7 +3508,7 @@ body.feeding #pond-canvas {
   border: 1px solid #4a5b70;
   border-radius: 12px 12px 5px 5px;
   padding: 14px 30px 6px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 24px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   animation: float-in 0.3s ease-out;
 }
 
@@ -3652,7 +3607,7 @@ body.feeding #pond-canvas {
 .lantern {
   width: 38px;
   height: 52px;
-  background: #2a3542;
+  background: var(--btn);
   border: 2px solid var(--line-strong);
   border-radius: 10px 10px 14px 14px;
   cursor: pointer;
@@ -3753,7 +3708,7 @@ body.feeding #pond-canvas {
   opacity: 0;
   transform: translateY(-8px);
   transition: all 0.3s;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 18px var(--shadow);
 }
 
 .toast.show {
@@ -3914,7 +3869,7 @@ body.feeding #pond-canvas {
 .sync-chip.sync-offline,
 .sync-chip.sync-stale {
   color: var(--amber);
-  border-color: #b08a3f;
+  border-color: var(--gold-dim);
 }
 
 .pair-code-box {
@@ -4002,6 +3957,8 @@ body.feeding #pond-canvas {
 }
 
 .comp-chip {
+  align-items: center;
+  gap: 5px;
   background: var(--surface);
   border: 1px solid var(--surface-2);
   border-radius: 14px;
@@ -4035,6 +3992,11 @@ body.feeding #pond-canvas {
 }
 
 .comp-nav-btn {
+  position: relative; /* anchors .comp-nav-dot */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   flex: 1;
   padding: 12px 0;
   background: none;
@@ -4084,6 +4046,10 @@ body.feeding #pond-canvas {
 }
 
 .comp-card-badges {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
   min-height: 18px;
   font-size: 13px;
 }
@@ -4119,7 +4085,7 @@ body.feeding #pond-canvas {
 .comp-bar {
   height: 12px;
   background: var(--bg);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--hairline);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -4141,24 +4107,18 @@ body.feeding #pond-canvas {
 }
 
 .comp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 11px 14px;
   min-height: 44px;
-  background: #2a3542;
-  color: inherit;
-  border: 1px solid var(--line-strong);
   border-radius: 10px;
   font-size: 14px;
-  cursor: pointer;
 }
 
 .comp-btn:disabled {
   opacity: 0.45;
   cursor: default;
-}
-
-.comp-btn.primary {
-  background: #4a7a4e;
-  border-color: #67a36b;
 }
 
 .comp-btn.ghost {
@@ -4190,11 +4150,6 @@ body.feeding #pond-canvas {
   border-radius: 8px;
 }
 
-.comp-festival {
-  color: var(--gold);
-  font-weight: 700;
-}
-
 /* Pairing */
 .comp-pair {
   margin: auto;
@@ -4207,6 +4162,9 @@ body.feeding #pond-canvas {
 }
 
 .comp-pair-duck {
+  color: var(--gold);
+  display: flex;
+  justify-content: center;
   font-size: 56px;
 }
 
@@ -4301,12 +4259,9 @@ body.feeding #pond-canvas {
   .care-btn.active .care-label {
     display: inline;
   }
-}
-
-/* Smaller still: drop the supply chips whose counts live in the Care menu.
-   (The settings button and the life-event chip pushed the bar past 1600px
-   with them showing.) */
-@media (max-width: 1650px) {
+  /* And drop the supply chips whose counts live in the Care menu. (The
+     settings button and the life-event chip pushed the bar past 1600px with
+     them showing.) */
   .chip-feed,
   .chip-premium,
   .chip-medicine {
@@ -4345,50 +4300,25 @@ body.feeding #pond-canvas {
 .comp-badge.b-cold { color: #9ec8ee; }
 
 .comp-card.needs-care {
-  border-color: #b08a3f;
+  border-color: var(--gold-dim);
   box-shadow: 0 0 0 1px rgba(224, 169, 58, 0.25);
 }
 
-.comp-card-badges {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-  justify-content: center;
-}
-
+/* display stays down here, after the HUD's narrow-screen rules that hide
+   .chip-feed / .chip-eggs: the companion's chips share those class names and
+   this later rule is what keeps them showing on a phone. */
 .comp-chip {
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
 }
 
 .comp-chip.chip-coin .icon { color: var(--gold); }
 .comp-chip.chip-feed .icon { color: #d9b45c; }
-
-.comp-nav-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.comp-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
 
 .comp-btn .treat-dot {
   width: 11px;
   height: 11px;
   border-radius: 50%;
   flex: none;
-}
-
-.comp-pair-duck {
-  color: var(--gold);
-  display: flex;
-  justify-content: center;
 }
 
 /* ---------- The garden of remembrance ---------- */
@@ -4436,7 +4366,7 @@ body.feeding #pond-canvas {
   height: 58px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--hairline);
 }
 
 .memorial-name {
@@ -4587,7 +4517,8 @@ body.feeding #pond-canvas {
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
 }
 
-.rival-card {
+.rival-card,
+.market-card {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -4625,7 +4556,7 @@ body.feeding #pond-canvas {
 
 .board-pill.active {
   background: #26313d;
-  border-color: #3a4a5c;
+  border-color: var(--line-2);
   color: var(--ink);
 }
 
@@ -4644,13 +4575,6 @@ body.feeding #pond-canvas {
 }
 
 .market-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  background: #1f2a33;
-  border: 1px solid #34434f;
   min-width: 0;
 }
 
@@ -4802,7 +4726,7 @@ body.feeding #pond-canvas {
   border: 1px solid var(--line-strong);
   font-size: 12px;
   line-height: 1.35;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 6px 18px var(--shadow);
   pointer-events: none;
   opacity: 0;
   transform: translateY(3px);
@@ -4951,13 +4875,6 @@ body.text-large .toast {
   margin-left: 0;
 }
 
-.goals-sub {
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 500;
-  color: var(--lilac);
-}
-
 /* Drill buttons breathe; the breeding-value card reads as tiles and chips
    rather than a run of muted sentences. */
 .drill-row {
@@ -5020,7 +4937,7 @@ body.text-large .toast {
   height: 8px;
   border-radius: 50%;
   display: inline-block;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px var(--shadow);
 }
 
 /* Settings: as wide as the Save panel; key rows with a Change button, and
@@ -5068,11 +4985,6 @@ body.text-large .toast {
   flex: none;
   padding: 5px 10px;
   font-size: 12px;
-}
-
-.roster-controls {
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 .gene-view-hint {
@@ -5163,7 +5075,7 @@ body.text-large .toast {
 }
 
 .gene-table tbody tr.selected td.gt-duck {
-  background: #24313f;
+  background: var(--chip);
 }
 
 .gene-table .pick-col {
@@ -5259,10 +5171,6 @@ body.text-large .toast {
   white-space: nowrap;
 }
 
-.comp-nav-btn {
-  position: relative;
-}
-
 .comp-nav-dot {
   position: absolute;
   top: 8px;
@@ -5280,7 +5188,7 @@ body.text-large .toast {
   gap: 8px;
   padding: 10px 12px;
   background: #1a222c;
-  border: 1px solid #b08a3f;
+  border: 1px solid var(--gold-dim);
   border-radius: 12px;
 }
 

@@ -13,10 +13,11 @@ import { brushStroke, dropFood, fillFeeder, petStroke, tuckEgg } from '../sim/ne
 import { FEEDER_POS } from '../sim/pond';
 import { play } from '../audio/audio';
 import { pickMateFromPond } from './breedingPanel';
+import { duckById } from '../state';
 
-export const DECOR_PICK_RADIUS = 26;
+const DECOR_PICK_RADIUS = 26;
 
-export interface CanvasHost {
+interface CanvasHost {
   game: Game;
   renderer: Renderer;
   toast(msg: string): void;
@@ -35,9 +36,10 @@ export interface CanvasHost {
 }
 
 export function bindCanvasInput(host: CanvasHost): void {
-let stroke: { duckId: string; lastX: number; lastY: number; travelled: number } | null = null;
-let suppressNextClick = false;
-  const canvas = document.getElementById('pond-canvas')!;
+  let stroke: { duckId: string; lastX: number; lastY: number; travelled: number } | null = null;
+  let suppressNextClick = false;
+  const canvas = document.getElementById('pond-canvas');
+  if (!canvas) throw new Error('bindCanvasInput: #pond-canvas is missing from the page');
 
   // Stroke gestures: press on a duck and rub to pet (bare hand, hearts) or
   // scrub (brush tool, bubbles). A near-still press stays a normal click.
@@ -56,7 +58,7 @@ let suppressNextClick = false;
     if (!stroke) return;
     const feedMode = host.feedModeNow();
     const state = host.game.state;
-    const duck = state.ducks.find((d) => d.id === stroke!.duckId);
+    const duck = duckById(state, stroke!.duckId);
     const world = host.renderer.toWorld(e.clientX, e.clientY);
     const step = Math.hypot(world.x - stroke.lastX, world.y - stroke.lastY);
     stroke.lastX = world.x;
@@ -173,7 +175,7 @@ let suppressNextClick = false;
     }
     // Eggs are tended by tapping: a cracked egg hatches, otherwise it gets
     // tucked back into the warm straw.
-    const egg = id ? host.game.state.ducks.find((d) => d.id === id) : undefined;
+    const egg = duckById(host.game.state, id);
     if (egg && egg.stage === 'egg') {
       if (claimHatch(host.game.state, host.game.rng, egg.id)) {
         for (let i = 0; i < 5; i += 1) host.renderer.spawnParticle(egg.pos.x, egg.pos.y - 10, 'heart');
@@ -189,7 +191,7 @@ let suppressNextClick = false;
     // With the Breeding panel open, clicking an adult on the pond drops it
     // straight into a mate slot — no detour through the duck cards.
     if (id && host.modalKindNow() === 'breeding' && pickMateFromPond(host.game.state, id)) {
-      const picked = host.game.state.ducks.find((d) => d.id === id);
+      const picked = duckById(host.game.state, id);
       if (picked) host.renderer.spawnParticle(picked.pos.x, picked.pos.y - 20, 'heart');
       host.refreshPanel();
       return;

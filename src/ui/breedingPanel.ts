@@ -3,14 +3,14 @@
 // the nest itself (courting pairs and incubating eggs).
 import { clamp } from '../types';
 import type { PanelCtx } from './ui';
-import { el, panelHeader } from './dom';
+import { barFill, eggWarmthColor, el, gaugeBar, panelHeader, tabBar } from './dom';
 import { icon, sexBadge } from './icons';
 import { duckPortrait } from './portrait';
 import type { Duck } from '../sim/duck';
 import { createDuck } from '../sim/duck';
 import type { Allele, Genome, LocusId } from '../sim/genetics';
 import { computePhenotype, expressedAlleles, LOCI } from '../sim/genetics';
-import { eggsIncubating, nestPair, pairViability, clutchFather } from '../sim/breeding';
+import { nestPair, pairViability, clutchFather, nestFull, nestUsed as nestUsedCount } from '../sim/breeding';
 import { bondedPair } from '../sim/needs';
 import { TUNING } from '../sim/tuning';
 import { TICKS_PER_MINUTE } from '../sim/time';
@@ -19,13 +19,14 @@ import { breedingValue, keepVerdict } from '../sim/advisor';
 import { breedKey, breedLabel } from '../sim/breedBook';
 import type { GameState } from '../state';
 import { nestCapacity, pondHasRoom, sellDuck, sellPrice, upgradeLevel } from '../sim/economy';
-import { claimHatch, eggIncubationTicks } from '../sim/lifecycle';
-import { createRng } from '../rng';
+import { claimHatch, eggIncubationTicks, incubationPct } from '../sim/lifecycle';
+import { createRng, fnv1a } from '../rng';
 import { buildGeneStrip } from './geneticsCard';
 import { closeKin } from '../sim/lineage';
 import { describeBalance, drakePressure, flockBalance } from '../sim/flockBalance';
 import { pairKeys } from '../sim/advisor';
 import { PRESSURE_VIABILITY_PENALTY } from '../sim/needs';
+import { duckById } from '../state';
 
 // Module-level selection persists across the panel's 500ms refreshes.
 let slotA: string | null = null;
@@ -42,10 +43,10 @@ export function showBreedingTab(tab: string): void {
 // the slot being chosen, else the first empty one, else the slot of the same
 // sex. Returns false if the duck can't take a slot (not an adult).
 export function pickMateFromPond(state: GameState, duckId: string): boolean {
-  const duck = state.ducks.find((d) => d.id === duckId);
+  const duck = duckById(state, duckId);
   if (!duck || duck.stage !== 'adult') return false;
-  const a = state.ducks.find((d) => d.id === slotA) ?? null;
-  const b = state.ducks.find((d) => d.id === slotB) ?? null;
+  const a = duckById(state, slotA) ?? null;
+  const b = duckById(state, slotB) ?? null;
   if (choosing === 'A' || (!choosing && (!a || (b && b.sex !== duck.sex && a.sex === duck.sex)))) {
     if (b?.id === duck.id) slotB = null;
     slotA = duck.id;
@@ -68,36 +69,26 @@ export function renderBreedingPanel(ctx: PanelCtx): HTMLElement {
   if (slotA && !a) slotA = null;
   if (slotB && !b) slotB = null;
 
-  const nestUsed = eggsIncubating(state) + state.pendingClutches.length;
+  const nestUsed = nestUsedCount(state);
   const panel = el('aside', { class: 'panel breeding' });
   panel.append(
     panelHeader('heart', 'Breeding', ctx.close),
   );
 
   // Tabs: the pairing table and the nest.
-  const tabs = el('div', { class: 'shop-tabs' });
-  const tabDefs = [
-    { id: 'pairing' as const, label: 'Pairing', icon: 'heart' as const, badge: null as string | null },
-    { id: 'nest' as const, label: 'The Nest', icon: 'egg' as const, badge: `${nestUsed}/${nestCapacity(state)}` },
-  ];
-  for (const t of tabDefs) {
-    tabs.append(
-      el(
-        'button',
-        {
-          class: `shop-tab${breedingTab === t.id ? ' active' : ''}`,
-          onclick: () => {
-            breedingTab = t.id;
-            ctx.ui.refreshPanel();
-          },
-        },
-        icon(t.icon, 12),
-        t.label,
-        t.badge ? el('span', { class: `shop-tab-badge${nestUsed >= nestCapacity(state) ? ' full' : ''}` }, t.badge) : null,
-      ),
-    );
-  }
-  panel.append(tabs);
+  panel.append(
+    tabBar<'pairing' | 'nest'>(
+      [
+        { id: 'pairing', label: 'Pairing', icon: 'heart' },
+        { id: 'nest', label: 'The Nest', icon: 'egg', badge: `${nestUsed}/${nestCapacity(state)}`, badgeFull: nestUsed >= nestCapacity(state) },
+      ],
+      breedingTab,
+      (id) => {
+        breedingTab = id;
+        ctx.ui.refreshPanel();
+      },
+    ),
+  );
 
   if (breedingTab === 'nest') {
     panel.append(nestSection(ctx));
@@ -257,11 +248,9 @@ function pairVerdict(ctx: PanelCtx, a: Duck, b: Duck): HTMLElement {
   const state = ctx.game.state;
   const gate = canBreedPair(a, b);
   const crowded = !pondHasRoom(state);
-  const nestOk = eggsIncubating(state) + state.pendingClutches.length < nestCapacity(state);
+  const nestOk = !nestFull(state);
   const viability = Math.round(pairViability(state, a, b) * 100);
   const tone = viability >= 80 ? 'ok' : viability >= 60 ? 'mid' : 'warn';
-  const fill = el('div', { class: `br-gauge-fill ${tone}` });
-  fill.style.width = `${viability}%`;
 
   let blocker: string | null = null;
   if (!gate.ok) blocker = gate.reason ?? null;
@@ -274,7 +263,7 @@ function pairVerdict(ctx: PanelCtx, a: Duck, b: Duck): HTMLElement {
       'div',
       { class: 'br-gauge-row' },
       el('span', { class: 'br-gauge-label' }, 'Clutch viability'),
-      el('div', { class: 'br-gauge' }, fill),
+      gaugeBar(viability, tone),
       el('strong', { class: `br-gauge-pct ${tone}` }, `${viability}%`),
     ),
     el(
@@ -477,9 +466,7 @@ function nestSection(ctx: PanelCtx): HTMLElement {
       const mins = Math.ceil(clutch.ticksRemaining / TICKS_PER_MINUTE);
       const pct = clamp((1 - clutch.ticksRemaining / (60 * TICKS_PER_MINUTE)) * 100, 0, 100);
       const odds = mother && father ? Math.round(pairViability(state, mother, father) * 100) : null;
-      const fill = el('div', { class: 'bar-fill' });
-      fill.style.width = `${pct}%`;
-      fill.style.background = '#e37ba3';
+      const fill = barFill(pct, '#e37ba3');
       grid.append(
         el(
           'div',
@@ -511,15 +498,11 @@ function nestSection(ctx: PanelCtx): HTMLElement {
     const grid = el('div', { class: 'nest-grid' });
     const target = eggIncubationTicks(state);
     for (const egg of eggs) {
-      const pct = Math.min(100, (egg.incubationTicks / target) * 100);
+      const pct = incubationPct(state, egg);
       const warmth = eggWarmth(egg);
       const speed = eggSpeedFor(warmth);
-      const fill = el('div', { class: 'bar-fill' });
-      fill.style.width = `${pct}%`;
-      fill.style.background = '#e8b83a';
-      const warmFill = el('div', { class: 'bar-fill' });
-      warmFill.style.width = `${warmth}%`;
-      warmFill.style.background = warmth > 40 ? '#e0893a' : '#6aa0d8';
+      const fill = barFill(pct, '#e8b83a');
+      const warmFill = barFill(warmth, eggWarmthColor(warmth));
       const mother = egg.parents ? ducks.find((d) => d.id === egg.parents![0]) : undefined;
       const father = egg.parents ? ducks.find((d) => d.id === egg.parents![1]) : undefined;
       const minsLeft = Math.ceil((target - egg.incubationTicks) / speed / TICKS_PER_MINUTE);
@@ -573,10 +556,5 @@ function phenoKey(genome: Genome): string {
 }
 
 function hashIds(a: string, b: string): number {
-  let h = 2166136261;
-  for (const ch of a + '|' + b) {
-    h ^= ch.charCodeAt(0);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
+  return fnv1a(a + '|' + b);
 }

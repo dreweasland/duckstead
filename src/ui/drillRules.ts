@@ -15,7 +15,7 @@ export const STRAY_MS = 300;
 
 export type TapGrade = 'perfect' | 'good' | 'early' | 'late' | 'miss';
 
-export interface TapResult {
+interface TapResult {
   grade: TapGrade;
   power: number; // 0..1, this paddle's share of the form
 }
@@ -70,9 +70,9 @@ export function staminaQuality(lengths: number): number {
 // --- Poise: balance ---
 export const POISE_TIME_MS = 12_000;
 export const MARK_HALF = 0.34; // the mark: a wobble this far either side still reads as steady
-export const TOPPLE_AT = 1; // past this the duck flaps and rights itself
-export const TOPPLE_MS = 1200; // ...taking this long, scoring nothing meanwhile
-export const NUDGE = 0.75; // a tap's kick to the wobble's velocity: one tap answers most of a gust
+const TOPPLE_AT = 1; // past this the duck flaps and rights itself
+const TOPPLE_MS = 1200; // ...taking this long, scoring nothing meanwhile
+const NUDGE = 0.75; // a tap's kick to the wobble's velocity: one tap answers most of a gust
 export const GUST_GAP_MIN = 2000; // ms between gusts, at least
 export const GUST_GAP_SPREAD = 1400; // ...plus up to this much
 export const FIRST_GUST_MS = 2200;
