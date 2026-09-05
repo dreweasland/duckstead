@@ -3686,7 +3686,7 @@ body.feeding #pond-canvas {
 
 /* Toasts */
 /* Toasts stack down from just under the HUD, clear of the card rail. */
-.toast-host {
+#ui-root > .toast-host {
   position: absolute;
   top: 48px;
   left: 50%;
@@ -3736,7 +3736,9 @@ body.feeding #pond-canvas {
 
 /* Echoes: a pickup or a pour answers right where you clicked and floats
    away, so a burst of them never buries the top stack. */
-.echo-host {
+/* Wins over `#ui-root > *`, which would otherwise make this full-screen
+   layer swallow every click on the pond. */
+#ui-root > .echo-host {
   position: absolute;
   inset: 0;
   pointer-events: none;
