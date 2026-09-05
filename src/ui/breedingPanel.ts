@@ -10,10 +10,10 @@ import type { Duck } from '../sim/duck';
 import { createDuck } from '../sim/duck';
 import type { Allele, Genome, LocusId } from '../sim/genetics';
 import { computePhenotype, expressedAlleles, LOCI } from '../sim/genetics';
-import { nestPair, pairViability, clutchFather, nestFull, nestUsed as nestUsedCount } from '../sim/breeding';
+import { BREEDING_COOLDOWN_TICKS, nestPair, pairViability, clutchFather, nestFull, nestUsed as nestUsedCount } from '../sim/breeding';
 import { bondedPair } from '../sim/needs';
 import { TUNING } from '../sim/tuning';
-import { TICKS_PER_MINUTE } from '../sim/time';
+import { TICKS_PER_HOUR, TICKS_PER_MINUTE } from '../sim/time';
 import { breedReadiness, canBreedPair, eggSpeedFor, eggWarmth, tuckEgg } from '../sim/needs';
 import { breedingValue, keepVerdict } from '../sim/advisor';
 import { breedKey, breedLabel } from '../sim/breedBook';
@@ -175,7 +175,9 @@ function chooser(ctx: PanelCtx, which: 'A' | 'B', other: Duck | null): HTMLEleme
         : value.newBreeds.length;
       return { d, gate, newBreeds, verdict: keepVerdict(value) };
     })
-    .sort((x, y) => Number(y.gate.ok) - Number(x.gate.ok) || y.newBreeds - x.newBreeds);
+    // Ready pond ducks first, then ready pen ducks: a stud from the pen has
+    // a price (a half-day on the pond), so it shouldn't be the reflex pick.
+    .sort((x, y) => Number(y.gate.ok) - Number(x.gate.ok) || Number(Boolean(x.d.penned)) - Number(Boolean(y.d.penned)) || y.newBreeds - x.newBreeds);
 
   const box = el(
     'div',
@@ -184,7 +186,7 @@ function chooser(ctx: PanelCtx, which: 'A' | 'B', other: Duck | null): HTMLEleme
       'div',
       { class: 'br-section-title' },
       other ? `Partners for ${other.name}` : `Choose the ${which === 'A' ? 'first' : 'second'} mate`,
-      el('span', { class: 'muted small' }, ' · sorted by readiness, then new breeds'),
+      el('span', { class: 'muted small' }, ' · sorted by readiness, then new breeds; pen ducks last'),
     ),
   );
   if (candidates.length === 0) {
@@ -198,7 +200,7 @@ function chooser(ctx: PanelCtx, which: 'A' | 'B', other: Duck | null): HTMLEleme
         'button',
         {
           class: `br-cand${gate.ok ? '' : ' not-ready'}`,
-          title: gate.ok ? 'Ready to breed' : gate.reason ?? '',
+          title: gate.ok ? (d.penned ? 'In the pen — comes out to court and stays out until rested' : 'Ready to breed') : gate.reason ?? '',
           onclick: () => {
             if (which === 'A') slotA = d.id;
             else slotB = d.id;
@@ -213,7 +215,7 @@ function chooser(ctx: PanelCtx, which: 'A' | 'B', other: Duck | null): HTMLEleme
           el('span', { class: 'br-cand-name' }, sexBadge(d.sex), ` ${d.name}`),
           el('span', { class: 'br-cand-meta' },
             gate.ok
-              ? el('span', { class: 'ok-text' }, 'ready')
+              ? el('span', { class: 'ok-text' }, d.penned ? 'ready · from the pen' : 'ready')
               : el('span', { class: 'warn-text' }, gate.reason ?? ''),
           ),
           swatchRow(d),
@@ -249,6 +251,11 @@ function pairVerdict(ctx: PanelCtx, a: Duck, b: Duck): HTMLElement {
   const gate = canBreedPair(a, b);
   const crowded = !pondHasRoom(state);
   const nestOk = !nestFull(state);
+  // Nesting lets a penned mate out, so the balance quoted here is the one
+  // the clutch will actually be rolled under.
+  const fromPen = [a, b].filter((d) => d.penned);
+  const releasing = fromPen.map((d) => d.id);
+  const pressure = drakePressure(state, releasing);
   const viability = Math.round(pairViability(state, a, b) * 100);
   const tone = viability >= 80 ? 'ok' : viability >= 60 ? 'mid' : 'warn';
 
@@ -275,14 +282,17 @@ function pairVerdict(ctx: PanelCtx, a: Duck, b: Duck): HTMLElement {
       ? el('div', { class: 'br-blocker soft bonded' }, icon('heart', 12), `Inseparable — a bonded pair courts better (+${Math.round(TUNING.needs.bondedViabilityBonus * 100)}% viability).`)
       : null,
     blocker ? el('div', { class: 'br-blocker' }, icon('warning', 12), blocker) : null,
+    !blocker && fromPen.length > 0
+      ? el('div', { class: 'br-blocker soft' }, icon('warning', 12), `${fromPen.map((d) => d.name).join(' and ')} comes out of the pen to court and can't go back until rested (${Math.round(BREEDING_COOLDOWN_TICKS / TICKS_PER_HOUR)}h).`)
+      : null,
     !blocker && crowded
-      ? el('div', { class: 'br-blocker soft' }, icon('warning', 12), 'The pond is at capacity — the clutch will overcrowd it until you sell.')
+      ? el('div', { class: 'br-blocker soft' }, icon('warning', 12), 'The pond is at capacity — the young are free until they come of age, then need a place or a sale.')
       : null,
     closeKin(a, b)
       ? el('div', { class: 'br-blocker soft' }, icon('warning', 12), 'Close kin — the clutch will be less vigorous.')
       : null,
-    drakePressure(state) > 0
-      ? el('div', { class: 'br-blocker soft' }, icon('warning', 12), `${describeBalance(flockBalance(state))} — viability −${drakePressure(state) * Math.round(PRESSURE_VIABILITY_PENALTY * 100)}%.`)
+    pressure > 0
+      ? el('div', { class: 'br-blocker soft' }, icon('warning', 12), `${describeBalance(flockBalance(state, releasing))} — viability −${pressure * Math.round(PRESSURE_VIABILITY_PENALTY * 100)}%.`)
       : null,
     el(
       'button',

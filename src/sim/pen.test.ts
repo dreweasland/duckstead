@@ -6,9 +6,12 @@ import { canPen, inPen, penCapacity, penDuck, penDucks, releaseDuck } from './pe
 import { drakePressure, flockBalance } from './flockBalance';
 import { breedReadiness, canBreedPair, tickNeeds } from './needs';
 import { canLayToday } from './laying';
+import { nestPair, pairViability } from './breeding';
+import { eggViability } from './needs';
+import { pondHasRoom, pondOccupancy } from './economy';
 import { tickBehavior } from './behavior';
 import { isInPond } from './pond';
-import { TICKS_PER_HOUR } from './time';
+import { seasonOf, TICKS_PER_HOUR } from './time';
 
 
 describe('bachelor pen', () => {
@@ -19,25 +22,61 @@ describe('bachelor pen', () => {
     expect(canPen(state, drake).ok).toBe(false);
     expect(canPen(state, drake).reason).toContain('Buy');
     state.upgrades.bachelorPen = 1;
-    expect(penCapacity(state)).toBe(3);
+    expect(penCapacity(state)).toBe(5);
+    for (let i = 0; i < 2; i += 1) state.ducks.push(createStarterDuck(rng, { x: 480, y: 400 }, 'M'));
     const drakes = state.ducks.filter((d) => d.sex === 'M');
-    expect(penDuck(state, drakes[0].id).ok).toBe(true);
-    expect(penDuck(state, drakes[1].id).ok).toBe(true);
-    expect(penDuck(state, drakes[2].id).ok).toBe(true);
-    expect(penDuck(state, drakes[3].id).ok).toBe(false);
-    expect(penDuck(state, drakes[3].id).reason).toContain('full');
-    expect(penDucks(state)).toHaveLength(3);
+    for (let i = 0; i < 5; i += 1) expect(penDuck(state, drakes[i].id).ok).toBe(true);
+    expect(penDuck(state, drakes[5].id).ok).toBe(false);
+    expect(penDuck(state, drakes[5].id).reason).toContain('full');
+    expect(penDucks(state)).toHaveLength(5);
     const bal = flockBalance(state);
     expect(bal.drakes).toBe(2);
-    expect(bal.penned).toBe(3);
+    expect(bal.penned).toBe(5);
     expect(bal.excess).toBe(0);
     expect(drakePressure(state)).toBe(0);
-    // Penned ducks can't breed; release restores them.
-    expect(breedReadiness(drakes[0]).reason).toContain('pen');
-    expect(canBreedPair(drakes[0], hen).ok).toBe(false);
-    expect(releaseDuck(state, drakes[0].id)).toBe(true);
+    // A penned duck is still an eligible mate (courting lets it out); release works too.
     expect(breedReadiness(drakes[0]).ok).toBe(true);
-    expect(penDucks(state)).toHaveLength(2);
+    expect(canBreedPair(drakes[0], hen).ok).toBe(true);
+    expect(releaseDuck(state, drakes[0].id)).toBe(true);
+    expect(penDucks(state)).toHaveLength(4);
+  });
+
+  it('lives off the pond: penned ducks do not count against capacity', () => {
+    const { state, rng, drake } = newGameWithPair(114);
+    state.upgrades.bachelorPen = 1;
+    for (let i = 0; i < 4; i += 1) state.ducks.push(createStarterDuck(rng, { x: 0, y: 0 }, i % 2 ? 'M' : 'F'));
+    expect(pondOccupancy(state)).toBe(8);
+    expect(pondHasRoom(state)).toBe(false);
+    expect(penDuck(state, drake.id).ok).toBe(true);
+    expect(pondOccupancy(state)).toBe(7);
+    expect(pondHasRoom(state)).toBe(true);
+    releaseDuck(state, drake.id);
+    expect(pondHasRoom(state)).toBe(false);
+  });
+
+  it('a stud from the pen comes out to court and cannot go back until rested', () => {
+    const { state, rng, hen, drake } = newGameWithPair(115);
+    state.upgrades.bachelorPen = 1;
+    // 4 drakes, 4 hens: two drakes too many with everyone out.
+    for (let i = 0; i < 4; i += 1) state.ducks.push(createStarterDuck(rng, { x: 0, y: 0 }, i % 2 ? 'M' : 'F'));
+    expect(penDuck(state, drake.id).ok).toBe(true);
+    expect(drakePressure(state)).toBe(1);
+    // The Breed panel quotes the pressure he will add once he is out.
+    expect(drakePressure(state, [drake.id])).toBe(2);
+    const spring = seasonOf(state.clock) === 'spring';
+    expect(pairViability(state, drake, hen)).toBeCloseTo(eggViability(drake, hen, spring, 2), 6);
+    expect(pairViability(state, drake, hen)).toBeLessThan(eggViability(drake, hen, spring, 1));
+    // Nesting lets him out for real…
+    expect(nestPair(state, drake.id, hen.id).ok).toBe(true);
+    expect(drake.penned).toBeUndefined();
+    expect(drakePressure(state)).toBe(2);
+    expect(pondOccupancy(state)).toBe(8);
+    // …and the gate stays shut for his whole rest, so unpen-breed-repen
+    // costs the pond a rowdy half-day rather than nothing.
+    expect(canPen(state, drake).ok).toBe(false);
+    expect(canPen(state, drake).reason).toContain('Resting');
+    drake.breedingCooldownTicks = 0;
+    expect(canPen(state, drake).ok).toBe(true);
   });
 
   it('penned hens do not lay', () => {

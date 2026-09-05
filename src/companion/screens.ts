@@ -232,7 +232,8 @@ export function nestScreen(ctx: Ctx, pick: string | null, setPick: (id: string |
   const { game, act } = ctx;
   const state = game.state;
   const box = el('div', { class: 'comp-pond' });
-  const adults = state.ducks.filter((d) => d.stage === 'adult' && !d.penned);
+  // Pen ducks are eligible (courting lets them out) but listed last.
+  const adults = state.ducks.filter((d) => d.stage === 'adult').sort((x, y) => Number(Boolean(x.penned)) - Number(Boolean(y.penned)));
   const first = pick ? adults.find((d) => d.id === pick) : undefined;
   const eggs = state.ducks.filter((d) => d.stage === 'egg');
   const clutches = state.pendingClutches;
@@ -244,7 +245,8 @@ export function nestScreen(ctx: Ctx, pick: string | null, setPick: (id: string |
     const ready = breedReadiness(duck);
     const pairOk = first && first.id !== duck.id ? canBreedPair(first, duck) : null;
     const odds = first && pairOk?.ok ? Math.round(pairViability(state, first, duck) * 100) : null;
-    const note = odds !== null ? `${odds}% odds` : first && pairOk && !pairOk.ok ? pairOk.reason ?? '' : ready.ok ? `${duck.sex === 'M' ? '♂' : '♀'} ready` : ready.reason ?? '';
+    const pen = duck.penned ? ' · from the pen' : '';
+    const note = odds !== null ? `${odds}% odds${pen}` : first && pairOk && !pairOk.ok ? pairOk.reason ?? '' : ready.ok ? `${duck.sex === 'M' ? '♂' : '♀'} ready${pen}` : ready.reason ?? '';
     grid.append(
       el(
         'button',

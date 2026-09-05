@@ -9,6 +9,7 @@ import { canBreedPair, eggViability } from './needs';
 import { nestPos } from './pond';
 import { seasonOf } from './time';
 import { studFather } from './rivals';
+import { releaseDuck } from './pen';
 import type { Genome } from './genetics';
 import { duckById } from '../state';
 import { BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS, nestFull, NEST_FULL_REASON, nestSlotOffset } from './nest';
@@ -30,9 +31,10 @@ export function clutchFather(state: GameState, clutch: PendingClutch): Duck | un
   return clutch.stud ? studFather(state, clutch) : duckById(state, clutch.fatherId);
 }
 
-// The viability the pair would roll right now, for the Breed panel.
+// The viability the pair would roll right now, for the Breed panel — with
+// any penned mate counted as out, since nesting lets it out.
 export function pairViability(state: GameState, a: Duck, b: Duck): number {
-  return eggViability(a, b, seasonOf(state.clock) === 'spring', drakePressure(state));
+  return eggViability(a, b, seasonOf(state.clock) === 'spring', drakePressure(state, [a.id, b.id]));
 }
 
 export function nestPair(state: GameState, aId: string, bId: string): { ok: boolean; reason?: string } {
@@ -44,6 +46,9 @@ export function nestPair(state: GameState, aId: string, bId: string): { ok: bool
   if (nestFull(state)) return { ok: false, reason: NEST_FULL_REASON };
   const mother = a.sex === 'F' ? a : b;
   const father = a.sex === 'F' ? b : a;
+  // A mate from the pen walks out to court and stays out until rested —
+  // that rest is what keeps the pen from being a free stud (see canPen).
+  for (const d of [a, b]) if (d.penned) releaseDuck(state, d.id);
   state.pendingClutches.push({
     motherId: mother.id,
     fatherId: father.id,

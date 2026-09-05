@@ -1,15 +1,19 @@
 // The Bachelor Pen: a fenced paddock on the right bank where surplus ducks
-// (drakes, usually) can be kept out of the breeding population without
-// being sold. Penned ducks don't count toward drake pressure, can't nest or
-// lay, and stay inside the fence — but they still eat and get grubby.
+// (drakes, usually) can be kept off the pond without being sold. Penned
+// ducks count toward neither pond capacity nor drake pressure, can't lay,
+// and stay inside the fence — but they still eat and get grubby. A penned
+// duck can still be picked for a clutch: courting lets it out, and it can't
+// go back until its breeding rest is over, so a stud from the pen costs the
+// pond a rowdy half-day rather than nothing.
 import type { GameState } from '../state';
 import { WORLD_W, duckById } from '../state';
 import type { Vec2 } from '../types';
 import type { Duck } from './duck';
 import { upgradeLevel } from './economy';
+import { restTimeLeft } from './needs';
 import { pondGeometry } from './pond';
 
-const PEN_PER_LEVEL = 3;
+const PEN_PER_LEVEL = 5;
 
 export interface PenRect {
   x: number;
@@ -80,6 +84,9 @@ export function canPen(state: GameState, duck: Duck): { ok: boolean; reason?: st
   if (penLevel(state) === 0) return { ok: false, reason: 'Buy the Bachelor Pen at the shop' };
   if (duck.stage === 'egg' || duck.stage === 'duckling') return { ok: false, reason: 'Too young for the pen' };
   if (duck.penned) return { ok: false, reason: 'Already in the pen' };
+  // The stud loop's price: a duck that just courted stays on the pond for
+  // its whole rest, harrying and squabbling like any other resident.
+  if (duck.breedingCooldownTicks > 0) return { ok: false, reason: `Resting after courting — can be penned in ${restTimeLeft(duck)}` };
   const used = penDucks(state).length;
   if (used >= penCapacity(state)) return { ok: false, reason: `The pen is full (${used}/${penCapacity(state)})` };
   return { ok: true };

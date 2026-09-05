@@ -106,7 +106,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
           : el('span', { class: 'chip chip-trait' }, readiness.reason ?? ''),
       );
     }
-    if (duck.penned) traits.append(el('span', { class: 'chip chip-trait with-icon', title: 'In the bachelor pen — out of the breeding population' }, icon('cross', 9), 'penned'));
+    if (duck.penned) traits.append(el('span', { class: 'chip chip-trait with-icon', title: 'In the bachelor pen — off the pond, out of the balance; can still be picked to court' }, icon('cross', 9), 'penned'));
     if (duck.stage !== 'elder') {
       const v = keepVerdict(breedingValue(game.state, duck));
       traits.append(
@@ -324,7 +324,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
               { class: 'action-btn', disabled: !gate.ok, title: gate.reason ?? `${used}/${penCapacity(game.state)} in the pen`, onclick: () => { penDuck(game.state, duck.id); ctx.ui.refreshPanel(); } },
               gate.ok ? `Send to the pen (${used}/${penCapacity(game.state)})` : gate.reason ?? 'Send to the pen',
             ),
-        el('div', { class: 'muted small' }, duck.penned ? 'Sitting out: no breeding, no drake pressure, no laying. Still needs feeding and brushing.' : 'Sits out of breeding without being sold — handy for a surplus drake.'),
+        el('div', { class: 'muted small' }, duck.penned ? 'Off the pond: no capacity, no drake pressure, no laying. Still needs feeding and brushing. Pick it in Breed to bring it out for a clutch — it stays out until rested.' : 'Lives off the pond without being sold — out of capacity and the balance. Handy for a spare drake you still want to breed from now and then.'),
       ),
     );
   }

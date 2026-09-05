@@ -147,7 +147,7 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'bachelorPen',
     name: 'Bachelor Pen',
-    description: 'A fenced paddock for surplus drakes: 3 ducks per level sit out of breeding without being sold.',
+    description: 'A fenced paddock off the pond: 5 ducks per level live outside capacity and drake pressure. Bring one out to court; it stays out until rested.',
     maxLevel: 2,
     costs: [220, 550],
   },
@@ -301,13 +301,15 @@ export function duckCapacity(state: GameState): number {
   return 8 + upgradeLevel(state, 'pondExpansion') * 4 + (hasPerk(state, 'pondSlot') ? 1 : 0) + heritagePondBonus(state);
 }
 
-// Hatched ducks on the pond. Eggs and courting pairs belong to the nest (its
-// own capacity), so an egg pipeline keeps running at a full pond — but a
-// clutch that hatches over the limit overcrowds it (see `overcrowding`).
+// Grown ducks living on the pond. Eggs and courting pairs belong to the nest
+// (its own capacity), and the young are free until they come of age — three
+// days from hatch — so a breeder can hatch a clutch, see what it turned out
+// to be, and decide who earns a permanent place before the bill comes due.
+// A juvenile that grows up onto a full pond overcrowds it (see
+// `overcrowding`). Elders have earned their spot on the bank and penned ducks
+// live behind the fence, so neither counts either.
 export function pondOccupancy(state: GameState): number {
-  // Elders have earned their spot on the bank: they no longer count against
-  // capacity, so there is never a reason to sell one just to free a slot.
-  return state.ducks.filter((d) => d.stage !== 'egg' && d.stage !== 'elder').length;
+  return state.ducks.filter((d) => d.stage === 'adult' && !d.penned).length;
 }
 
 export function pondHasRoom(state: GameState): boolean {

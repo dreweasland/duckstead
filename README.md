@@ -90,16 +90,21 @@ report the cloud as unreachable while everything else plays offline.
   drakes are always fine). Surplus drakes harry the hens: happiness drains,
   hens skip laying, clutch viability drops 6% per extra drake. The Flock
   panel shows the ratio; pond sizes 8/12/16/20 fit 2/3/4/5 drakes exactly.
-- **Bachelor Pen** (shop, 220 coins) — a fenced paddock for surplus drakes
-  (or any adult): penned ducks sit out of breeding and drake pressure
-  without being sold, stay inside the fence, don't lay, and still need
-  feeding and brushing. Send/release from the duck card; three places per
-  level.
-- **Pond capacity** counts hatched ducks; eggs and courting pairs live in
-  the nest, so the nest keeps running at a full pond. Hatch over the limit
-  and the pond is **overcrowded**: the flock gets stressed, the water fouls
-  faster, and wild ducks stay away until you sell or expand. Nesting boxes
-  add egg slots *and* keep eggs warm (−25% warmth loss per level).
+- **Bachelor Pen** (shop, 220 coins) — a fenced paddock off the pond for
+  surplus drakes (or any adult): penned ducks count toward neither pond
+  capacity nor drake pressure, stay inside the fence, don't lay, and still
+  need feeding and brushing. Five places per level. A penned duck can still
+  be picked in the Breed panel: courting lets it out, and it can't go back
+  until its breeding rest is over — so a stud from the pen costs the pond a
+  rowdy half-day, not nothing. Send/release from the duck card.
+- **Pond capacity** counts grown ducks on the pond. Eggs and courting pairs
+  live in the nest, and hatchlings are free until they come of age (three
+  days from hatch), so you can hatch a clutch, see what it turned out to
+  be, and decide who earns a place before the bill comes due. A juvenile
+  that grows up onto a full pond **overcrowds** it: the flock gets stressed,
+  the water fouls faster, and wild ducks stay away until you sell, pen, or
+  expand. Nesting boxes add egg slots *and* keep eggs warm (−25% warmth
+  loss per level).
 - **Forage** — tap what you find on the grass: beetles and snails by day
   (coins; a nearby duck may eat one first), fireflies by night, **feathers**
   molted by your own ducks (coins + a Feather Album entry in the Book), and

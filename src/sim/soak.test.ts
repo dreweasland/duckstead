@@ -75,16 +75,16 @@ describe.skipIf(watchMode)('soak', () => {
         if (trainee) train(state, trainee.id, 'paddle', 0.7);
         if (state.lifeEvent) resolveLifeEvent(state, rng, state.lifeEvent.kind === 'broody' ? 'sit' : 'settle');
         // The pond has a capacity: like a sensible keeper, sell the youngest
-        // duck of whichever sex is in surplus to make room, and let elders
-        // retire naturally so the memorial fills.
+        // grown duck of whichever sex is in surplus to make room (only
+        // adults take a slot), and let elders retire naturally so the
+        // memorial fills.
         if (isOvercrowded(state)) {
           const living = state.ducks.filter((d) => d.stage !== 'egg');
           const males = living.filter((d) => d.sex === 'M').length;
           const surplus = males >= living.length - males ? 'M' : 'F';
-          // Never sell down the breeding core: keep two non-elders of each sex.
-          const keepers = living.filter((d) => d.sex === surplus && d.stage !== 'elder');
-          const victim = [...keepers]
-            .sort((a, b) => (a.stage === 'adult' ? 1 : 0) - (b.stage === 'adult' ? 1 : 0) || a.ageTicks - b.ageTicks)[0];
+          // Never sell down the breeding core: keep two adults of each sex.
+          const keepers = living.filter((d) => d.sex === surplus && d.stage === 'adult');
+          const victim = [...keepers].sort((a, b) => a.ageTicks - b.ageTicks)[0];
           if (victim && keepers.length > 2) sellDuck(state, victim.id);
         }
         // Keep the flock breeding: nest the first pair that can.

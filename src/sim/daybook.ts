@@ -5,7 +5,7 @@ import type { GameState } from '../state';
 import { flock } from '../state';
 import type { Duck } from './duck';
 import { breedReadiness, eggWarmth } from './needs';
-import { duckCapacity, henEggPrice, overcrowding, pondHasRoom, pondOccupancy, upgradeLevel } from './economy';
+import { duckCapacity, henEggPrice, overcrowding, pondOccupancy, upgradeLevel } from './economy';
 import { describeRequest, matchesRequest, requestPrice, TREATS_TO_RECRUIT } from './visitors';
 import { festivalToday, FESTIVAL_NAMES, upcomingFestival } from './festivals';
 import { dayOf, dayOfSeason, seasonOf, yearOf } from './time';
@@ -159,21 +159,26 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
   const pairs = Math.min(breedable.filter((d) => d.sex === 'M').length, breedable.filter((d) => d.sex === 'F').length);
   if (pairs > 0) nest.push({ icon: 'heart', text: `${plural(pairs, 'pair')} ready to nest.` });
   const crowd = overcrowding(state);
-  // Elders no longer count against capacity, so the report never suggests
-  // retiring them for space — they've earned their spot on the bank.
+  // Elders and penned ducks don't count against capacity, so the report
+  // never suggests retiring or penning for space; the young don't count
+  // until they come of age, so the warning to watch is the one about them.
   if (crowd > 0) {
     chores.unshift({
       icon: 'warning',
       text: `The pond is overcrowded by ${plural(crowd, 'duck')} — the flock is stressed and the water fouls faster.`,
-      detail: 'Sell or buy a Pond Expansion. Wild ducks won\'t visit until it\'s sorted.',
+      detail: 'Sell, send a spare to the Bachelor Pen, or buy a Pond Expansion. Wild ducks won\'t visit until it\'s sorted.',
       urgent: true,
     });
-  } else if (!pondHasRoom(state) && eggs.length + state.pendingClutches.length > 0) {
-    nest.push({
-      icon: 'warning',
-      text: 'The pond is at capacity — hatching eggs will overcrowd it.',
-      detail: 'Sell before they hatch, or expand the pond.',
-    });
+  } else {
+    const young = state.ducks.filter((d) => d.stage === 'duckling' || d.stage === 'juvenile').length;
+    const room = duckCapacity(state) - pondOccupancy(state);
+    if (young > room) {
+      nest.push({
+        icon: 'warning',
+        text: `${plural(young, 'young duck')} growing up and room for ${room} — the rest will overcrowd the pond when they come of age.`,
+        detail: 'Sell, pen, or expand before then. A duckling has three days.',
+      });
+    }
   }
 
   const bal = flockBalance(state);
@@ -183,7 +188,7 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
       ? 'or buy the Bachelor Pen to sit a drake out without selling'
       : room > 0
         ? `or send a drake to the pen (${penDucks(state).length}/${penCapacity(state)})`
-        : 'the pen is full — a second level adds three places';
+        : 'the pen is full — a second level adds five places';
     chores.push({
       icon: 'warning',
       text: `${describeBalance(bal)}.`,

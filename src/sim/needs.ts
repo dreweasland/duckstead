@@ -363,7 +363,7 @@ interface BreedingCheck {
 }
 
 // Remaining breeding cooldown as a compact game-time string ("5h" / "40m").
-function restTimeLeft(duck: Duck): string {
+export function restTimeLeft(duck: Duck): string {
   const hours = duck.breedingCooldownTicks / TICKS_PER_HOUR;
   return hours >= 1 ? `${Math.ceil(hours)}h` : `${Math.max(1, Math.ceil(hours * 60))}m`;
 }
@@ -372,7 +372,6 @@ function restTimeLeft(duck: Duck): string {
 // "ready to breed" indicators; canBreedPair stays the pair-level authority.
 export function breedReadiness(duck: Duck): BreedingCheck {
   if (duck.stage !== 'adult') return { ok: false, reason: 'not an adult yet' };
-  if (duck.penned) return { ok: false, reason: 'in the bachelor pen' };
   if (duck.sick) return { ok: false, reason: 'sick' };
   if (duck.needs.happiness <= 50) return { ok: false, reason: 'too unhappy' };
   if (duck.needs.health <= 60) return { ok: false, reason: 'not healthy enough' };
@@ -386,8 +385,8 @@ export function canBreedPair(a: Duck, b: Duck): BreedingCheck {
   if (a.stage !== 'adult' || b.stage !== 'adult')
     return { ok: false, reason: 'Both ducks must be adults' };
   if (a.sex === b.sex) return { ok: false, reason: 'Pair must be male and female' };
+  // A penned duck is a fine mate: nesting lets it out (see nestPair).
   for (const d of [a, b]) {
-    if (d.penned) return { ok: false, reason: `${d.name} is in the bachelor pen` };
     if (d.sick) return { ok: false, reason: `${d.name} is sick` };
     if (d.needs.happiness <= 50) return { ok: false, reason: `${d.name} is too unhappy` };
     if (d.needs.health <= 60) return { ok: false, reason: `${d.name} is not healthy enough` };

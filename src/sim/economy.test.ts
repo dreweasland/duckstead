@@ -75,7 +75,7 @@ describe('upgrades', () => {
 });
 
 describe('pond capacity', () => {
-  it('counts hatched ducks only; the nest keeps running at a full pond', () => {
+  it('counts grown ducks only; the nest and the young keep running at a full pond', () => {
     const { state, rng, hen: f, drake: m } = newGameWithPair(21);
     // 4 starters + 4 adopted = 8 = capacity.
     for (let i = 0; i < 4; i += 1) state.ducks.push(createStarterDuck(rng, { x: 0, y: 0 }, i % 2 ? 'M' : 'F'));
@@ -85,11 +85,19 @@ describe('pond capacity', () => {
     // Eggs don't occupy the pond…
     pushEgg(state, rng);
     expect(pondOccupancy(state)).toBe(8);
-    // …but a hatched duck over the limit overcrowds it.
-    state.ducks.push(createStarterDuck(rng, { x: 0, y: 0 }));
+    // …nor do ducklings and juveniles: the breeder gets their growing-up
+    // days to look them over and decide who stays.
+    const young = createStarterDuck(rng, { x: 0, y: 0 });
+    young.stage = 'duckling';
+    state.ducks.push(young);
+    expect(overcrowding(state)).toBe(0);
+    young.stage = 'juvenile';
+    expect(overcrowding(state)).toBe(0);
+    // …but the day it comes of age onto a full pond, the pond is overcrowded.
+    young.stage = 'adult';
     expect(overcrowding(state)).toBe(1);
     expect(isOvercrowded(state)).toBe(true);
-    sellDuck(state, state.ducks[state.ducks.length - 1].id);
+    sellDuck(state, young.id);
     expect(isOvercrowded(state)).toBe(false);
   });
 

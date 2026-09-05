@@ -5,6 +5,7 @@
 // sizes, which is fine — only *surplus* drakes are penalised, so a flock one
 // drake under ideal loses nothing.
 import type { GameState } from '../state';
+import type { Duck } from './duck';
 import { plural } from '../text';
 
 export const HENS_PER_DRAKE = 3;
@@ -19,11 +20,14 @@ interface FlockBalance {
   penned: number; // ducks sitting out in the bachelor pen
 }
 
-export function flockBalance(state: GameState): FlockBalance {
+// `releasing` names penned ducks to count as if they were already out — the
+// Breed panel quotes a pen stud's clutch at the pressure he will actually add.
+export function flockBalance(state: GameState, releasing: readonly string[] = []): FlockBalance {
   // Only breeding-age ducks count: elders can't breed and are past the
   // squabbling, so an elder drake stresses nobody.
-  const adults = state.ducks.filter((d) => d.stage === 'adult' && !d.penned);
-  const penned = state.ducks.filter((d) => d.penned && d.stage !== 'egg').length;
+  const out = (d: Duck): boolean => !d.penned || releasing.includes(d.id);
+  const adults = state.ducks.filter((d) => d.stage === 'adult' && out(d));
+  const penned = state.ducks.filter((d) => d.penned && !out(d) && d.stage !== 'egg').length;
   const drakes = adults.filter((d) => d.sex === 'M').length;
   const hens = adults.length - drakes;
   // A pair of drakes is always fine (the starter flock is 2 and 2).
@@ -38,8 +42,8 @@ export function flockBalance(state: GameState): FlockBalance {
 }
 
 // Effect strength 0..MAX_EXCESS_EFFECT.
-export function drakePressure(state: GameState): number {
-  return Math.min(MAX_EXCESS_EFFECT, flockBalance(state).excess);
+export function drakePressure(state: GameState, releasing: readonly string[] = []): number {
+  return Math.min(MAX_EXCESS_EFFECT, flockBalance(state, releasing).excess);
 }
 
 export function describeBalance(b: FlockBalance): string {
