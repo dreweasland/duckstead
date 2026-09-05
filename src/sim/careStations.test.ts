@@ -120,3 +120,16 @@ describe('treat dispenser', () => {
     expect(state.inventory.peas).toBe(5);
   });
 });
+
+describe('care station placement', () => {
+  it('both stations stay on dry land at every pond expansion level', async () => {
+    const { bathHousePos, pondDistance, treatDispenserPos } = await import('./pond');
+    const { state } = newGameWithPair(14);
+    for (let level = 0; level <= 3; level += 1) {
+      state.upgrades.pondExpansion = level;
+      // 1.0 is the water's edge; the drawn shore wobbles to about 1.08.
+      expect(pondDistance(state, bathHousePos(state))).toBeGreaterThan(1.1);
+      expect(pondDistance(state, treatDispenserPos())).toBeGreaterThan(1.1);
+    }
+  });
+});

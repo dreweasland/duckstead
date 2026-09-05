@@ -7,7 +7,7 @@ import { upgradeLevel } from '../sim/economy';
 import { activeStyle, type StyleDef } from '../sim/society';
 import { penRect, type PenRect } from '../sim/pen';
 import { mixColors } from '../sim/genetics';
-import { FEEDER_POS, nestPos, pondGeometry } from '../sim/pond';
+import { bathHousePos, FEEDER_POS, nestPos, pondGeometry, treatDispenserPos } from '../sim/pond';
 import { feederCapacity } from '../sim/needs';
 import { hourOf } from '../sim/time';
 import { FOODS, TREATS, type FoodKind } from '../sim/food';
@@ -131,8 +131,7 @@ export function drawFeeder(ctx: CanvasRenderingContext2D, state: GameState): voi
 // there is soap and a dry tub when the stock has run out.
 export function drawBathHouse(ctx: CanvasRenderingContext2D, state: GameState, t: number): void {
   if (upgradeLevel(state, 'bathHouse') === 0) return;
-  const x = 380;
-  const y = 274;
+  const { x, y } = bathHousePos(state);
   const soap = state.inventory.soap > 0;
   ctx.save();
   groundShadow(ctx, x, y + 12, 26, 6, 0.18);
@@ -199,8 +198,7 @@ export function drawBathHouse(ctx: CanvasRenderingContext2D, state: GameState, t
 export function drawTreatDispenser(ctx: CanvasRenderingContext2D, state: GameState): void {
   const level = upgradeLevel(state, 'treatDispenser');
   if (level === 0) return;
-  const { x, y } = FEEDER_POS;
-  const dx = x + 64;
+  const { x: dx, y } = treatDispenserPos();
   ctx.save();
   groundShadow(ctx, dx, y + 16, 12, 4);
   ctx.strokeStyle = '#5f4023';

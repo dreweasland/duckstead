@@ -34,6 +34,20 @@ export function nestPos(): Vec2 {
 
 // Feeding trough on the grass, left of the pond.
 export const FEEDER_POS: Vec2 = { x: 150, y: 330 };
+
+// The care stations sit relative to the water, like the pen does: a fixed
+// spot on the bank ends up under the pond once it has been expanded.
+// Bath House: on the lower-left bank, clear of the trough above it.
+export function bathHousePos(state: GameState): Vec2 {
+  const g = pondGeometry(state);
+  return { x: Math.max(60, g.cx - g.rx - 50), y: Math.round(g.cy + g.ry * 0.45) };
+}
+
+// Treat Dispenser: up the bank behind the trough's far end, mirroring the
+// silo, high enough that an expanded pond's shore stays below it.
+export function treatDispenserPos(): Vec2 {
+  return { x: FEEDER_POS.x + 52, y: FEEDER_POS.y - 34 };
+}
 export const FEEDER_RADIUS = 55; // click + eat-from distance
 
 export function isInPond(state: GameState, p: Vec2): boolean {
