@@ -10,6 +10,7 @@ import { mixColors } from '../sim/genetics';
 import { FEEDER_POS, nestPos, pondGeometry } from '../sim/pond';
 import { feederCapacity } from '../sim/needs';
 import { hourOf } from '../sim/time';
+import { FOODS, TREATS, type FoodKind } from '../sim/food';
 import { groundShadow } from './paint';
 import { darknessAt } from './sky';
 
@@ -124,6 +125,112 @@ export function drawFeeder(ctx: CanvasRenderingContext2D, state: GameState): voi
     ctx.lineTo(x - 40, y - 14);
     ctx.stroke();
   }
+}
+
+// Bath House: a wooden tub on the bank beside the clinic, with suds while
+// there is soap and a dry tub when the stock has run out.
+export function drawBathHouse(ctx: CanvasRenderingContext2D, state: GameState, t: number): void {
+  if (upgradeLevel(state, 'bathHouse') === 0) return;
+  const x = 380;
+  const y = 274;
+  const soap = state.inventory.soap > 0;
+  ctx.save();
+  groundShadow(ctx, x, y + 12, 26, 6, 0.18);
+  // Tub staves.
+  ctx.fillStyle = '#8a6238';
+  ctx.beginPath();
+  ctx.moveTo(x - 24, y - 12);
+  ctx.lineTo(x + 24, y - 12);
+  ctx.lineTo(x + 20, y + 10);
+  ctx.lineTo(x - 20, y + 10);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#5f4023';
+  ctx.lineWidth = 1;
+  for (const sx of [-14, -5, 4, 13]) {
+    ctx.beginPath();
+    ctx.moveTo(x + sx, y - 12);
+    ctx.lineTo(x + sx * 0.85, y + 10);
+    ctx.stroke();
+  }
+  // Iron hoops.
+  ctx.strokeStyle = '#4a4a4a';
+  ctx.lineWidth = 2;
+  for (const hy of [y - 6, y + 5]) {
+    ctx.beginPath();
+    ctx.moveTo(x - 23 + (hy - y + 12) * 0.18, hy);
+    ctx.lineTo(x + 23 - (hy - y + 12) * 0.18, hy);
+    ctx.stroke();
+  }
+  // Water, and suds while there is soap to make them.
+  ctx.fillStyle = soap ? '#7fb6d8' : '#6a8aa0';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 12, 22, 6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (soap) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    for (let i = 0; i < 6; i += 1) {
+      const bx = x - 14 + i * 5.5 + Math.sin(t / 700 + i) * 1.5;
+      const by = y - 14 - Math.abs(Math.sin(t / 900 + i * 1.3)) * 3;
+      ctx.beginPath();
+      ctx.arc(bx, by, 2 + (i % 3) * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Signboard.
+  ctx.fillStyle = '#ece6d6';
+  ctx.fillRect(x + 24, y - 30, 18, 12);
+  ctx.strokeStyle = '#5f4023';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x + 33, y - 18);
+  ctx.lineTo(x + 33, y + 4);
+  ctx.stroke();
+  ctx.fillStyle = '#4a90c2';
+  ctx.beginPath();
+  ctx.arc(x + 30, y - 24, 2.2, 0, Math.PI * 2);
+  ctx.arc(x + 36, y - 25, 1.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// Treat Dispenser: a hopper on a post at the trough's far end, mirroring
+// the silo, with a coloured window showing which treat it holds most of.
+export function drawTreatDispenser(ctx: CanvasRenderingContext2D, state: GameState): void {
+  const level = upgradeLevel(state, 'treatDispenser');
+  if (level === 0) return;
+  const { x, y } = FEEDER_POS;
+  const dx = x + 64;
+  ctx.save();
+  groundShadow(ctx, dx, y + 16, 12, 4);
+  ctx.strokeStyle = '#5f4023';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(dx, y - 6);
+  ctx.lineTo(dx, y + 14);
+  ctx.stroke();
+  const h = 18 + level * 6;
+  const top = y - 10 - h;
+  ctx.fillStyle = '#c9b48a';
+  ctx.fillRect(dx - 11, top, 22, h);
+  ctx.strokeStyle = '#8a6238';
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(dx - 11, top, 22, h);
+  // Window: the colour of the fullest treat, or empty glass.
+  let fullest: FoodKind | null = null;
+  for (const kind of TREATS) if (state.inventory[kind] > 0 && (fullest === null || state.inventory[kind] > state.inventory[fullest])) fullest = kind;
+  ctx.fillStyle = fullest ? FOODS[fullest].color : 'rgba(255, 255, 255, 0.25)';
+  ctx.fillRect(dx - 7, top + 5, 14, h - 12);
+  // Spout.
+  ctx.fillStyle = '#8a6238';
+  ctx.beginPath();
+  ctx.moveTo(dx - 6, top + h);
+  ctx.lineTo(dx + 6, top + h);
+  ctx.lineTo(dx + 2, y - 4);
+  ctx.lineTo(dx - 2, y - 4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 }
 
 export function drawNest(ctx: CanvasRenderingContext2D, state: GameState): void {

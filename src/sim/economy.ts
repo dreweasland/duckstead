@@ -75,7 +75,9 @@ export type UpgradeId =
   | 'brooderLamp'
   | 'feedSilo'
   | 'vetClinic'
-  | 'bachelorPen';
+  | 'bachelorPen'
+  | 'bathHouse'
+  | 'treatDispenser';
 
 interface UpgradeDef {
   id: UpgradeId;
@@ -192,6 +194,22 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 1,
     costs: [1500],
   },
+  // The two chores that scale worst with a big flock get the silo treatment:
+  // a structure that does the rounds for you as long as you keep it stocked.
+  {
+    id: 'bathHouse',
+    name: 'Bath House',
+    description: 'At dawn, scrubs every duck below 60% clean — one bar of soap each. Keep soap in stock.',
+    maxLevel: 1,
+    costs: [700],
+  },
+  {
+    id: 'treatDispenser',
+    name: 'Treat Dispenser',
+    description: 'Each daytime hour, hands a treat from your stock to the gloomiest duck below 70% — its favourite first, once you have found it. +1 duck an hour per level.',
+    maxLevel: 2,
+    costs: [900, 2000],
+  },
 ];
 
 // Festival sponsorship: coins buy a tier on the next edition of a festival
@@ -213,7 +231,7 @@ export function sponsorFestival(state: GameState, kind: string): boolean {
 }
 
 export interface ShopItemDef {
-  id: 'feed' | 'premiumFeed' | 'peas' | 'worms' | 'berries' | 'medicine' | 'starterDuck';
+  id: 'feed' | 'premiumFeed' | 'peas' | 'worms' | 'berries' | 'medicine' | 'soap' | 'starterDuck';
   name: string;
   description: string;
   cost: number;
@@ -231,6 +249,7 @@ export const SHOP_ITEMS: ShopItemDef[] = [
   { id: 'worms', name: 'Worms ×10', description: 'A treat: +45 hunger, +2 happiness. Some ducks love them.', cost: 10 },
   { id: 'berries', name: 'Berries ×10', description: 'A treat: +40 hunger, +3 happiness. Some ducks love them.', cost: 10 },
   { id: 'medicine', name: 'Medicine', description: 'Cures a sick duck, +30 health.', cost: 20 },
+  { id: 'soap', name: 'Soap ×10', description: 'One bar scrubs one duck in the Bath House.', cost: 6 },
   {
     id: 'starterDuck',
     name: 'Adopt a Duck',

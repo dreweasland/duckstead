@@ -8,7 +8,7 @@ import { BALANCE, eggWarmthDecayScale, overcrowding, upgradeLevel } from './econ
 import { events } from '../events';
 import { festivalToday } from './calendar';
 import { isPondDirty } from './pond';
-import { eatFood, takeStock, type EatResult, type FoodKind } from './food';
+import { eatFood, takeStock, type EatResult, type FoodKind, favouriteTreat, stockOf, TREATS, type TreatKind, FOODS } from './food';
 import { drakePressure } from './flockBalance';
 import { isNight, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 import { happinessDecayScale, hasMark, sicknessScale, upbringingOf } from './marks';
@@ -136,9 +136,21 @@ export function tickNeeds(state: GameState, rng: Rng): void {
   }
 
   // Feed Silo: the trough tops itself up at dawn.
-  if (upgradeLevel(state, 'feedSilo') > 0 && state.clock.totalTicks % TICKS_PER_DAY === 6 * TICKS_PER_HOUR) {
+  const dawnTick = state.clock.totalTicks % TICKS_PER_DAY === 6 * TICKS_PER_HOUR;
+  if (upgradeLevel(state, 'feedSilo') > 0 && dawnTick) {
     const moved = fillFeeder(state);
     if (moved > 0) events.emit('toast', `The silo poured ${moved} feed into the trough`);
+  }
+  if (upgradeLevel(state, 'bathHouse') > 0 && dawnTick) {
+    const { scrubbed, unwashed } = runBathHouse(state);
+    if (scrubbed > 0) events.emit('toast', `The bath house scrubbed ${scrubbed === 1 ? 'one duck' : `${scrubbed} ducks`}`);
+    if (unwashed > 0) events.emit('toast', 'The bath house is out of soap');
+  }
+  // Treat Dispenser: on the hour, by day.
+  if (upgradeLevel(state, 'treatDispenser') > 0 && !night && state.clock.totalTicks % TICKS_PER_HOUR === 0) {
+    for (const found of runTreatDispenser(state).discovered) {
+      events.emit('toast', `The dispenser found ${found.duck.name}'s favourite: ${FOODS[found.treat].name.toLowerCase()}!`);
+    }
   }
 
   // Uneaten food spoils after a couple of game-hours.
@@ -258,6 +270,58 @@ export function medicateDuck(state: GameState, duckId: string): boolean {
 }
 
 export const FEEDER_CAPACITY = 20;
+
+// The Bath House does the morning brushing: every duck under the threshold
+// gets a scrub for one bar of soap. Returns how many were washed and how
+// many were left dirty because the soap ran out.
+export function runBathHouse(state: GameState): { scrubbed: number; unwashed: number } {
+  let scrubbed = 0;
+  let unwashed = 0;
+  for (const duck of state.ducks) {
+    if (duck.stage === 'egg' || duck.needs.cleanliness >= TUNING.care.bathThreshold) continue;
+    if (state.inventory.soap <= 0) {
+      unwashed += 1;
+      continue;
+    }
+    state.inventory.soap -= 1;
+    duck.needs.cleanliness = clamp(duck.needs.cleanliness + BALANCE.cleanRestore, 0, 100);
+    scrubbed += 1;
+  }
+  return { scrubbed, unwashed };
+}
+
+// The Treat Dispenser hands out treats from the shared stock: the gloomiest
+// ducks under the threshold first, one per level. A duck whose favourite is
+// known (and in stock) gets that; otherwise whichever treat there is most
+// of, so a favourite can still be discovered by the machine.
+export function runTreatDispenser(state: GameState): { given: number; discovered: Array<{ duck: Duck; treat: TreatKind }> } {
+  const slots = upgradeLevel(state, 'treatDispenser');
+  const discovered: Array<{ duck: Duck; treat: TreatKind }> = [];
+  let given = 0;
+  const gloomy = state.ducks
+    .filter((d) => d.stage !== 'egg' && d.needs.happiness < TUNING.care.dispenserThreshold)
+    .sort((a, b) => a.needs.happiness - b.needs.happiness);
+  for (const duck of gloomy) {
+    if (given >= slots) break;
+    const treat = pickTreatFor(state, duck);
+    if (!treat) break; // the hopper is empty
+    takeStock(state, treat);
+    const result = eatFood(state, duck, treat);
+    if (result.discovered) discovered.push({ duck, treat });
+    given += 1;
+  }
+  return { given, discovered };
+}
+
+function pickTreatFor(state: GameState, duck: Duck): TreatKind | null {
+  if (duck.favouriteKnown) {
+    const fav = favouriteTreat(duck);
+    if (stockOf(state, fav) > 0) return fav;
+  }
+  let best: TreatKind | null = null;
+  for (const kind of TREATS) if (stockOf(state, kind) > 0 && (best === null || stockOf(state, kind) > stockOf(state, best))) best = kind;
+  return best;
+}
 
 export function feederCapacity(state: GameState): number {
   return FEEDER_CAPACITY + upgradeLevel(state, 'feedSilo') * 20;

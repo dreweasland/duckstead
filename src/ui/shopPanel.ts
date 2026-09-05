@@ -78,6 +78,7 @@ const SUPPLY_META: Record<ShopItemDef['id'], { icon: IconName; blurb: string; ch
   worms: { icon: 'heart', blurb: 'A treat some ducks love.', chips: foodChips('worms'), food: 'worms' },
   berries: { icon: 'heart', blurb: 'A treat some ducks love.', chips: foodChips('berries'), food: 'berries' },
   medicine: { icon: 'pill', blurb: 'Cures sickness on the spot.', chips: ['cures', '+30 health'] },
+  soap: { icon: 'bubbles', blurb: 'Stocks the Bath House: one bar per duck scrubbed.', chips: ['bath house'] },
   starterDuck: { icon: 'duck', blurb: 'A random adult with common genes.', chips: ['adult', 'common genes'] },
 };
 
@@ -97,6 +98,8 @@ const UPGRADE_META: Record<UpgradeId, { icon: IconName; blurb: string; chips: st
   trainingPerch: { icon: 'flag', blurb: 'Room for more drills: every duck trains once more a day per level.', chips: ['+1 drill/day'] },
   vetClinic: { icon: 'pill', blurb: 'A resident vet keeps the flock on its feet.', chips: ['½ sickness', '2× medicine'] },
   bachelorPen: { icon: 'duck', blurb: 'Surplus drakes sit out of breeding — no pressure on the hens, no selling.', chips: ['+3 places', 'no drake pressure'] },
+  bathHouse: { icon: 'bubbles', blurb: 'Scrubs the whole flock at dawn while the soap lasts.', chips: ['auto-brush', 'uses soap'] },
+  treatDispenser: { icon: 'heart', blurb: 'Hands out treats from your stock all day, favourites first.', chips: ['+1 duck/hour', 'favourites first'] },
 };
 
 export function renderShopPanel(ctx: PanelCtx): HTMLElement {
@@ -206,7 +209,7 @@ function suppliesTab(ctx: PanelCtx): HTMLElement {
     const meta = SUPPLY_META[item.id];
     const cost = consumableCost(state, item);
     const sale = cost < item.cost;
-    const stock = meta.food ? state.inventory[meta.food] : item.id === 'medicine' ? state.inventory.medicine : null;
+    const stock = meta.food ? state.inventory[meta.food] : item.id === 'medicine' ? state.inventory.medicine : item.id === 'soap' ? state.inventory.soap : null;
     const badge = meta.food && FOODS[meta.food].treat ? treatBadge(meta.food) : icon(meta.icon, 18);
     const full = item.id === 'starterDuck' && !pondHasRoom(state);
     grid.append(
@@ -802,6 +805,10 @@ function buyItem(ctx: PanelCtx, id: string, cost: number): void {
     case 'medicine':
       state.money -= cost;
       state.inventory.medicine += 1;
+      break;
+    case 'soap':
+      state.money -= cost;
+      state.inventory.soap += 10;
       break;
     case 'starterDuck': {
       if (!pondHasRoom(state)) {

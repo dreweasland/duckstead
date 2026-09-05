@@ -5,7 +5,7 @@ import type { GameState } from '../state';
 import { flock } from '../state';
 import type { Duck } from './duck';
 import { breedReadiness, eggWarmth } from './needs';
-import { duckCapacity, henEggPrice, overcrowding, pondHasRoom, pondOccupancy } from './economy';
+import { duckCapacity, henEggPrice, overcrowding, pondHasRoom, pondOccupancy, upgradeLevel } from './economy';
 import { describeRequest, matchesRequest, requestPrice, TREATS_TO_RECRUIT } from './visitors';
 import { festivalToday, FESTIVAL_NAMES, upcomingFestival } from './festivals';
 import { dayOf, dayOfSeason, seasonOf, yearOf } from './time';
@@ -15,6 +15,7 @@ import { penCapacity, penDucks } from './pen';
 import type { Season } from '../types';
 import { TUNING } from './tuning';
 import { plural } from '../text';
+import { TREATS } from './food';
 
 type DawnIcon =
   | 'coin' | 'duck' | 'egg' | 'flag' | 'heart' | 'wheat' | 'bubbles' | 'sparkle' | 'warning' | 'pill' | 'grave'
@@ -186,6 +187,12 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
   if (hungry > 0) chores.push({ icon: 'wheat', text: `${plural(hungry, 'duck')} hungry after the night.`, urgent: true });
   const sick = active.filter((d) => d.sick).length;
   if (sick > 0) chores.push({ icon: 'pill', text: `${plural(sick, 'duck')} sick.`, detail: 'Medicine is in the shop.', urgent: true });
+  if (upgradeLevel(state, 'bathHouse') > 0 && state.inventory.soap === 0) {
+    chores.push({ icon: 'bubbles', text: 'The bath house is out of soap.', detail: 'Nobody gets scrubbed at dawn until you restock at the shop.' });
+  }
+  if (upgradeLevel(state, 'treatDispenser') > 0 && TREATS.every((t) => state.inventory[t] === 0)) {
+    chores.push({ icon: 'heart', text: 'The treat dispenser is empty.', detail: 'Load it by buying peas, worms, or berries.' });
+  }
   if (state.inventory.feed < 5 && state.feeder.food === 0) {
     chores.push({ icon: 'wheat', text: `Feed is low (${state.inventory.feed} left).`, detail: 'Gather duckweed from the rim or visit the shop.' });
   }

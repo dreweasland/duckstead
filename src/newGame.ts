@@ -39,7 +39,7 @@ export function createNewGame(seed: number): { state: GameState; rng: Rng } {
     nextPelletId: 1,
     pendingClutches: [],
     upgrades: {},
-    inventory: { feed: 10, premiumFeed: 3, peas: 5, worms: 0, berries: 0, medicine: 1, eggs: 0 },
+    inventory: { feed: 10, premiumFeed: 3, peas: 5, worms: 0, berries: 0, medicine: 1, soap: 0, eggs: 0 },
     pond: { cleanliness: 100 },
     feeder: { food: 0 },
     bugs: [],

@@ -4,7 +4,7 @@ import { hourOf, seasonOf } from '../sim/time';
 import { effectiveScale, renderLayer } from './layout';
 import { darknessAt, drawClouds, drawSky, drawStars, drawSunMoon, drawVignette } from './sky';
 import { drawGrass, drawGroundDecor, drawTreeline, drawTrees, grassColor } from './ground';
-import { drawBachelorPen, drawFeeder, drawNest, drawVetClinic } from './structures';
+import { drawBachelorPen, drawBathHouse, drawFeeder, drawNest, drawTreatDispenser, drawVetClinic } from './structures';
 import { drawPond } from './pond';
 
 // The scene is painted by the modules below; the renderer imports the
@@ -46,7 +46,9 @@ export function drawScene(ctx: CanvasRenderingContext2D, state: GameState, timeM
   }
   ctx.drawImage(groundCache.canvas, 0, 0, WORLD_W, WORLD_H);
   drawVetClinic(ctx, state);
+  drawBathHouse(ctx, state, timeMs);
   drawFeeder(ctx, state);
+  drawTreatDispenser(ctx, state);
   drawNest(ctx, state);
   drawBachelorPen(ctx, state);
   drawPond(ctx, state, hour, timeMs);

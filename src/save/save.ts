@@ -61,7 +61,7 @@ export function deserialize(json: string): GameState {
   // Saves from before the feeder/goals/bugs existed lack those fields.
   // Container objects first — the member backfills below dereference them.
   state.upgrades ??= {};
-  state.inventory ??= { feed: 0, premiumFeed: 0, peas: 0, worms: 0, berries: 0, medicine: 0, eggs: 0 };
+  state.inventory ??= { feed: 0, premiumFeed: 0, peas: 0, worms: 0, berries: 0, medicine: 0, soap: 0, eggs: 0 };
   state.foodPellets ??= [];
   state.memorial ??= [];
   state.memorial = trimMemorial(state.memorial); // heal saves from before the cap
@@ -102,6 +102,7 @@ export function deserialize(json: string): GameState {
   state.inventory.peas ??= 0;
   state.inventory.worms ??= 0;
   state.inventory.berries ??= 0;
+  state.inventory.soap ??= 0;
   state.goals ??= {};
   // Backfill the breed book from the living flock, but only on the first
   // migration — re-running on every load would inflate the counts.

@@ -479,7 +479,7 @@ export function pondScreen(ctx: Ctx): HTMLElement {
             if (state.money < cost) return;
             state.money -= cost;
             if (item.id === 'medicine') state.inventory.medicine += 1;
-            else state.inventory[item.id as 'feed' | 'premiumFeed' | 'peas' | 'worms' | 'berries'] += 10;
+            else state.inventory[item.id as 'feed' | 'premiumFeed' | 'peas' | 'worms' | 'berries' | 'soap'] += 10;
             events.emit('purchase');
           }),
         },

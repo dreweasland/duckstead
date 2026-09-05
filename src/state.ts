@@ -196,7 +196,7 @@ export interface GameState {
   pendingClutches: PendingClutch[];
   upgrades: Partial<Record<UpgradeId, number>>;
   // `eggs` is the basket of unfertilised hen eggs gathered from the grass.
-  inventory: { feed: number; premiumFeed: number; peas: number; worms: number; berries: number; medicine: number; eggs: number };
+  inventory: { feed: number; premiumFeed: number; peas: number; worms: number; berries: number; medicine: number; soap: number; eggs: number };
   pond: { cleanliness: number };
   feeder: { food: number };
   bugs: Bug[];
