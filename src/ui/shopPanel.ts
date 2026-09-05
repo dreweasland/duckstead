@@ -558,6 +558,9 @@ function studSection(ctx: PanelCtx): HTMLElement {
     class: 'stud-hen-pick',
     onchange: (e) => {
       studHenId = (e.target as HTMLSelectElement).value;
+      // The refresh holds off while a select has focus (so it never steals
+      // a keystroke); let go of it so the odds rebuild at once.
+      (e.target as HTMLSelectElement).blur();
       ctx.ui.refreshPanel();
     },
   });
@@ -573,6 +576,7 @@ function studSection(ctx: PanelCtx): HTMLElement {
     class: 'stud-hen-pick',
     onchange: (e) => {
       studPickId = (e.target as HTMLSelectElement).value;
+      (e.target as HTMLSelectElement).blur();
       ctx.ui.refreshPanel();
     },
   });
