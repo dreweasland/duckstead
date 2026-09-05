@@ -225,6 +225,10 @@ body.feeding #pond-canvas {
   color: #e08585;
 }
 
+.chip-soap .icon {
+  color: #7fb6d8;
+}
+
 .festival-chip {
   color: var(--muted);
   cursor: pointer;
@@ -4317,7 +4321,8 @@ body.feeding #pond-canvas {
      them showing.) */
   .chip-feed,
   .chip-premium,
-  .chip-medicine {
+  .chip-medicine,
+  .chip-soap {
     display: none;
   }
   .hud {
@@ -4563,6 +4568,12 @@ body.feeding #pond-canvas {
 .drill-detail {
   text-align: center;
   font-size: 0.95em;
+}
+
+.drill-squad {
+  color: var(--gold);
+  font-size: 13px;
+  margin-top: 4px;
 }
 
 /* --- Rivals, stud service, the Cup, more drills --- */

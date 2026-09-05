@@ -28,7 +28,7 @@ describe('inseparable ducks', () => {
     near.drake.pos = { ...near.hen.pos };
     const happy = near.drake.needs.happiness;
     const gainNear = train(near.state, near.hen.id, 'stamina', 0);
-    expect(gainNear).toBe(gainFar + TRAINING.friendBonus);
+    expect(gainNear).toBe(gainFar + TRAINING.friendBonus * TRAINING.gainScale); // the friend bonus scales with training day
     expect(near.drake.needs.happiness).toBe(Math.min(100, happy + TRAINING.friendCheer));
     expect(far.drake.needs.happiness).toBeLessThanOrEqual(happy); // no cheer from afar
   });

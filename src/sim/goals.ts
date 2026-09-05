@@ -275,7 +275,7 @@ export const GOALS: GoalDef[] = [
     {
       id: 'paddle-50',
       label: "Train a duck's paddle to 50",
-      hint: 'Paddle drills, every day. Stats fade a point a day, so keep at it; a friend watching adds a point.',
+      hint: 'Paddle drills every training day (every third day, for triple points). Stats fade a point a day, so keep at it; a friend watching adds a point.',
       reward: 30,
       target: 1,
       value: (s) => (s.ducks.some((d) => (d.training?.paddle ?? 0) >= 50) ? 1 : 0),
@@ -360,7 +360,7 @@ export const GOALS: GoalDef[] = [
     {
       id: 'all-round',
       label: 'Raise an all-rounder (three stats at 50+)',
-      hint: "Split one duck's drills across paddle, stamina, and poise. The Training Perch buys the extra drills a day you'll need.",
+      hint: "Split one duck's drills across paddle, stamina, and poise. The Training Perch buys the extra drills per training day you'll need.",
       reward: 80,
       target: 1,
       value: (s) => (s.ducks.some((d) => d.training && d.training.paddle >= 50 && d.training.stamina >= 50 && d.training.poise >= 50) ? 1 : 0),

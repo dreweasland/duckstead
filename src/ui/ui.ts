@@ -12,7 +12,7 @@ import { FOODS, TREATS, type FoodKind, type TreatKind } from '../sim/food';
 import { isUnlocked, UNLOCK_LABELS, UNLOCKABLES } from '../sim/unlocks';
 import { cleanPond } from '../sim/pond';
 import { duckById } from '../state';
-import { duckCapacity, pondOccupancy } from '../sim/economy';
+import { duckCapacity, pondOccupancy, upgradeLevel } from '../sim/economy';
 import { el } from './dom';
 import { icon } from './icons';
 import { railSignature, renderCardRail } from './cardRail';
@@ -50,8 +50,8 @@ const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .societ
 export class UI {
   private root: HTMLElement;
   private hudClock!: HTMLElement;
-  private hudCounts: Record<'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society', HTMLElement> =
-    {} as Record<'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society', HTMLElement>;
+  private hudCounts: Record<'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society', HTMLElement> =
+    {} as Record<'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society', HTMLElement>;
   private panelHost: HTMLElement;
   private toastHost: HTMLElement;
   private bannerHost: HTMLElement;
@@ -585,6 +585,12 @@ export class UI {
     this.hudCounts.feed.textContent = String(s.inventory.feed);
     this.hudCounts.premium.textContent = String(s.inventory.premiumFeed);
     this.hudCounts.medicine.textContent = String(s.inventory.medicine);
+    // Soap only matters once there is a bath house to use it; until then the
+    // chip stays out of the bar (unless some was bought anyway).
+    const bathHouse = upgradeLevel(s, 'bathHouse') > 0;
+    this.hudCounts.soap.textContent = String(s.inventory.soap);
+    this.hudCounts.soap.parentElement!.hidden = !bathHouse && s.inventory.soap === 0;
+    this.hudCounts.soap.parentElement?.classList.toggle('chip-low', bathHouse && s.inventory.soap === 0);
     this.hudCounts.eggs.textContent = String(s.inventory.eggs);
     this.hudCounts.society.textContent = String(s.society.points);
     for (const [kind, node] of Object.entries(this.careCounts)) {

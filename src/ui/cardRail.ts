@@ -9,7 +9,7 @@ import { icon, sexBadge, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { quickActions, type QuickHandlers } from './quickActions';
 import { byAge, byHunger, byName, byPedigree } from './duckSort';
-import { drillsLeft } from '../sim/training';
+import { drillsLeft, isTrainingDay } from '../sim/training';
 import { plural } from '../text';
 
 interface RailHandlers extends QuickHandlers {
@@ -153,7 +153,7 @@ function miniCard(game: Game, duck: Duck, handlers: RailHandlers): HTMLElement {
 // A duck's training for the day, as a chip: drills still to run, or done.
 // Ducklings can't train and get nothing.
 export function trainingChip(game: Game, duck: Duck, size = 10, compact = false): HTMLElement | null {
-  if (duck.stage === 'egg' || duck.stage === 'duckling') return null;
+  if (duck.stage === 'egg' || duck.stage === 'duckling' || !isTrainingDay(game.state)) return null;
   const left = drillsLeft(game.state, duck);
   if (left > 0) {
     const label = compact ? (left > 1 ? String(left) : '') : left > 1 ? `${left} drills` : 'drill';

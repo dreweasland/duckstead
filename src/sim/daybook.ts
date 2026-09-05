@@ -15,6 +15,7 @@ import { penCapacity, penDucks } from './pen';
 import type { Season } from '../types';
 import { TUNING } from './tuning';
 import { plural } from '../text';
+import { isTrainingDay, squadSize, TRAINING } from './training';
 import { TREATS } from './food';
 
 type DawnIcon =
@@ -96,6 +97,13 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
       icon: 'flag',
       text: `It's the ${FESTIVAL_NAMES[today]}!`,
       detail: pocket ? 'Festivals are played at the desktop.' : 'Open the festival chip in the top bar to take part.',
+    });
+  }
+  if (isTrainingDay(state) && active.some((d) => d.stage !== 'duckling')) {
+    opportunities.push({
+      icon: 'flag',
+      text: 'Training day.',
+      detail: `Drills are worth ${TRAINING.gainScale}× today, and each one trains a squad of ${squadSize(state)}. Next one in ${TRAINING.cadenceDays} days.`,
     });
   }
   if (state.request) {

@@ -13,7 +13,7 @@ import { sellDuck, sellPrice } from '../sim/economy';
 import { matchesRequest, requestPrice, sellToBuyer } from '../sim/visitors';
 import { personalityLabels } from '../sim/behavior';
 import { MARKS } from '../sim/marks';
-import { canDrill, drillCoinsLeft, drillsLeft, drillsPerDay, TRAIN_STAT_META, TRAIN_STATS, trainingOf } from '../sim/training';
+import { canDrill, drillCoinsLeft, drillsLeft, drillsPerDay, isTrainingDay, nextTrainingDayIn, squadSize, TRAIN_STAT_META, TRAIN_STATS, TRAINING, trainingOf } from '../sim/training';
 import { DRILL_META, openDrill } from './trainingPanel';
 import { openPhoto } from './photo';
 import { rivalEggOffer, sellEggToRival } from '../sim/rivals';
@@ -260,7 +260,15 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
         'div',
         { class: 'pedigree-head' },
         el('strong', {}, 'Training'),
-        el('span', { class: 'muted small' }, `${left}/${drillsPerDay(game.state)} drills today`),
+        el(
+          'span',
+          { class: 'muted small' },
+          isTrainingDay(game.state)
+            ? `${left}/${drillsPerDay(game.state)} drills today · squad of ${squadSize(game.state)}`
+            : nextTrainingDayIn(game.state) === 1
+              ? 'training day tomorrow'
+              : `training day in ${nextTrainingDayIn(game.state)} days`,
+        ),
       ),
     );
     for (const stat of TRAIN_STATS) {
@@ -292,7 +300,11 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
     }
     box.append(
       drills,
-      el('div', { class: 'muted small' }, `Stats fade a point a day. Bold ducks take to sprints; timid ones to poise. Drills pay up to ${drillCoinsLeft(game.state)} more coins today.`),
+      el(
+        'div',
+        { class: 'muted small' },
+        `Training day comes every ${TRAINING.cadenceDays} days and a drill is worth ${TRAINING.gainScale}× the points; each drill also trains the nearest ${squadSize(game.state) - 1 === 1 ? 'pond-mate' : `${squadSize(game.state) - 1} pond-mates`} (the Training Perch adds more). Stats fade a point a day. Drills pay up to ${drillCoinsLeft(game.state)} more coins today.`,
+      ),
     );
     careTab.append(box);
   }

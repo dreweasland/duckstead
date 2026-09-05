@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../newGame';
-import { canDrill, drillsLeft, drillsPerDay, tickTraining, train, trainingAptitude, TRAINING } from './training';
+import { canDrill, drillsLeft, drillsPerDay, isTrainingDay, nextTrainingDayIn, squadFor, squadSize, tickTraining, train, trainingAptitude, TRAINING, trainSquad } from './training';
 import { TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 
 describe('training', () => {
@@ -22,6 +22,47 @@ describe('training', () => {
     const { state } = createNewGame(10);
     state.upgrades.trainingPerch = 2;
     expect(drillsPerDay(state)).toBe(3);
+  });
+
+  it('drills only happen on training day, every third day, for triple points', () => {
+    const { state } = createNewGame(10);
+    const duck = state.ducks[0];
+    expect(isTrainingDay(state)).toBe(true); // day 0
+    const gain = train(state, duck.id, 'paddle', 1);
+    // A perfect drill on a fresh stat: (2 + 14) × aptitude × 3, give or take rounding and a friend.
+    expect(gain).toBeGreaterThanOrEqual(Math.round(TRAINING.gainMax * 0.8 * TRAINING.gainScale));
+    state.clock.totalTicks += TICKS_PER_DAY; // day 1
+    expect(isTrainingDay(state)).toBe(false);
+    expect(nextTrainingDayIn(state)).toBe(2);
+    expect(canDrill(state, duck).reason).toBe('Training day is in 2 days');
+    expect(train(state, duck.id, 'paddle', 1)).toBe(0);
+    state.clock.totalTicks += TICKS_PER_DAY; // day 2
+    expect(canDrill(state, duck).reason).toBe('Training day is tomorrow');
+    state.clock.totalTicks += TICKS_PER_DAY; // day 3
+    expect(isTrainingDay(state)).toBe(true);
+    expect(train(state, duck.id, 'paddle', 1)).toBeGreaterThan(0);
+  });
+
+  it('one drill trains a squad of the nearest eligible ducks, one more per perch level', () => {
+    const { state } = createNewGame(12);
+    const [leader, near, far, penned] = state.ducks;
+    leader.pos = { x: 400, y: 400 };
+    near.pos = { x: 420, y: 400 };
+    far.pos = { x: 700, y: 400 };
+    penned.pos = { x: 410, y: 400 };
+    penned.penned = true;
+    expect(squadSize(state)).toBe(1);
+    expect(squadFor(state, leader)).toEqual([]);
+    state.upgrades.trainingPerch = 1;
+    expect(squadSize(state)).toBe(2);
+    expect(squadFor(state, leader).map((d) => d.id)).toEqual([near.id]); // nearest, and never a penned duck
+    const result = trainSquad(state, leader.id, 'stamina', 0.7);
+    expect(result.gain).toBeGreaterThan(0);
+    expect(result.squad.map((m) => m.duck.id)).toEqual([near.id]);
+    expect(near.training?.stamina).toBe(result.squad[0].gain);
+    expect(far.training).toBeUndefined();
+    expect(drillsLeft(state, near)).toBe(drillsPerDay(state) - 1); // the squad-mate used a slot too
+    expect(state.stats.drills).toBe(2);
   });
 
   it('quality scales the gain; a fumbled drill still teaches a little', () => {

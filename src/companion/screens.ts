@@ -36,7 +36,7 @@ import { representativeGenome } from '../sim/breedBook';
 import { createDuck } from '../sim/duck';
 import { createRng } from '../rng';
 import { hourOf, TICKS_PER_MINUTE } from '../sim/time';
-import { canDrill, drillsLeft, train, TRAIN_STATS, trainingOf } from '../sim/training';
+import { canDrill, drillsLeft, isTrainingDay, nextTrainingDayIn, trainSquad, TRAIN_STATS, trainingOf } from '../sim/training';
 import { MARKS } from '../sim/marks';
 import { personalityLabels } from '../sim/behavior';
 import { describeLifeEvent, lifeEventChoices, resolveLifeEvent } from '../sim/lifeEvents';
@@ -178,14 +178,14 @@ export function duckScreen(ctx: Ctx, duck: Duck, back: () => void): HTMLElement 
     const gate = canDrill(state, duck);
     const drills = el('div', { class: 'comp-actions' });
     for (const stat of TRAIN_STATS) {
-      drills.append(btn(`Drill ${stat} (${Math.round(t[stat])})`, gate.ok, () => train(state, duck.id, stat, 0.4)));
+      drills.append(btn(`Drill ${stat} (${Math.round(t[stat])})`, gate.ok, () => trainSquad(state, duck.id, stat, 0.4)));
     }
     const left = drillsLeft(state, duck);
     box.append(
       el(
         'section',
         { class: 'comp-section' },
-        el('h2', {}, `Training · ${plural(left, 'drill')} left today`),
+        el('h2', {}, isTrainingDay(state) ? `Training day · ${plural(left, 'drill')} left` : `Training · next training day in ${plural(nextTrainingDayIn(state), 'day')}`),
         // Tooltips never show on touch: the reason a drill is off goes in the text.
         el('div', { class: 'comp-muted small' }, gate.ok ? 'Pocket drills go through the motions at modest form; the desktop drills earn far more.' : gate.reason ?? 'No drills right now.'),
         drills,

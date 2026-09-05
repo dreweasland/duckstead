@@ -11,7 +11,7 @@ import { icon } from './icons';
 import { keyFor, keyLabel } from './settings';
 import { TUNING } from '../sim/tuning';
 
-type HudCountKey = 'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society';
+type HudCountKey = 'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society';
 
 interface HudHost {
   game: Game;
@@ -71,7 +71,7 @@ export function buildHud(host: HudHost): HudRefs {
 
   // Resource chips: the icon is built once; only the count span updates.
   const chip = (
-    key: 'coin' | 'feed' | 'premium' | 'medicine' | 'pond' | 'flock' | 'eggs' | 'society',
+    key: HudCountKey,
     iconName: Parameters<typeof icon>[0],
     label: string,
   ): HTMLElement => {
@@ -86,6 +86,7 @@ export function buildHud(host: HudHost): HudRefs {
     chip('feed', 'wheat', 'Feed'),
     chip('premium', 'sparkle', 'Premium feed'),
     chip('medicine', 'pill', 'Medicine'),
+    chip('soap', 'bubbles', 'Soap — the bath house uses a bar per duck at dawn'),
     chip('eggs', 'egg', 'Egg basket — hens lay daily; sell at the shop'),
     chip('pond', 'bubbles', `Pond cleanliness — wild ducks only visit above ${TUNING.visitors.inviteCleanliness}%`),
     chip('flock', 'duck', 'Ducks on the pond / capacity — over it, the flock is stressed. Elders have earned a free spot and don\'t count.'),

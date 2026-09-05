@@ -12,7 +12,7 @@
 // that sim/training turns into points.
 import type { Game } from '../game';
 import type { Duck } from '../sim/duck';
-import { canDrill, drillsLeft, train, TRAIN_STAT_META, type TrainStat } from '../sim/training';
+import { canDrill, drillsLeft, trainSquad, TRAIN_STAT_META, type TrainStat } from '../sim/training';
 import { computeAnim } from '../render/animation';
 import { drawDuck } from '../render/duckPainter';
 import { el, statTile } from './dom';
@@ -127,7 +127,7 @@ export function openDrill(game: Game, ui: UiHooks, duck: Duck, stat: TrainStat):
     if (done) return;
     done = true;
     cleanup();
-    const gain = train(game.state, duck.id, stat, quality);
+    const { gain, squad } = trainSquad(game.state, duck.id, stat, quality);
     const live = game.state.ducks.find((d) => d.id === duck.id);
     const after = live?.training?.[stat] ?? 0;
     const form = quality >= 0.8 ? 'Perfect form!' : quality >= 0.55 ? 'Good work' : quality >= 0.3 ? 'Sloppy, but it counts' : 'A fumbled drill';
@@ -143,11 +143,17 @@ export function openDrill(game: Game, ui: UiHooks, duck: Duck, stat: TrainStat):
         statTile('sparkle', String(live ? drillsLeft(game.state, live) : 0), 'drills left today'),
       ),
       el('div', { class: 'drill-detail' }, detail),
+      ...(squad.length > 0
+        ? [el('div', { class: 'drill-squad' }, `Drilled alongside: ${squad.map((m) => `${m.duck.name} +${m.gain}`).join(', ')}`)]
+        : []),
       el('div', { class: 'muted small' }, TRAIN_STAT_META[stat].blurb),
       backToPondRow(close),
     );
     ui.refresh();
-    if (gain > 0) ui.toast(`${duck.name} gained +${gain} ${TRAIN_STAT_META[stat].label.toLowerCase()}`);
+    if (gain > 0) {
+      const others = squad.length > 0 ? ` (and ${squad.length === 1 ? squad[0].duck.name : `${squad.length} squad-mates`})` : '';
+      ui.toast(`${duck.name} gained +${gain} ${TRAIN_STAT_META[stat].label.toLowerCase()}${others}`);
+    }
   };
 
   const scaffold: DrillScaffold = {

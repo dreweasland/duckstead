@@ -10,7 +10,7 @@ import { incubationPct } from '../sim/lifecycle';
 import type { Duck } from '../sim/duck';
 import { breedReadiness } from '../sim/needs';
 import { pedigreeScore } from '../sim/pedigree';
-import { drillsLeft } from '../sim/training';
+import { drillsLeft, isTrainingDay } from '../sim/training';
 import { trainingChip } from './cardRail';
 import type { GameState } from '../state';
 import { generationOf } from '../sim/lineage';
@@ -81,7 +81,7 @@ function matchesFilter(state: GameState, duck: Duck, filter: Filter, verdicts: R
     case 'care':
       return duck.stage !== 'egg' && needsCare(duck);
     case 'train':
-      return duck.stage !== 'egg' && duck.stage !== 'duckling' && drillsLeft(state, duck) > 0;
+      return duck.stage !== 'egg' && duck.stage !== 'duckling' && isTrainingDay(state) && drillsLeft(state, duck) > 0;
     case 'key':
       return verdicts.get(duck.id) === 'key';
     case 'penned':

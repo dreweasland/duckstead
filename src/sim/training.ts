@@ -1,7 +1,10 @@
 // Training: three stats a duck builds through drills, on top of what its
 // genes give it. Paddle feeds race speed, stamina keeps boosts going, poise
 // impresses show judges. Every stat fades a point a day, so a champion is
-// kept, not just bred — and the Training Perch buys extra drills a day.
+// kept, not just bred. Drills happen on training day — every few days, for
+// several times the points — and each drill trains a squad: the duck you
+// pick plus its nearest eligible pond-mates, one more per Training Perch
+// level. Daily drills across a big flock were a treadmill.
 import type { GameState } from '../state';
 import type { Duck } from './duck';
 import { clamp, dist } from '../types';
@@ -24,8 +27,11 @@ export interface Training {
 export const TRAINING = {
   max: 100,
   decayPerDay: 1,
-  baseDrills: 1, // drills per duck per day
+  cadenceDays: 3, // a training day every this many days (day 0 is one)
+  gainScale: 3, // a training-day drill is worth this many daily drills
+  baseDrills: 1, // drills per duck per training day
   perchDrills: 1, // ...plus this per Training Perch level
+  squadPerPerch: 1, // extra ducks trained by one drill, per Training Perch level
   hungerCost: 8,
   happiness: 3, // drills are play
   gainMin: 2, // a fumbled drill
@@ -55,6 +61,30 @@ export function drillsPerDay(state: GameState): number {
   return TRAINING.baseDrills + upgradeLevel(state, 'trainingPerch') * TRAINING.perchDrills;
 }
 
+export function isTrainingDay(state: GameState): boolean {
+  return dayOf(state.clock) % TRAINING.cadenceDays === 0;
+}
+
+// Days until the next training day; 0 when today is one.
+export function nextTrainingDayIn(state: GameState): number {
+  const c = TRAINING.cadenceDays;
+  return (c - (dayOf(state.clock) % c)) % c;
+}
+
+// How many ducks one drill trains: the one you picked plus its squad.
+export function squadSize(state: GameState): number {
+  return 1 + upgradeLevel(state, 'trainingPerch') * TRAINING.squadPerPerch;
+}
+
+// The pond-mates that join a duck's drill: the nearest ducks that could
+// drill right now, penned ducks excluded, up to the squad size.
+export function squadFor(state: GameState, leader: Duck): Duck[] {
+  return state.ducks
+    .filter((d) => d.id !== leader.id && !d.penned && canDrill(state, d).ok)
+    .sort((a, b) => dist(a.pos, leader.pos) - dist(b.pos, leader.pos))
+    .slice(0, squadSize(state) - 1);
+}
+
 export function drillsLeft(state: GameState, duck: Duck): number {
   const t = duck.training;
   const today = dayOf(state.clock);
@@ -64,6 +94,10 @@ export function drillsLeft(state: GameState, duck: Duck): number {
 
 export function canDrill(state: GameState, duck: Duck): { ok: boolean; reason?: string } {
   if (duck.stage === 'egg' || duck.stage === 'duckling') return { ok: false, reason: 'Too young to train' };
+  if (!isTrainingDay(state)) {
+    const n = nextTrainingDayIn(state);
+    return { ok: false, reason: n === 1 ? 'Training day is tomorrow' : `Training day is in ${n} days` };
+  }
   if (duck.sick) return { ok: false, reason: `${duck.name} is sick` };
   if (duck.needs.hunger < TRAINING.minHunger) return { ok: false, reason: `${duck.name} is too hungry to train` };
   if (drillsLeft(state, duck) <= 0) return { ok: false, reason: `${duck.name} has trained enough for today` };
@@ -96,13 +130,13 @@ export function train(state: GameState, duckId: string, stat: TrainStat, quality
   const q = clamp(quality, 0, 1);
   // Diminishing returns near the top: the last 20 points take real work.
   const headroom = 1 - (t[stat] / TRAINING.max) * 0.5;
-  const raw = (TRAINING.gainMin + (TRAINING.gainMax - TRAINING.gainMin) * q) * trainingAptitude(duck, stat) * headroom;
+  const raw = (TRAINING.gainMin + (TRAINING.gainMax - TRAINING.gainMin) * q) * trainingAptitude(duck, stat) * headroom * TRAINING.gainScale;
   let gain = Math.max(1, Math.round(raw));
   // A training partner: the duck's best friend watching from close by is
   // worth a point — and the friend enjoys the show.
   const friend = duck.friendId ? duckById(state, duck.friendId) : undefined;
   if (friend && friend.stage !== 'egg' && !friend.penned && dist(duck.pos, friend.pos) <= TRAINING.friendRange) {
-    gain += TRAINING.friendBonus;
+    gain += TRAINING.friendBonus * TRAINING.gainScale;
     friend.needs.happiness = clamp(friend.needs.happiness + TRAINING.friendCheer, 0, 100);
   }
   t[stat] = clamp(t[stat] + gain, 0, TRAINING.max);
@@ -118,6 +152,23 @@ export function train(state: GameState, duckId: string, stat: TrainStat, quality
     state.drillPurse.earned += coins;
   }
   return gain;
+}
+
+// One drill, whole squad: the leader and each squad member run the same
+// drill at the same form. Returns what each gained (0 for anyone who
+// couldn't train after all).
+export function trainSquad(
+  state: GameState,
+  leaderId: string,
+  stat: TrainStat,
+  quality: number,
+): { gain: number; squad: Array<{ duck: Duck; gain: number }> } {
+  const leader = duckById(state, leaderId);
+  if (!leader) return { gain: 0, squad: [] };
+  const squad = squadFor(state, leader);
+  const gain = train(state, leaderId, stat, quality);
+  if (gain === 0) return { gain: 0, squad: [] };
+  return { gain, squad: squad.map((duck) => ({ duck, gain: train(state, duck.id, stat, quality) })) };
 }
 
 // Coins a drill can still pay today.
@@ -141,7 +192,7 @@ export function tickTraining(state: GameState): void {
     }
   }
   if (faded > 0 && state.clock.totalTicks % (TICKS_PER_DAY * 6) === 6 * TICKS_PER_HOUR) {
-    events.emit('toast', 'Untrained stats fade a point a day — keep the drills up.');
+    events.emit('toast', `Untrained stats fade a point a day — training day comes round every ${TRAINING.cadenceDays} days.`);
   }
 }
 
