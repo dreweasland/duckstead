@@ -344,7 +344,9 @@ function locusOdds(a: Genome, b: Genome, id: LocusId, label: string): TraitOdds 
   return { label, locus: id, outcomes };
 }
 
-function offspringOdds(state: GameState, a: Duck, b: Duck): HTMLElement {
+// Shared with the stud service, which shows the same odds for a hen and a
+// hired drake.
+export function offspringOdds(state: GameState, a: Duck, b: Duck): HTMLElement {
   const box = el('div', { class: 'br-odds' });
 
   // Breed Book impact.

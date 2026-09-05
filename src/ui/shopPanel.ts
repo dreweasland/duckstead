@@ -37,7 +37,8 @@ import { createDuck } from '../sim/duck';
 import { randomCommonGenome, type Genome } from '../sim/genetics';
 import { FESTIVAL_NAMES, festivalTier, festivalToday, upcomingFestival } from '../sim/festivals';
 import { buyRivalEgg, hireStud, rivalDef, rivalDuck, rivalEggsForSale, rivalStrength, studOffers } from '../sim/rivals';
-import { nestFull as isNestFull } from '../sim/breeding';
+import { nestFull as isNestFull, pairViability } from '../sim/breeding';
+import { offspringOdds } from './breedingPanel';
 import { canEnterCup, cupOpen, cupPrize, cupStandings, enterCup } from '../sim/cup';
 import { TUNING } from '../sim/tuning';
 import { canBreedPair } from '../sim/needs';
@@ -540,8 +541,9 @@ function eggSaleSection(ctx: PanelCtx): HTMLElement {
   return box;
 }
 
-// Which hen the stud service courts; one choice for every offer.
+// Which hen the stud service courts, and which stud's odds are on show.
 let studHenId: string | null = null;
+let studPickId: string | null = null;
 
 // Stud service: hire a rival pond's best drake for one clutch with a hen of
 // yours. His genes are on show (the Scope reads them), the courtship runs
@@ -564,17 +566,64 @@ function studSection(ctx: PanelCtx): HTMLElement {
     if (h.id === hen?.id) opt.selected = true;
     picker.append(opt);
   }
+  // The stud whose clutch odds are shown: pick one, or the first on offer.
+  const offers = studOffers(state);
+  const pick = offers.find((o) => o.rivalId === studPickId) ?? offers[0];
+  const studPicker = el('select', {
+    class: 'stud-hen-pick',
+    onchange: (e) => {
+      studPickId = (e.target as HTMLSelectElement).value;
+      ctx.ui.refreshPanel();
+    },
+  });
+  for (const o of offers) {
+    const rival = state.rivals.find((r) => r.id === o.rivalId);
+    const opt = el('option', { value: o.rivalId }, `${o.drake.name} (${rival?.name ?? o.rivalId})`) as HTMLOptionElement;
+    if (o.rivalId === pick?.rivalId) opt.selected = true;
+    studPicker.append(opt);
+  }
   box.append(
     el(
-      'label',
-      { class: 'stud-hen-bar' },
-      icon('heart', 12),
-      el('span', {}, 'Hen to court:'),
-      hens.length > 0 ? picker : el('span', { class: 'muted small' }, 'no adult hen is free to court'),
+      'div',
+      { class: 'stud-pickers' },
+      el(
+        'label',
+        { class: 'stud-hen-bar' },
+        icon('heart', 12),
+        el('span', {}, 'Hen to court:'),
+        hens.length > 0 ? picker : el('span', { class: 'muted small' }, 'no adult hen is free to court'),
+      ),
+      el(
+        'label',
+        { class: 'stud-hen-bar' },
+        icon('duck', 12),
+        el('span', {}, 'Stud:'),
+        offers.length > 0 ? studPicker : el('span', { class: 'muted small' }, 'no drake on offer today'),
+      ),
     ),
   );
+  // The same clutch odds the Breeding panel shows, for the pair picked above.
+  if (hen && pick) {
+    const viability = Math.round(pairViability(state, hen, pick.drake) * 100);
+    const gate = canBreedPair(hen, pick.drake);
+    box.append(
+      el(
+        'div',
+        { class: 'stud-odds' },
+        el(
+          'div',
+          { class: 'stud-odds-head' },
+          el('strong', {}, `${hen.name} × ${pick.drake.name}`),
+          gate.ok
+            ? el('span', { class: `chip ${viability >= 80 ? 'chip-ready' : viability >= 60 ? '' : 'chip-warn'}` }, `${viability}% viability`)
+            : el('span', { class: 'shop-note warn-text' }, gate.reason ?? ''),
+        ),
+        offspringOdds(state, hen, pick.drake),
+      ),
+    );
+  }
   const grid = el('div', { class: 'shop-grid market-grid' });
-  for (const offer of studOffers(state)) {
+  for (const offer of offers) {
     const rival = state.rivals.find((r) => r.id === offer.rivalId)!;
     const gate = hen ? canBreedPair(hen, offer.drake) : { ok: false, reason: 'No adult hen free to court' };
     const button = el(
@@ -594,14 +643,20 @@ function studSection(ctx: PanelCtx): HTMLElement {
       icon('coin', 11),
       ` ${offer.cost}`,
     );
-    grid.append(
-      marketCard(
-        marketHead([duckPortrait(offer.drake, 56)], offer.drake.name, rival.id, rival.name),
-        el('div', { class: 'market-traits' }, el('div', { class: 'market-row' }, ...traitChips(state, offer.drake))),
-        buildGeneStrip(state, offer.drake),
-        [button, !gate.ok && hen ? el('span', { class: 'shop-note warn-text' }, gate.reason ?? '') : el('span')],
-      ),
+    const cardEl = marketCard(
+      marketHead([duckPortrait(offer.drake, 56)], offer.drake.name, rival.id, rival.name),
+      el('div', { class: 'market-traits' }, el('div', { class: 'market-row' }, ...traitChips(state, offer.drake))),
+      buildGeneStrip(state, offer.drake),
+      [button, !gate.ok && hen ? el('span', { class: 'shop-note warn-text' }, gate.reason ?? '') : el('span')],
     );
+    if (offer.rivalId === pick?.rivalId) cardEl.classList.add('selected');
+    cardEl.addEventListener('click', (e) => {
+      // Clicking the card (not its button) puts this stud's odds on show.
+      if ((e.target as HTMLElement).closest('button')) return;
+      studPickId = offer.rivalId;
+      ctx.ui.refreshPanel();
+    });
+    grid.append(cardEl);
   }
   box.append(grid);
   return box;
