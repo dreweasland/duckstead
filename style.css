@@ -100,6 +100,13 @@ body.feeding #pond-canvas {
 }
 
 /* ---------- HUD ---------- */
+/* The bar's height, published by the UI from a ResizeObserver (one row on a
+   wide screen, two on a narrow one); everything that hangs below the bar
+   offsets by it. The fallback is the one-row height. */
+:root {
+  --hud-h: 44px;
+}
+
 .hud {
   position: absolute;
   top: 0;
@@ -108,11 +115,27 @@ body.feeding #pond-canvas {
   display: flex;
   align-items: center;
   gap: 10px;
+  row-gap: 6px;
   padding: 8px 14px;
   background: rgba(16, 22, 30, 0.82);
   backdrop-filter: blur(6px);
   font-size: 14px;
   flex-wrap: wrap;
+}
+
+/* The buttons travel as one group: on a wide screen they sit at the right
+   end of the row; when the bar can't fit them beside the ledger they take a
+   whole second row, speed controls still at the far right. */
+.hud-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+}
+
+.hud-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
 }
 
 .hud-title {
@@ -186,9 +209,15 @@ body.feeding #pond-canvas {
   margin: 0 6px;
 }
 
+/* The resource ledger: one pill with the counts divided by hairlines, rather
+   than a pill per count — about half the width, every number still there. */
 .hud-chips {
   display: inline-flex;
-  gap: 8px;
+  align-items: stretch;
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: 14px;
+  padding: 0 3px;
 }
 
 .hud-chip {
@@ -203,6 +232,18 @@ body.feeding #pond-canvas {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   cursor: default;
+}
+
+.hud-chips .hud-chip {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 3px 7px;
+  gap: 4px;
+}
+
+.hud-chips .hud-chip + .hud-chip {
+  border-left: 1px solid var(--surface-2);
 }
 
 .hud-chip-count {
@@ -786,7 +827,7 @@ body.feeding #pond-canvas {
 
 .dawn-card {
   position: absolute;
-  top: 52px;
+  top: calc(var(--hud-h) + 8px);
   left: 50%;
   transform: translate(-50%, -12px);
   width: min(460px, calc(100vw - 32px));
@@ -1024,7 +1065,7 @@ body.feeding #pond-canvas {
 /* ---------- Panels ---------- */
 .panel-host {
   position: absolute;
-  top: 52px;
+  top: calc(var(--hud-h) + 8px);
   right: 0;
   bottom: 0;
   display: flex;
@@ -1500,7 +1541,7 @@ body.feeding #pond-canvas {
 /* ---------- Breeding panel (centred modal) ---------- */
 .modal-host {
   position: absolute;
-  top: 48px;
+  top: calc(var(--hud-h) + 4px);
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;
@@ -2675,7 +2716,7 @@ body.feeding #pond-canvas {
 /* The left-hand strip: the goals path on top, offers underneath. */
 .side-widgets {
   position: absolute;
-  top: 60px;
+  top: calc(var(--hud-h) + 16px);
   left: 12px;
   display: flex;
   flex-direction: column;
@@ -3695,7 +3736,7 @@ body.feeding #pond-canvas {
    mid-race is still readable — only the pre-boot conflict dialog is higher. */
 #ui-root > .toast-host {
   position: absolute;
-  top: 48px;
+  top: calc(var(--hud-h) + 4px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -4334,15 +4375,33 @@ body.feeding #pond-canvas {
   }
 }
 
-/* The long festival chip can still wrap the bar around this width, so the
-   goals card steps out of the second line's way. */
+/* Narrow screens: the buttons take a deliberate second row rather than
+   wrapping wherever the width runs out. The ledger, clock, and festival
+   chip keep the first row; the speed controls hold the right end of the
+   second. (Whatever hangs below the bar follows --hud-h.) */
 @media (max-width: 1250px) {
-  .goals-widget {
-    top: 96px;
+  .hud-spacer {
+    display: none;
+  }
+  .hud-actions {
+    flex-basis: 100%;
+  }
+  .hud-speed {
+    margin-left: auto;
   }
 }
 
-@media (max-width: 980px) {
+/* Below tablet width the festival and sync chips keep their icon and number
+   and drop their words, so the first row holds at 760px. */
+@media (max-width: 900px) {
+  .festival-chip .chip-word,
+  .sync-chip .chip-word {
+    display: none;
+  }
+}
+
+/* Phone-width: the two least urgent counts go; coins, pond, and flock stay. */
+@media (max-width: 640px) {
   .chip-eggs,
   .chip-society {
     display: none;

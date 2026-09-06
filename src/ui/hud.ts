@@ -55,8 +55,8 @@ export function buildHud(host: HudHost): HudRefs {
     const st = status as string;
     syncChip.style.display = '';
     syncChip.className = `hud-chip sync-chip sync-${st}`;
-    syncChip.textContent =
-      st === 'synced' ? '☁ synced' : st === 'syncing' ? '☁ syncing…' : st === 'offline' ? '☁ offline' : '☁ paused';
+    const word = st === 'synced' ? 'synced' : st === 'syncing' ? 'syncing…' : st === 'offline' ? 'offline' : 'paused';
+    syncChip.replaceChildren('☁', el('span', { class: 'chip-word' }, word));
     syncChip.title =
       st === 'offline'
         ? 'Cloud unreachable — playing locally, will sync when it returns'
@@ -89,7 +89,7 @@ export function buildHud(host: HudHost): HudRefs {
     chip('soap', 'bubbles', 'Soap — the bath house uses a bar per duck at dawn'),
     chip('eggs', 'egg', 'Egg basket — hens lay daily; sell at the shop'),
     chip('pond', 'bubbles', `Pond cleanliness — wild ducks only visit above ${TUNING.visitors.inviteCleanliness}%`),
-    chip('flock', 'duck', 'Ducks on the pond / capacity — over it, the flock is stressed. Elders have earned a free spot and don\'t count.'),
+    chip('flock', 'duck', 'Grown ducks on the pond / capacity — over it, the flock is stressed. Elders, the young, and penned ducks don\'t count.'),
     chip('society', 'star', 'Society points — earned from breed awards, commissions, and festival placings'),
   );
 
@@ -106,16 +106,12 @@ export function buildHud(host: HudHost): HudRefs {
   );
   speedBtns[1].classList.add('active');
 
-  const element = el(
-    'header',
-    { class: 'hud' },
-    el('span', { class: 'hud-title' }, icon('duck', 20), ''),
-    hudClock,
-    chips,
-    festivalChip,
-    lifeChip,
-    syncChip,
-    el('span', { class: 'hud-spacer' }),
+  // The buttons live in one group so that, when the bar is too narrow for
+  // everything on one line, they drop to a second row together instead of
+  // wrapping wherever the width happens to run out.
+  const actions = el(
+    'span',
+    { class: 'hud-actions' },
     el(
       'span',
       { class: 'treats-wrap care-wrap' },
@@ -158,7 +154,19 @@ export function buildHud(host: HudHost): HudRefs {
     ),
     el('button', { class: 'hud-btn', onclick: () => host.togglePanel('save') }, icon('disk'), el('span', { class: 'hud-btn-label' }, 'Save')),
     el('button', { class: 'hud-btn settings-btn', title: `Settings and keyboard shortcuts (${keyLabel(keyFor('settings'))})`, onclick: () => host.togglePanel('settings') }, icon('star')),
-    ...speedBtns,
+    el('span', { class: 'hud-speed' }, ...speedBtns),
+  );
+  const element = el(
+    'header',
+    { class: 'hud' },
+    el('span', { class: 'hud-title' }, icon('duck', 20), ''),
+    hudClock,
+    chips,
+    festivalChip,
+    lifeChip,
+    syncChip,
+    el('span', { class: 'hud-spacer' }),
+    actions,
   );
   return { element, hudClock, festivalChip, lifeChip, hudCounts, careCounts };
 }

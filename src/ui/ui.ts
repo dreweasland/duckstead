@@ -111,6 +111,14 @@ export class UI {
     this.hudCounts = hud.hudCounts;
     this.careCounts = hud.careCounts;
     this.root.append(hud.element);
+    // Everything that hangs below the bar (panels, widgets, toasts, the dawn
+    // card) offsets by its height, which is one row on a wide screen and two
+    // on a narrow one — so the bar publishes it rather than CSS guessing.
+    if (typeof ResizeObserver !== 'undefined') {
+      const publish = (): void => this.root.style.setProperty('--hud-h', `${hud.element.offsetHeight}px`);
+      new ResizeObserver(publish).observe(hud.element);
+      publish();
+    }
     this.panelHost = el('div', { class: 'panel-host' });
     this.toastHost = el('div', { class: 'toast-host' });
     this.bannerHost = el('div', { class: 'banner-host' });
@@ -295,6 +303,13 @@ export class UI {
       default: return;
     }
     e.preventDefault();
+  }
+
+  // Buttons that come and go (sleep, scrub the pond) sit with the others,
+  // ahead of the speed controls, so they never wrap into a stray third row.
+  private addHudAction(btn: HTMLElement): void {
+    const actions = this.root.querySelector<HTMLElement>('.hud-actions')!;
+    actions.insertBefore(btn, actions.querySelector('.hud-speed'));
   }
 
   setSpeed(speed: number): void {
@@ -612,7 +627,7 @@ export class UI {
           icon('pause', 13),
           "Sleep 'til dawn",
         );
-        this.root.querySelector('.hud')!.append(btn);
+        this.addHudAction(btn);
       }
     } else {
       sleepBtn?.remove();
@@ -668,7 +683,7 @@ export class UI {
           el('span', { class: 'pond-warn-label' }, urgent ? 'Clean pond!' : 'Scrub pond'),
         );
         warn.classList.toggle('urgent', urgent);
-        this.root.querySelector('.hud')!.append(warn);
+        this.addHudAction(warn);
       } else {
         existing.classList.toggle('urgent', urgent);
         existing.querySelector('.pond-warn-label')!.textContent = urgent ? 'Clean pond!' : 'Scrub pond';
@@ -744,14 +759,20 @@ export class UI {
       const entered =
         (today === 'eggShow' || today === 'grandPrix') &&
         festivalEnteredToday(this.game.state, today);
+      // The name is its own span so a narrow bar can keep the chip short.
       this.festivalChip.replaceChildren(
         icon('flag', 11),
-        ` ${festivalTitle(this.game.state, today)}${entered ? ' (entered)' : ''}`,
+        el('span', { class: 'chip-word' }, festivalTitle(this.game.state, today)),
+        entered ? '(entered)' : 'today',
       );
       this.festivalChip.classList.add('today');
     } else {
       const { kind, inDays } = upcomingFestival(clock);
-      this.festivalChip.replaceChildren(icon('flag', 11), ` ${festivalTitle(this.game.state, kind)} in ${inDays}d`);
+      this.festivalChip.replaceChildren(
+        icon('flag', 11),
+        el('span', { class: 'chip-word' }, `${festivalTitle(this.game.state, kind)} in`),
+        `${inDays}d`,
+      );
       this.festivalChip.classList.remove('today');
     }
   }
