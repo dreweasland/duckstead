@@ -227,8 +227,8 @@ body.feeding #pond-canvas {
    than a pill per count — about half the width, every number still there. */
 .hud-chips {
   display: inline-flex;
-  flex-wrap: wrap;
   align-items: stretch;
+  align-self: flex-start;
   background: var(--surface);
   border: 1px solid var(--surface-2);
   border-radius: 14px;
@@ -1084,7 +1084,7 @@ body.feeding #pond-canvas {
 .duck-dock {
   position: absolute;
   right: 8px;
-  top: max(calc(var(--corner-h) + var(--notices-h) + 8px), 38vh);
+  top: calc(max(calc(var(--corner-h) + 8px), 38vh) + var(--notices-h) + 8px);
   bottom: calc(var(--dock-h) + 8px);
   width: var(--dock-w);
   display: flex;
@@ -4498,8 +4498,7 @@ body.feeding #pond-canvas {
     --ledger-w: 160px;
   }
   .chip-society,
-  .chip-flock,
-  .chip-pond,
+  .ledger-pond,
   .almanac-date,
   .almanac-row.chips,
   .side-widgets {

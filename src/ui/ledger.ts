@@ -33,6 +33,8 @@ export function buildLedger(host: LedgerHost): LedgerRefs {
     icon('crown', 13),
     lineCount,
   );
+  // Two rows on purpose — the purse and the score, then the pond — so the
+  // hairline dividers only ever sit between chips, never at a row's edge.
   const element = el(
     'section',
     { class: 'corner-card ledger', 'aria-label': 'Coins, points, the line, flock, and pond' },
@@ -42,6 +44,10 @@ export function buildLedger(host: LedgerHost): LedgerRefs {
       chip('coin', 'coin', 'Coins'),
       chip('society', 'star', 'Society points — earned from champions, breed awards, commissions, festival placings, and new feather colours'),
       lineChip,
+    ),
+    el(
+      'span',
+      { class: 'hud-chips ledger-pond' },
       chip('flock', 'duck', "Grown ducks on the pond / capacity — over it, the flock is stressed. Elders, the young, and penned ducks don't count."),
       chip('pond', 'bubbles', `Pond cleanliness — wild ducks only visit above ${TUNING.visitors.inviteCleanliness}%`),
     ),

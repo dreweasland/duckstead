@@ -122,6 +122,8 @@ export class UI {
       refreshPanel: () => this.refreshPanel(),
     });
     this.toastHost = this.noticeColumn.toastHost;
+    // The duck dock starts below the notices, however many there are.
+    this.publishHeight([this.noticeColumn.stack], '--notices-h', 0);
     this.bannerHost = el('div', { class: 'banner-host' });
     this.flockBarHost = el('div', { class: 'flock-bar-host' });
     this.side = new SideWidgets({ game: this.game, openPanel: (k) => this.openPanel(k), openHall: () => this.openHall() });

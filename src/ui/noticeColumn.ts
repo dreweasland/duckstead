@@ -34,7 +34,9 @@ const SNOOZABLE = new Set<LiveNotice['kind']>(['visitor', 'commission', 'soap', 
 export class NoticeColumn {
   readonly element: HTMLElement;
   readonly toastHost: HTMLElement;
-  private stack: HTMLElement;
+  // The cards' host; the UI publishes its height so the duck dock starts
+  // below the notices rather than under them.
+  readonly stack: HTMLElement;
   // null forces the next refresh to rebuild (an action just changed things).
   private lastSig: string | null = null;
   private pointerDown = false;
