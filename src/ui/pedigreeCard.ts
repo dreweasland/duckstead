@@ -15,6 +15,9 @@ import { breedKey, breedLabel } from '../sim/breedBook';
 import { describeStandard, standardMatch, STANDARD_THRESHOLD } from '../sim/standards';
 import { upgradeLevel } from '../sim/economy';
 import { plural } from '../text';
+import { championCheck, isChampion } from '../sim/line';
+import { chronicleDate } from '../sim/chronicle';
+import { TUNING } from '../sim/tuning';
 
 // Ancestor stills are recomputed identically on every 500ms card refresh —
 // memoize the synthetic Duck so its stable id also hits the portrait cache.
@@ -35,6 +38,44 @@ function ancestorPortrait(a: Ancestor | null, size: number): HTMLElement {
     duckPortrait(sample, size),
     el('span', { class: 'tree-name' }, a.name),
   );
+}
+
+// The Champion card: the one bar the whole game points at — purebred, at
+// standard, gen 3+ — as a gauge with the gaps spelled out, or the crown.
+export function buildChampionCard(state: GameState, duck: Duck): HTMLElement {
+  const c = championCheck(duck);
+  const crowned = isChampion(duck);
+  const tone = crowned || c.progress >= 90 ? 'ok' : c.progress >= 60 ? 'mid' : 'warn';
+  const fill = el('div', { class: `br-gauge-fill ${tone}` });
+  fill.style.width = `${crowned ? 100 : c.progress}%`;
+  const card = el(
+    'div',
+    { class: 'section champion' },
+    el(
+      'div',
+      { class: 'pedigree-head' },
+      el('strong', { class: 'with-icon' }, icon('crown', 12), 'Champion'),
+      crowned
+        ? el('span', { class: 'chip chip-champion', title: 'Recognised as a Champion of the line' }, `since ${chronicleDate(duck.champion!)}`)
+        : el('span', { class: 'muted small' }, `of ${state.line.name}`),
+    ),
+    el('div', { class: 'br-gauge-row' }, el('div', { class: 'br-gauge' }, fill), el('strong', { class: `br-gauge-pct ${tone}` }, crowned ? '✓' : `${c.progress}%`)),
+  );
+  if (crowned) {
+    card.append(el('div', { class: 'muted small' }, `A ${breedLabel(breedKey(duck.genome))} at the standard, purebred, ${c.gen === 0 ? 'a founder' : `gen ${c.gen}`} of the line. Champion for life.`));
+  } else {
+    const gaps = el('div', { class: 'gene-badges' });
+    for (const g of c.gaps) gaps.append(el('span', { class: 'chip chip-warn' }, g));
+    card.append(gaps);
+    card.append(
+      el(
+        'div',
+        { class: 'muted small' },
+        `Purebred, at its breed's standard, and gen ${TUNING.line.championGen} or deeper on the line. Breeding value (below) says what the project can't spare; this says how close the bird is.`,
+      ),
+    );
+  }
+  return card;
 }
 
 export function buildPedigreeCard(state: GameState, duck: Duck): HTMLElement {

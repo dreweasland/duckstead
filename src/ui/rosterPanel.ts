@@ -3,7 +3,8 @@ import { el, NEED_ROWS, needColor, statBar, panelHeader, tabBar } from './dom';
 import { icon, sexBadge, starRow, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { quickActions } from './quickActions';
-import { byAge, byHunger, byName, byPedigree } from './duckSort';
+import { byAge, byHunger, byName, byPedigree, byChampion } from './duckSort';
+import { championProgress, isChampion } from '../sim/line';
 import { duckCapacity, isOvercrowded, pondOccupancy } from '../sim/economy';
 import { breedingValue, keepVerdict, verdictReason, type KeepVerdict } from '../sim/advisor';
 import { incubationPct } from '../sim/lifecycle';
@@ -23,7 +24,7 @@ let activeView: View = 'cards';
 let pickedOnly = false;
 
 type Filter = 'all' | 'drakes' | 'hens' | 'adults' | 'elders' | 'young' | 'eggs' | 'ready' | 'care' | 'train' | 'key' | 'penned';
-type Sort = 'age' | 'name' | 'hunger' | 'happiness' | 'rarity' | 'pedigree' | 'value';
+type Sort = 'age' | 'name' | 'hunger' | 'happiness' | 'rarity' | 'pedigree' | 'champion' | 'value';
 
 const FILTERS: Array<{ id: Filter; label: string; icon?: IconName }> = [
   { id: 'all', label: 'All' },
@@ -47,6 +48,7 @@ const SORTS: Array<{ id: Sort; label: string }> = [
   { id: 'happiness', label: 'Unhappiest' },
   { id: 'rarity', label: 'Rarest' },
   { id: 'pedigree', label: 'Pedigree' },
+  { id: 'champion', label: 'To Champion' },
   { id: 'value', label: 'Breeding value' },
 ];
 
@@ -101,6 +103,8 @@ function compare(sort: Sort, verdicts: ReadonlyMap<string, KeepVerdict>): (a: Du
       return (a, b) => b.phenotype.rarityScore - a.phenotype.rarityScore;
     case 'pedigree':
       return byPedigree;
+    case 'champion':
+      return byChampion;
     case 'value':
       return (a, b) => {
         // Eggs are unknown quantities; elders have no breeding value at all
@@ -243,6 +247,7 @@ function duckCard(ctx: PanelCtx, duck: Duck): HTMLElement {
   const badges = el('div', { class: 'card-badges' });
   const value = breedingValue(ctx.game.state, duck);
   const verdict = keepVerdict(value);
+  if (isChampion(duck)) badges.append(el('span', { class: 'chip chip-champion with-icon', title: 'A Champion of the line' }, icon('crown', 9), 'champion'));
   if (duck.stage === 'elder') {
     badges.append(
       el(
@@ -308,6 +313,9 @@ function duckCard(ctx: PanelCtx, duck: Duck): HTMLElement {
           generationOf(duck) > 0 ? ` · gen ${generationOf(duck)}` : '',
         ),
         el('div', { class: 'muted small with-icon card-pedigree', title: 'Pedigree' }, icon('star', 9), ` ${pedigreeScore(duck)}`),
+        !isChampion(duck) && duck.stage !== 'egg' && championProgress(duck) >= 50
+          ? el('div', { class: 'muted small with-icon', title: 'How close to Champion — see the card' }, icon('crown', 9), ` ${championProgress(duck)}%`)
+          : null,
         duck.phenotype.rarityScore > 0 ? starRow(duck.phenotype.rarityScore, 9) : null,
       ),
     ),

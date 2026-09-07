@@ -5,10 +5,11 @@ import { MASTER_COUNT } from '../sim/awards';
 import { icon, sexBadge, starRow, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { buildGeneticsCard } from './geneticsCard';
-import { buildPedigreeCard, buildStandardCard } from './pedigreeCard';
+import { buildPedigreeCard, buildStandardCard, buildChampionCard } from './pedigreeCard';
 import { commissionGap, describeCommission, duckFits, fulfilCommission, type Commission } from '../sim/commissions';
 import { championTitle } from '../sim/society';
 import { canPen, penCapacity, penDuck, penDucks, releaseDuck } from '../sim/pen';
+import { isChampion } from '../sim/line';
 import { sellDuck, sellPrice } from '../sim/economy';
 import { matchesRequest, requestPrice, sellToBuyer } from '../sim/visitors';
 import { personalityLabels } from '../sim/behavior';
@@ -117,6 +118,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
             : el('span', { class: 'chip chip-trait', title: 'Its genes are covered by the rest of the flock — see the Line tab' }, 'safe to sell'),
       );
     }
+    if (isChampion(duck)) traits.append(el('span', { class: 'chip chip-champion with-icon', title: 'A Champion of the line — purebred, at standard, gen 3+' }, icon('crown', 9), 'champion'));
     const title = championTitle(game.state, duck);
     if (title) traits.append(el('span', { class: 'chip chip-rare with-icon', title: 'A Society title held by the pond\'s top-pedigree duck' }, icon('star', 9), title));
     const friend = duck.friendId
@@ -401,6 +403,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
   // Genetics card.
   genesTab.append(buildGeneticsCard(game.state, duck));
   genesTab.append(buildStandardCard(game.state, duck));
+  lineTab.prepend(buildChampionCard(game.state, duck));
   lineTab.append(buildPedigreeCard(game.state, duck));
 
   // Commissions this duck could fill — and ones it's the right breed for but

@@ -2495,6 +2495,13 @@ body.feeding #pond-canvas {
   color: #9cc48a;
 }
 
+/* A Champion of the line: the one gold chip that means the bar is met. */
+.chip-champion {
+  background: rgba(232, 184, 58, 0.22);
+  color: var(--gold);
+  border: 1px solid rgba(232, 184, 58, 0.45);
+}
+
 .chip-warn {
   background: rgba(224, 169, 58, 0.16);
   color: #e6bb62;

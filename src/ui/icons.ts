@@ -19,6 +19,7 @@ export type IconName =
   | 'hand'
   | 'egg'
   | 'star'
+  | 'crown'
   | 'starOutline'
   | 'warning'
   | 'cross'
@@ -149,6 +150,12 @@ const ICONS: Record<IconName, Shape[]> = {
     {
       t: 'path',
       a: { d: 'M12 2.8l2.6 6 6.4.6-4.9 4.3 1.5 6.3L12 16.6 6.4 20l1.5-6.3L3 9.4l6.4-.6z', ...fillCur },
+    },
+  ],
+  crown: [
+    {
+      t: 'path',
+      a: { d: 'M3.5 18.5h17l-1.6-10-4.6 4.2L12 5.5l-2.3 7.2L5.1 8.5z', ...fillCur },
     },
   ],
   starOutline: [

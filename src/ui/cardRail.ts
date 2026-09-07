@@ -8,7 +8,7 @@ import { el, NEED_ROWS, needColor, statBar } from './dom';
 import { icon, sexBadge, type IconName } from './icons';
 import { duckPortrait } from './portrait';
 import { quickActions, type QuickHandlers } from './quickActions';
-import { byAge, byHunger, byName, byPedigree } from './duckSort';
+import { byAge, byHunger, byName, byPedigree, byChampion } from './duckSort';
 import { drillsLeft, isTrainingDay } from '../sim/training';
 import { plural } from '../text';
 
@@ -18,13 +18,14 @@ interface RailHandlers extends QuickHandlers {
 
 // Rail sort order, cycled by the little control at the head of the rail
 // and remembered between sessions.
-type RailSort = 'age' | 'drakes' | 'hens' | 'hungry' | 'pedigree' | 'name';
+type RailSort = 'age' | 'drakes' | 'hens' | 'hungry' | 'pedigree' | 'champion' | 'name';
 const RAIL_SORTS: Array<{ id: RailSort; label: string; icon: IconName }> = [
   { id: 'age', label: 'Oldest first', icon: 'list' },
   { id: 'drakes', label: 'Drakes first', icon: 'duck' },
   { id: 'hens', label: 'Hens first', icon: 'egg' },
   { id: 'hungry', label: 'Hungriest first', icon: 'wheat' },
   { id: 'pedigree', label: 'Best pedigree first', icon: 'star' },
+  { id: 'champion', label: 'Closest to Champion first', icon: 'crown' },
   { id: 'name', label: 'By name', icon: 'book' },
 ];
 const RAIL_SORT_KEY = 'ducksim:ui:railSort';
@@ -51,6 +52,8 @@ function railCompare(sort: RailSort): (a: Duck, b: Duck) => number {
       return (a, b) => egg(a) - egg(b) || byHunger(a, b);
     case 'pedigree':
       return (a, b) => egg(a) - egg(b) || byPedigree(a, b);
+    case 'champion':
+      return (a, b) => egg(a) - egg(b) || byChampion(a, b);
     case 'name':
       return (a, b) => egg(a) - egg(b) || byName(a, b);
     case 'age':

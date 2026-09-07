@@ -213,6 +213,32 @@ describe('ui smoke', () => {
     expect(ui.modalKindNow()).toBeNull();
   });
 
+  it('shows a champion on its card, and the flock can be sorted by distance to the bar', () => {
+    const { game, ui } = bootUi();
+    const adult = game.state.ducks.find((d) => d.stage === 'adult')!;
+    adult.champion = 2;
+    game.selectedDuckId = adult.id;
+    ui.openPanel('duck');
+    ui.refreshPanel();
+    expect(document.querySelector('.float-host .chip-champion')).toBeTruthy();
+    ui.closeDuckCard();
+    ui.openPanel('roster');
+    ui.refreshPanel();
+    // The roster remembers its view and filter between opens; put it back
+    // on cards + all so the sort control and the badges are on screen.
+    document.querySelector<HTMLElement>('.roster-view .shop-tab')!.click();
+    document.querySelector<HTMLElement>('.roster-chip')!.click();
+    ui.refreshPanel();
+    const select = document.querySelector<HTMLSelectElement>('.roster-sort')!;
+    expect(select).toBeTruthy();
+    select.value = 'champion';
+    select.dispatchEvent(new Event('change'));
+    ui.refreshPanel();
+    expect(document.querySelector('.roster-sort')).toBeTruthy();
+    expect(document.querySelector('.card-badges .chip-champion')).toBeTruthy();
+    ui.closeModal();
+  });
+
   it('renders the duck card for an adult and for an egg, and a pinned copy', () => {
     const { game, ui } = bootUi();
     const adult = game.state.ducks.find((d) => d.stage === 'adult')!;
