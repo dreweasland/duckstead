@@ -25,7 +25,7 @@ import { henEggPrice, sellEggBasket, SHOP_ITEMS, consumableCost } from '../sim/e
 import { claimHatch, incubationPct } from '../sim/lifecycle';
 import { cleanPond, isPondDirty } from '../sim/pond';
 import { dawnReport } from '../sim/daybook';
-import { goalProgress, pendingGoals } from '../sim/goals';
+import { goalProgress, pendingGoals, goalLabel } from '../sim/goals';
 import { describeCommission } from '../sim/commissions';
 import { events } from '../events';
 import { canBreedPair, breedReadiness } from '../sim/needs';
@@ -596,7 +596,7 @@ export function dayScreen(ctx: Ctx, openDuck: (id: string) => void): HTMLElement
         el(
           'div',
           { class: 'comp-line' },
-          `${goal.label} — ${Math.min(goal.target, progress)}/${goal.target} · ${goal.reward} coins`,
+          `${goalLabel(state, goal)} — ${Math.min(goal.target, progress)}/${goal.target} · ${goal.reward} coins`,
         ),
       );
     }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../newGame';
 import { advanceTicks } from '../testFixtures';
 import { catchBugAt, tickBugs } from './bugs';
-import { CHAPTERS, chapterGoals, currentChapter, GOALS, goalLater, tickGoals, widgetGoals } from './goals';
+import { CHAPTERS, chapterGoals, currentChapter, GOALS, goalLabel, goalLater, goalsOverview, ROLLING_CHAPTER, tickGoals, widgetGoals } from './goals';
 import { fillFeeder } from './needs';
 import { TICKS_PER_HOUR } from './time';
 
@@ -152,5 +152,53 @@ describe('goal chapters', () => {
     expect(later[0].goal.id).toBe('catch-bugs');
     expect(later.some((r) => r.upNext)).toBe(true);
     expect(later.filter((r) => r.upNext).every((r) => r.goal.chapter === 'daily-round' && !r.later)).toBe(true);
+  });
+});
+
+describe('the rolling chapter', () => {
+  it('stays dormant until the last chapter closes, then pays each notch and reopens one further on', () => {
+    const { state } = createNewGame(23);
+    const champion = GOALS.find((g) => g.id === 'line-champion')!;
+    state.line.championsTotal = 2;
+    const money = state.money;
+    tickGoals(state);
+    expect(state.money).toBe(money);
+    expect(goalLater(state, champion)).toContain('After the last chapter');
+    // Close every finite chapter; the baseline is taken from the pond as it stands.
+    for (const g of GOALS) if (!g.rolling) state.goals[g.id] = true;
+    tickGoals(state);
+    expect(state.line.goalBase).toEqual({ champions: 2, gen: 0, breeds: 0 });
+    expect(currentChapter(state).id).toBe(ROLLING_CHAPTER);
+    expect(goalLabel(state, champion)).toBe('Raise champion #3');
+    const paid = state.money;
+    state.line.championsTotal = 3;
+    tickGoals(state);
+    expect(state.money).toBe(paid + champion.reward);
+    expect(state.line.goalBase?.champions).toBe(3);
+    expect(goalLabel(state, champion)).toBe('Raise champion #4');
+    expect(state.goals['line-champion']).toBeUndefined(); // never finishes
+    state.line.championsTotal = 4;
+    tickGoals(state);
+    expect(state.money).toBe(paid + champion.reward * 2);
+    // The strip keeps something to show, and the finite tally is unchanged.
+    expect(widgetGoals(state, 5).length).toBeGreaterThan(0);
+    expect(goalsOverview(state).total).toBe(GOALS.filter((g) => !g.rolling).length);
+    expect(goalsOverview(state).done).toBe(goalsOverview(state).total);
+  });
+
+  it('an older save that had already finished the chapters gets its baseline on the first tick', () => {
+    const { state } = createNewGame(24);
+    for (const g of GOALS) if (!g.rolling) state.goals[g.id] = true;
+    for (const ch of CHAPTERS) if (ch.id !== ROLLING_CHAPTER) state.goals[`chapter:${ch.id}`] = true;
+    state.stats.deepestGen = 5;
+    tickGoals(state);
+    expect(state.line.goalBase).toEqual({ champions: 0, gen: 5, breeds: 0 });
+    const gen = GOALS.find((g) => g.id === 'line-gen')!;
+    expect(goalLabel(state, gen)).toBe('Deepen the line to gen 6');
+    state.stats.deepestGen = 6;
+    const money = state.money;
+    tickGoals(state);
+    expect(state.money).toBe(money + gen.reward);
+    expect(goalLabel(state, gen)).toBe('Deepen the line to gen 7');
   });
 });

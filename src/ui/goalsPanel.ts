@@ -14,8 +14,7 @@ import {
   goalLater,
   goalProgress,
   goalsOverview,
-  type ChapterId,
-} from '../sim/goals';
+  type ChapterId, goalLabel } from '../sim/goals';
 import { UNLOCK_LABELS } from '../sim/unlocks';
 
 // Which chapters the player has opened by hand; the current one is always
@@ -33,7 +32,7 @@ export function renderGoalsPanel(ctx: PanelCtx): HTMLElement {
   const fill = el('div', { class: 'goal-bar-fill' });
   fill.style.width = `${(overview.done / overview.total) * 100}%`;
   panel.append(el('div', { class: 'goals-total-bar goal-bar' }, fill));
-  panel.append(el('div', { class: 'muted small shop-tab-hint' }, 'Eight chapters. Each goal pays coins when it lands; a finished chapter pays a purse. Locked goals open parts of the game.'));
+  panel.append(el('div', { class: 'muted small shop-tab-hint' }, 'Eight chapters, then one that never ends. Each goal pays coins when it lands; a finished chapter pays a purse. Locked goals open parts of the game.'));
 
   const current = currentChapter(state);
   CHAPTERS.forEach((ch, i) => {
@@ -86,7 +85,7 @@ function goalLine(ctx: PanelCtx, goal: ReturnType<typeof chapterGoals>[number]):
     : goal.unlocks
       ? el('span', { class: 'goal-status lock' }, icon('lock', 10))
       : el('span', { class: `goal-status${later ? ' later' : ''}` });
-  const body = el('div', { class: 'goal-body' }, el('div', { class: 'goal-name' }, goal.label));
+  const body = el('div', { class: 'goal-body' }, el('div', { class: 'goal-name' }, goalLabel(state, goal)));
   if (goal.unlocks && !done) body.append(el('span', { class: 'goal-unlock' }, `unlocks ${UNLOCK_LABELS[goal.unlocks]}`));
   if (!done) body.append(el('div', { class: 'muted small goal-hint' }, goal.hint));
   if (later) body.append(el('div', { class: 'goal-later-tag' }, later));

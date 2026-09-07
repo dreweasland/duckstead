@@ -3,7 +3,7 @@
 // UI's half-second refresh.
 import type { Game } from '../game';
 import type { GameState } from '../state';
-import { CHAPTERS, chapterProgress, currentChapter, goalProgress, tickGoals, widgetGoals } from '../sim/goals';
+import { CHAPTERS, chapterProgress, currentChapter, goalLabel, goalProgress, ROLLING_CHAPTER, tickGoals, widgetGoals } from '../sim/goals';
 import { describeCommission, duckFits } from '../sim/commissions';
 import { describeRequest, matchesRequest } from '../sim/visitors';
 import { isUnlocked, UNLOCK_LABELS } from '../sim/unlocks';
@@ -97,7 +97,7 @@ export class SideWidgets {
         { class: 'goals-head', title: 'Open the Goals panel: every chapter, with hints', onclick: open },
         el('span', { class: 'goals-title' }, 'Goals'),
         el('span', { class: 'goals-chapter' }, `Chapter ${CHAPTERS.findIndex((c) => c.id === chapter.id) + 1} · ${chapter.title}`),
-        el('span', { class: 'goals-count' }, `${progress.done}/${progress.total}`),
+        el('span', { class: 'goals-count' }, chapter.id === ROLLING_CHAPTER ? 'never ends' : `${progress.done}/${progress.total}`),
       ),
     ];
     let dividerShown = false;
@@ -120,7 +120,7 @@ export class SideWidgets {
         el(
           'span',
           { class: 'goal-label' },
-          goal.label,
+          goalLabel(state, goal),
           isGate ? el('span', { class: 'goal-unlock' }, `unlocks ${UNLOCK_LABELS[goal.unlocks!]}`) : null,
           later ? el('span', { class: 'goal-later' }, later) : null,
         ),

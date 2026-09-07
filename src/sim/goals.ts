@@ -6,8 +6,9 @@
 import type { GameState } from '../state';
 import { events } from '../events';
 import { isUnlocked, UNLOCK_LABELS, type Unlockable } from './unlocks';
+import { championedBreeds } from './line';
 
-export type ChapterId = 'first-days' | 'daily-round' | 'growing' | 'ducks-life' | 'milestones' | 'reputation' | 'festivals' | 'long-game';
+export type ChapterId = 'first-days' | 'daily-round' | 'growing' | 'ducks-life' | 'milestones' | 'reputation' | 'festivals' | 'long-game' | 'the-line';
 
 export interface ChapterDef {
   id: ChapterId;
@@ -25,7 +26,13 @@ export const CHAPTERS: ChapterDef[] = [
   { id: 'reputation', title: 'Reputation', blurb: 'The Book, the awards, the Board, and the Society ladder.', reward: 200 },
   { id: 'festivals', title: 'Festivals and rivals', blurb: 'Seasonal festivals, the rival ponds, and the Society Cup.', reward: 200 },
   { id: 'long-game', title: 'The long game', blurb: 'Deep lines, a full pond, elders, and heritage.', reward: 400 },
+  // The ninth chapter never closes: its goals reopen each time they land,
+  // one notch further on, so the strip beside the pond always names the
+  // line's next thing.
+  { id: 'the-line', title: 'The line', blurb: 'A chapter that never closes: the next champion, the next generation, a breed you have not championed yet.', reward: 0 },
 ];
+
+export const ROLLING_CHAPTER: ChapterId = 'the-line';
 
 // Where "Show me" takes the player.
 export interface GoalGo {
@@ -46,7 +53,26 @@ interface GoalDef {
   after?: string; // goal id that sensibly comes first
   go?: GoalGo;
   later?(state: GameState): string | undefined; // why this is for later, if it is
+  // Rolling goals (the line's chapter) pay and reopen instead of finishing:
+  // `advance` moves the baseline so the next notch is the target, and
+  // `labelFor` names that notch.
+  rolling?: true;
+  labelFor?(state: GameState): string;
+  advance?(state: GameState): void;
 }
+
+// What the goal is called right now — rolling goals name their next notch.
+export function goalLabel(state: GameState, goal: GoalDef): string {
+  return goal.labelFor?.(state) ?? goal.label;
+}
+
+// Baselines for the rolling goals, taken when the last chapter closes (or on
+// the first tick of an older save that had already closed it).
+function lineBaseline(state: GameState): NonNullable<GameState['line']['goalBase']> {
+  return { champions: state.line.championsTotal, gen: state.stats.deepestGen, breeds: championedBreeds(state).size };
+}
+
+const beforeBase = (s: GameState): string | undefined => (s.line.goalBase ? undefined : 'After the last chapter');
 
 type GoalIn = Omit<GoalDef, 'chapter'>;
 const chapter = (id: ChapterId, goals: GoalIn[]): GoalDef[] => goals.map((g) => ({ ...g, chapter: id }));
@@ -592,6 +618,46 @@ export const GOALS: GoalDef[] = [
       go: { panel: 'save' },
     },
   ]),
+  ...chapter('the-line', [
+    {
+      id: 'line-champion',
+      label: 'Raise the next champion',
+      labelFor: (s) => `Raise champion #${s.line.championsTotal + 1}`,
+      hint: 'A purebred at its breed\'s standard, gen 3 or deeper. The Hall names the duck nearest the bar and what it lacks.',
+      reward: 150,
+      target: 1,
+      rolling: true,
+      value: (s) => (s.line.goalBase ? s.line.championsTotal - s.line.goalBase.champions : 0),
+      advance: (s) => { s.line.goalBase!.champions = s.line.championsTotal; },
+      later: beforeBase,
+      go: { panel: 'book', tab: 'hall' },
+    },
+    {
+      id: 'line-gen',
+      label: 'Deepen the line by a generation',
+      labelFor: (s) => `Deepen the line to gen ${(s.line.goalBase?.gen ?? s.stats.deepestGen) + 1}`,
+      hint: 'Breed from your deepest ducks; every clutch is one generation past its deeper parent. Retiring the pond keeps the founders\' generation.',
+      reward: 100,
+      target: 1,
+      rolling: true,
+      value: (s) => (s.line.goalBase ? Math.max(0, s.stats.deepestGen - s.line.goalBase.gen) : 0),
+      advance: (s) => { s.line.goalBase!.gen = s.stats.deepestGen; },
+      later: beforeBase,
+      go: { panel: 'breeding' },
+    },
+    {
+      id: 'line-breed',
+      label: 'A champion of a breed you have not championed yet',
+      hint: 'The Hall counts breeds championed. Pick a breed the line has not yet crowned and breed a pair of it to the standard.',
+      reward: 200,
+      target: 1,
+      rolling: true,
+      value: (s) => (s.line.goalBase ? Math.max(0, championedBreeds(s).size - s.line.goalBase.breeds) : 0),
+      advance: (s) => { s.line.goalBase!.breeds = championedBreeds(s).size; },
+      later: beforeBase,
+      go: { panel: 'book', tab: 'hall' },
+    },
+  ]),
 ];
 
 // The goal that opens a panel — the early-game gates the Goals list makes
@@ -630,6 +696,7 @@ export function chapterProgress(state: GameState, id: ChapterId): { done: number
 }
 
 function chapterDone(state: GameState, id: ChapterId): boolean {
+  if (id === ROLLING_CHAPTER) return false; // never closes
   const p = chapterProgress(state, id);
   return p.done >= p.total;
 }
@@ -639,8 +706,10 @@ export function currentChapter(state: GameState): ChapterDef {
   return CHAPTERS.find((c) => !chapterDone(state, c.id)) ?? CHAPTERS[CHAPTERS.length - 1];
 }
 
+// The finite chapters' tally; the rolling chapter has no end to count toward.
 export function goalsOverview(state: GameState): { done: number; total: number } {
-  return { done: GOALS.filter((g) => goalDone(state, g)).length, total: GOALS.length };
+  const finite = GOALS.filter((g) => !g.rolling);
+  return { done: finite.filter((g) => goalDone(state, g)).length, total: finite.length };
 }
 
 interface WidgetGoal {
@@ -675,7 +744,17 @@ export function widgetGoals(state: GameState, limit: number, fill = 3): WidgetGo
 }
 
 export function tickGoals(state: GameState): void {
+  // The rolling goals measure from the moment the last chapter closed.
+  if (!state.line.goalBase && state.goals['chapter:long-game']) state.line.goalBase = lineBaseline(state);
   for (const goal of GOALS) {
+    if (goal.rolling) {
+      if (!state.line.goalBase || goal.value(state) < goal.target) continue;
+      const label = goalLabel(state, goal);
+      goal.advance?.(state);
+      state.money += goal.reward;
+      events.emit('toast', `Goal complete: ${label} (+${goal.reward} coins)`);
+      continue;
+    }
     if (state.goals[goal.id] || goal.value(state) < goal.target) continue;
     state.goals[goal.id] = true;
     state.money += goal.reward;
@@ -683,10 +762,12 @@ export function tickGoals(state: GameState): void {
   }
   // A chapter closes once when its last goal does.
   for (const ch of CHAPTERS) {
+    if (ch.id === ROLLING_CHAPTER) continue;
     const key = `chapter:${ch.id}`;
     if (state.goals[key] || !chapterDone(state, ch.id)) continue;
     state.goals[key] = true;
     state.money += ch.reward;
+    if (ch.id === 'long-game') state.line.goalBase = lineBaseline(state);
     events.emit('chapter-done', ch);
     events.emit('toast', `Chapter complete: ${ch.title} (+${ch.reward} coins)`);
   }
