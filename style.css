@@ -1276,6 +1276,12 @@ body.feeding #pond-canvas {
   color: var(--ink-dim);
 }
 
+.help-mark {
+  cursor: help;
+  min-width: 16px;
+  justify-content: center;
+}
+
 .chip-rare {
   background: rgba(232, 184, 58, 0.16);
   color: var(--gold);

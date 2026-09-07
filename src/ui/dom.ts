@@ -156,3 +156,9 @@ export function panelHeader(ic: Parameters<typeof icon>[0], title: string, close
     el('button', { class: 'close-btn', onclick: close }, icon('close', 13)),
   );
 }
+
+// A "?" that holds an explanation in its tooltip: for the paragraphs that
+// only need reading once, so a card isn't mostly prose after the first day.
+export function helpMark(text: string): HTMLElement {
+  return el('span', { class: 'chip chip-trait help-mark', title: text, tabindex: '0', 'aria-label': text }, '?');
+}

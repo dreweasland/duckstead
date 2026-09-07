@@ -1,5 +1,5 @@
 import type { PanelCtx } from './ui';
-import { confirmButton, eggWarmthColor, el, NEED_ROWS, needColor, statBar, tabBar, type TabDef } from './dom';
+import { confirmButton, eggWarmthColor, el, NEED_ROWS, needColor, statBar, tabBar, type TabDef, helpMark } from './dom';
 import { elderDaysLeft, passingPoints } from '../sim/elders';
 import { MASTER_COUNT } from '../sim/awards';
 import { icon, sexBadge, starRow, type IconName } from './icons';
@@ -261,7 +261,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
       el(
         'div',
         { class: 'pedigree-head' },
-        el('strong', {}, 'Training'),
+        el('strong', {}, 'Training'), helpMark(`Training day comes every ${TRAINING.cadenceDays} days and a drill is worth ${TRAINING.gainScale}× the points; each drill also trains the nearest ${squadSize(game.state) - 1 === 1 ? 'pond-mate' : `${squadSize(game.state) - 1} pond-mates`} (the Training Perch adds more). Stats fade a point a day. Drills pay up to ${drillCoinsLeft(game.state)} more coins today.`),
         el(
           'span',
           { class: 'muted small' },
@@ -300,14 +300,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
         ),
       );
     }
-    box.append(
-      drills,
-      el(
-        'div',
-        { class: 'muted small' },
-        `Training day comes every ${TRAINING.cadenceDays} days and a drill is worth ${TRAINING.gainScale}× the points; each drill also trains the nearest ${squadSize(game.state) - 1 === 1 ? 'pond-mate' : `${squadSize(game.state) - 1} pond-mates`} (the Training Perch adds more). Stats fade a point a day. Drills pay up to ${drillCoinsLeft(game.state)} more coins today.`,
-      ),
-    );
+    box.append(drills);
     careTab.append(box);
   }
 
@@ -326,7 +319,7 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
               { class: 'action-btn', disabled: !gate.ok, title: gate.reason ?? `${used}/${penCapacity(game.state)} in the pen`, onclick: () => { penDuck(game.state, duck.id); ctx.ui.refreshPanel(); } },
               gate.ok ? `Send to the pen (${used}/${penCapacity(game.state)})` : gate.reason ?? 'Send to the pen',
             ),
-        el('div', { class: 'muted small' }, duck.penned ? 'Off the pond: no capacity, no drake pressure, no laying. Still needs feeding and brushing. Pick it in Breed to bring it out for a clutch — it stays out until rested.' : 'Lives off the pond without being sold — out of capacity and the balance. Handy for a spare drake you still want to breed from now and then.'),
+        helpMark(duck.penned ? 'Off the pond: no capacity, no drake pressure, no laying. Still needs feeding and brushing. Pick it in Breed to bring it out for a clutch — it stays out until rested.' : 'Lives off the pond without being sold — out of capacity and the balance. Handy for a spare drake you still want to breed from now and then.'),
       ),
     );
   }
