@@ -22,13 +22,15 @@ import { dayOf } from '../sim/time';
 import { AWARD_LABELS, AWARD_TIERS, awardCount } from '../sim/awards';
 import { describeStandard } from '../sim/standards';
 import { plural } from '../text';
+import { championedBreeds, closestToChampion, type ChampionRecord } from '../sim/line';
+import { TUNING } from '../sim/tuning';
 
-type Tab = 'breeds' | 'chronicle' | 'records';
+type Tab = 'breeds' | 'chronicle' | 'records' | 'hall';
 let activeTab: Tab = 'breeds';
 
 // Land on a tab from outside (the Goals panel's "Show me").
 export function showBookTab(tab: string): void {
-  if (tab === 'breeds' || tab === 'chronicle' || tab === 'records') activeTab = tab;
+  if (tab === 'breeds' || tab === 'chronicle' || tab === 'records' || tab === 'hall') activeTab = tab;
 }
 
 export function renderBookPanel(ctx: PanelCtx): HTMLElement {
@@ -44,13 +46,110 @@ export function renderBookPanel(ctx: PanelCtx): HTMLElement {
     { id: 'breeds', label: 'Breeds', icon: 'book' },
     { id: 'chronicle', label: 'Chronicle', icon: 'flag', badge: state.chronicle.length ? String(state.chronicle.length) : undefined },
     { id: 'records', label: 'Records', icon: 'star' },
+    { id: 'hall', label: 'Hall', icon: 'crown', badge: state.line.championsTotal ? String(state.line.championsTotal) : undefined },
   ];
   panel.append(tabBar(defs, activeTab, (id) => { activeTab = id; ctx.ui.refreshPanel(); }));
 
   if (activeTab === 'breeds') panel.append(breedsTab(state, discovered, total));
   else if (activeTab === 'chronicle') panel.append(chronicleTab(state));
+  else if (activeTab === 'hall') panel.append(hallTab(ctx, state));
   else panel.append(recordsTab(state));
   return panel;
+}
+
+// The Hall of Champions: the line's name (editable), its tally, the duck
+// nearest the bar, and every champion it has produced, pond by pond. This
+// is the page the whole game scores onto.
+function hallTab(ctx: PanelCtx, state: GameState): HTMLElement {
+  const line = state.line;
+  const box = el('div', { class: 'hall' });
+  const nameInput = el('input', {
+    class: 'name-input hall-name',
+    value: line.name,
+    title: 'Name your line',
+    onchange: (e) => {
+      const value = (e.target as HTMLInputElement).value.trim().slice(0, 24);
+      if (value) line.name = value;
+      ctx.ui.refreshPanel();
+    },
+    onkeydown: (e) => {
+      if ((e as KeyboardEvent).key === 'Enter') (e.target as HTMLInputElement).blur();
+    },
+  });
+  box.append(
+    el(
+      'div',
+      { class: 'section hall-head' },
+      el('div', { class: 'hall-title with-icon' }, icon('crown', 16), 'The ', nameInput, ' line'),
+      el('div', { class: 'muted small' }, `Founded ${chronicleDate(line.foundedDay)}. A Champion is purebred, at its breed's standard, and gen ${TUNING.line.championGen} or deeper on the line.`),
+    ),
+  );
+  const living = flock(state);
+  const tile = (label: string, value: string, sub?: string) =>
+    el('div', { class: 'record-tile' }, el('div', { class: 'record-value' }, value), el('div', { class: 'record-label' }, label), sub ? el('div', { class: 'record-sub muted small' }, sub) : null);
+  box.append(
+    el(
+      'div',
+      { class: 'record-grid' },
+      tile('Champions', String(line.championsTotal)),
+      tile('Deepest generation', String(Math.max(state.stats.deepestGen, ...living.map(generationOf)))),
+      tile('Breeds championed', `${championedBreeds(state).size}/${ALL_BREED_KEYS.length}`),
+      tile('Ponds', String(state.heritage + 1), state.heritage > 0 ? 'heritage' : 'the first'),
+    ),
+  );
+  const closest = closestToChampion(state);
+  if (closest) {
+    const { duck, check } = closest;
+    box.append(
+      el(
+        'div',
+        { class: 'section' },
+        el('strong', {}, 'Nearest the bar'),
+        el('div', { class: 'muted small' }, `${duck.name} — ${check.progress}%${check.gaps.length ? `: ${check.gaps.join(' · ')}` : ''}`),
+      ),
+    );
+  }
+  if (line.champions.length === 0) {
+    box.append(el('div', { class: 'muted small hall-empty' }, 'No champions yet. Breed a pair of the same breed, keep the line going three generations, and match the standard — the duck card shows how far each bird is.'));
+    return box;
+  }
+  // Newest first, grouped by the pond they stood on.
+  const eras = new Map<number, ChampionRecord[]>();
+  for (const c of [...line.champions].reverse()) (eras.get(c.era) ?? eras.set(c.era, []).get(c.era)!).push(c);
+  for (const [era, records] of [...eras.entries()].sort((a, b) => b[0] - a[0])) {
+    const section = el(
+      'div',
+      { class: 'section' },
+      el('strong', {}, era === 0 ? 'The first pond' : `Heritage pond ${era}`),
+      el('div', { class: 'muted small' }, plural(records.length, 'champion')),
+    );
+    const grid = el('div', { class: 'memorial-grid hall-grid' });
+    for (const c of records) grid.append(championCard(c));
+    section.append(grid);
+    box.append(section);
+  }
+  return box;
+}
+
+function championCard(c: ChampionRecord): HTMLElement {
+  const stub: DuckLook = {
+    id: `hall-${c.id}`,
+    genome: c.genome,
+    phenotype: computePhenotype(c.genome),
+    sex: c.sex,
+    stage: 'adult',
+    sick: false,
+    activity: 'idle',
+    needs: { hunger: 100, cleanliness: 100, happiness: 100, health: 100 },
+  };
+  return el(
+    'div',
+    { class: 'memorial-card honoured' },
+    el('div', { class: 'memorial-portrait' }, duckPortrait(stub, 54)),
+    el('div', { class: 'memorial-name' }, el('span', { class: `sex-badge sex-${c.sex.toLowerCase()}` }, c.sex === 'M' ? '♂' : '♀'), ` ${c.name}`),
+    el('div', { class: 'memorial-line muted small' }, breedLabel(c.breedKey)),
+    el('div', { class: 'memorial-line muted small' }, `gen ${c.gen} · ${c.pct}% · ${chronicleDate(c.day)}`),
+  );
 }
 
 function breedsTab(state: GameState, discovered: number, total: number): HTMLElement {
@@ -278,6 +377,7 @@ function memorialCard(gone: DuckSummary): HTMLElement {
     ),
   );
   const meta: string[] = [];
+  if (gone.champion) meta.push('Champion');
   if (gone.gen) meta.push(`gen ${gone.gen}`);
   if (gone.pedigree) meta.push(`★ ${gone.pedigree}`);
   if (meta.length) card.append(el('div', { class: 'memorial-line muted small' }, meta.join(' · ')));

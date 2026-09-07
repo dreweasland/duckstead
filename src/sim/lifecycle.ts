@@ -160,6 +160,7 @@ function buryDead(state: GameState, dead: Duck[]): void {
       gen: generationOf(duck),
       pedigree: pedigreeScore(duck),
       descendants,
+      ...(duck.champion !== undefined ? { champion: true } : {}),
     });
     state.memorial = trimMemorial(state.memorial);
     const age = duck.bornDay !== undefined ? dayOf(state.clock) - duck.bornDay : undefined;

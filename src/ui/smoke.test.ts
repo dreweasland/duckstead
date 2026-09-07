@@ -256,6 +256,25 @@ describe('ui smoke', () => {
     ui.closeModal();
   });
 
+  it('the Hall lists champions pond by pond and lets the line be named', () => {
+    const { game, ui } = bootUi();
+    const [a, b] = game.state.ducks.filter((d) => d.stage === 'adult');
+    game.state.line.champions = [
+      { id: a.id, name: a.name, sex: a.sex, breedKey: 'M|D|solid|n', gen: 3, genome: a.genome, pct: 95, day: 4, era: 0 },
+      { id: b.id, name: b.name, sex: b.sex, breedKey: 'M|D|solid|n', gen: 4, genome: b.genome, pct: 100, day: 30, era: 1 },
+    ];
+    game.state.line.championsTotal = 2;
+    game.state.heritage = 1;
+    ui.openHall();
+    expect(document.querySelectorAll('.hall-grid .memorial-card')).toHaveLength(2);
+    expect(document.querySelectorAll('.hall .section strong').length).toBeGreaterThanOrEqual(2);
+    const input = document.querySelector<HTMLInputElement>('.hall-name')!;
+    input.value = '  Millbrook  ';
+    input.dispatchEvent(new Event('change'));
+    expect(game.state.line.name).toBe('Millbrook');
+    ui.closeModal();
+  });
+
   it('renders the duck card for an adult and for an egg, and a pinned copy', () => {
     const { game, ui } = bootUi();
     const adult = game.state.ducks.find((d) => d.stage === 'adult')!;

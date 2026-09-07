@@ -61,7 +61,9 @@ report the cloud as unreachable while everything else plays offline.
   **festival sponsorship** — pay to raise the next festival a tier for a
   year.
 - **Breed Book** — a 60-entry compendium of every phenotype combo you've
-  hatched, with discovery rewards for new breeds.
+  hatched, with discovery rewards for new breeds. Its **Hall** tab is the
+  line's page: name the line, see its champions pond by pond, and the duck
+  nearest the bar.
 - **Race** — the Pond Derby: your duck's vigor, boldness, build, and paddle
   training set its speed; time your paddle boosts to win prize money. Wild racers paddle like
   a competent player and precision matters (sloppy taps barely help), and

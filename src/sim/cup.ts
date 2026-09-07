@@ -51,7 +51,7 @@ interface CupStanding {
 
 export function cupStandings(state: GameState): CupStanding[] {
   const rows: CupStanding[] = state.rivals.map((r) => ({ name: r.name, score: r.yearPoints, isPlayer: false }));
-  rows.push({ name: 'Your pond', score: state.cup?.score ?? 0, isPlayer: true });
+  rows.push({ name: `The ${state.line.name} line`, score: state.cup?.score ?? 0, isPlayer: true });
   return rows.sort((a, b) => b.score - a.score);
 }
 
