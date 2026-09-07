@@ -82,8 +82,8 @@ report the cloud as unreachable while everything else plays offline.
 - **Festivals** — one per season: Spring Egg Show, Summer Derby Grand Prix,
   Autumn Market Day, Winter Lights. Every one can be won: the Egg Show and
   Grand Prix on the day, Market Day by selling past the fair's target, Winter
-  Lights by the lantern parade (decorations, poise, and a cheerful flock
-  against a bar). A festival left unfinished packs up at 20:00 — that's when
+  Lights by the lantern parade (decorations, the champions in the flock,
+  poise, and a cheerful flock against a bar). A festival left unfinished packs up at 20:00 — that's when
   a sponsorship is spent.
 - **Decorations** — lanterns, benches, gnomes and more; they cheer the flock
   and help attract wild visitors. Click a placed decoration to pick it up
@@ -114,7 +114,7 @@ report the cloud as unreachable while everything else plays offline.
   expand. Nesting boxes add egg slots *and* keep eggs warm (−25% warmth
   loss per level).
 - **Forage** — tap what you find on the grass: beetles and snails by day
-  (coins; a nearby duck may eat one first), fireflies by night, **feathers**
+  (coins; a nearby duck may eat one first), fireflies by night, **feathers** (each new plumage colour in the album is a Society point)
   molted by your own ducks (coins + a Feather Album entry in the Book), and
   **duckweed** on the pond rim (free feed). Feathers and duckweed never
   expire, so there's always something to gather after a fast-forward.

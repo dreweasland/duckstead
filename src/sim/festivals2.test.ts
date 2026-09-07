@@ -68,6 +68,18 @@ describe('winter lights parade', () => {
     expect(festivalTier(state, 'winterLights')).toBe(1);
   });
 
+  it('champions in the flock light up the parade, three at most', () => {
+    const { state } = createNewGame(105);
+    state.clock.totalTicks = WINTER_DAY + 12 * TICKS_PER_HOUR;
+    const adults = state.ducks.filter((d) => d.stage === 'adult');
+    const bare = winterParadeScore(state);
+    adults[0].champion = 1;
+    adults[1].champion = 1;
+    expect(winterParadeScore(state)).toBe(bare + 12);
+    for (const d of adults) d.champion = 1;
+    expect(winterParadeScore(state)).toBe(bare + 18);
+  });
+
   it('the fortune wish is capped', () => {
     const { state } = createNewGame(104);
     state.clock.totalTicks = WINTER_DAY + 12 * TICKS_PER_HOUR;

@@ -8,6 +8,7 @@ import type { GameState } from '../state';
 import { flock, duckById } from '../state';
 import type { GameClock } from './time';
 import { dayOf, dayOfSeason, seasonOf, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
+import { isChampion } from './line';
 import { chronicle } from './chronicle';
 import { addSocietyPoints } from './society';
 import { breedStandard, standardMatch } from './standards';
@@ -328,19 +329,21 @@ export interface CeremonyReward {
   parade?: { score: number; target: number; won: boolean };
 }
 
-// The parade is judged on the pond itself: decorations, the flock's poise,
-// and its cheer. Out of ~100.
+// The parade is judged on the pond itself: decorations, the champions in
+// the flock (the lanterns light them — up to three count), the flock's
+// poise, and its cheer. Out of ~100.
 export function winterParadeScore(state: GameState): number {
   const adults = flock(state).filter((d) => d.stage !== 'duckling');
   const avg = (f: (d: Duck) => number) => (adults.length > 0 ? adults.reduce((s, d) => s + f(d), 0) / adults.length : 0);
   const decor = Math.min(6, state.decorations.length) * 8;
-  const poise = avg((d) => poiseOf(d)) * 0.3;
+  const crowned = Math.min(3, adults.filter(isChampion).length) * 6;
+  const poise = avg((d) => poiseOf(d)) * 0.2;
   const cheer = avg((d) => d.needs.happiness) * 0.3;
-  return Math.round(decor + poise + cheer);
+  return Math.round(decor + crowned + poise + cheer);
 }
 
 export function winterParadeTarget(state: GameState): number {
-  return 45 + festivalTier(state, 'winterLights') * 15;
+  return 50 + festivalTier(state, 'winterLights') * 15;
 }
 
 type WinterWish = 'lure' | 'society' | 'fortune';

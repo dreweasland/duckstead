@@ -35,6 +35,7 @@ import { backToPondRow, eventCard, resultRow } from './eventCard';
 import { duckPortrait } from './portrait';
 import { openRacePanel } from './racePanel';
 import { duckById } from '../state';
+import { isChampion } from '../sim/line';
 
 export interface FestivalHost {
   game: Game;
@@ -297,8 +298,8 @@ export function openMarketStall(host: FestivalHost): void {
 // --- Winter Lights ------------------------------------------------------
 
 // Light the five wish-lanterns, then the flock parades beneath them: the
-// pond is judged on its decorations, poise, and cheer against the tier's
-// bar, and the fifth wish is the player's.
+// pond is judged on its decorations, its champions, poise, and cheer against
+// the tier's bar, and the fifth wish is the player's.
 export function openWinterLights(host: FestivalHost): void {
   if (document.querySelector('.race-overlay')) return;
   const state = host.game.state;
@@ -308,6 +309,7 @@ export function openWinterLights(host: FestivalHost): void {
           'div',
           { class: 'race-stats fit' },
           statTile('sparkle', String(parade.score), 'parade score'),
+          statTile('crown', String(state.ducks.filter((d) => d.stage !== 'egg' && isChampion(d)).length), 'champions under the lanterns'),
           statTile('flag', String(parade.target), parade.won ? 'bar — cleared!' : 'bar'),
         )
       : null;
