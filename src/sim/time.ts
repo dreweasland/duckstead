@@ -43,10 +43,20 @@ export function isNight(clock: GameClock): boolean {
   return h >= NIGHT_START || h < NIGHT_END;
 }
 
-export function formatClock(clock: GameClock): string {
+// "06:47"
+export function formatTime(clock: GameClock): string {
   const h = Math.floor(hourOf(clock));
   const m = Math.floor((hourOf(clock) - h) * 60);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// "Y1 Winter 1"
+export function formatDate(clock: GameClock): string {
   const season = seasonOf(clock);
   const label = season.charAt(0).toUpperCase() + season.slice(1);
-  return `Y${yearOf(clock)} ${label} ${dayOfSeason(clock)} · ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  return `Y${yearOf(clock)} ${label} ${dayOfSeason(clock)}`;
+}
+
+export function formatClock(clock: GameClock): string {
+  return `${formatDate(clock)} · ${formatTime(clock)}`;
 }

@@ -78,7 +78,7 @@ report the cloud as unreachable while everything else plays offline.
   winning stable. Festival tournaments ignore the daily limit.
 - **Visitors** — rare
   wild ducks visit well-kept ponds (pond cleanliness above 70% — watch the
-  HUD chip and scrub when it dips; befriend them with premium treats, you
+  pond count in the ledger and scrub when it dips; befriend them with premium treats, you
   start with three). Your first wild visitor is guaranteed on day 2.
 - **Festivals** — one per season: Spring Egg Show, Summer Derby Grand Prix,
   Autumn Market Day, Winter Lights. Every one can be won: the Egg Show and

@@ -201,7 +201,8 @@ describe('ui smoke', () => {
     expect(game.state.ducks.length).toBeGreaterThan(0);
     expect(() => renderer.render(0)).not.toThrow();
     expect(() => renderer.render(0.5)).not.toThrow();
-    expect(document.querySelector('.hud')).toBeTruthy();
+    expect(document.querySelector('.almanac')).toBeTruthy();
+    expect(document.querySelector('.ledger .chip-coin')).toBeTruthy();
     // Let the periodic HUD / panel / rail refreshes run once.
     expect(() => vi.advanceTimersByTime(1000)).not.toThrow();
     expect(ui.modalKindNow()).toBeNull();
@@ -306,7 +307,7 @@ describe('ui smoke', () => {
     feed.click();
     expect(document.body.classList.contains('feeding')).toBe(false);
     expect(document.querySelector('.bottom-dock .dock-actions .unlock-shop')).toBeTruthy();
-    expect(document.querySelector('.hud .care-menu')).toBeNull();
+    expect(document.querySelector('.care-menu')).toBeNull();
     void ui;
   });
 

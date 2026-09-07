@@ -99,41 +99,68 @@ body.feeding #pond-canvas {
   pointer-events: auto;
 }
 
-/* ---------- HUD ---------- */
-/* The bar's height, published by the UI from a ResizeObserver (one row on a
-   wide screen, two on a narrow one); everything that hangs below the bar
-   offsets by it. The fallback is the one-row height. */
+/* ---------- Corner cards ---------- */
+/* The almanac (top-left: time, weather, date, festival, speed) and the
+   ledger (top-right: coins, points, the line, flock, pond). Their taller
+   height is published by the UI as --corner-h so what hangs below them
+   anchors to it; the fallback is the almanac's usual height. Widths are
+   tokens so the flock bar between them and the breakpoints share them. */
 :root {
-  --hud-h: 44px;
+  --corner-h: 130px;
+  --almanac-w: 272px;
+  --ledger-w: 300px;
 }
 
-.hud {
+.corner-card {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 10px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  row-gap: 6px;
-  padding: 8px 14px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
   background: rgba(16, 22, 30, 0.82);
   backdrop-filter: blur(6px);
+  border: 1px solid var(--surface-2);
+  border-radius: 12px;
   font-size: 14px;
+}
+
+.almanac {
+  left: 12px;
+  width: var(--almanac-w);
+}
+
+.ledger {
+  right: 12px;
+  width: var(--ledger-w);
+}
+
+.almanac-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
-/* The buttons travel as one group: on a wide screen they sit at the right
-   end of the row; when the bar can't fit them beside the ledger they take a
-   whole second row, speed controls still at the far right. */
+.almanac-time {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.almanac-weather:empty {
+  display: none;
+}
+
+.almanac-date {
+  font-size: 13px;
+}
+
 .hud-speed {
   display: inline-flex;
   align-items: center;
-  gap: inherit;
-}
-
-.hud-title {
-  font-weight: 700;
+  gap: 6px;
 }
 
 /* ---------- Hand-drawn icons ---------- */
@@ -197,16 +224,11 @@ body.feeding #pond-canvas {
   color: #eeaad4;
 }
 
-.hud-clock {
-  font-variant-numeric: tabular-nums;
-  opacity: 0.9;
-  margin: 0 6px;
-}
-
 /* The resource ledger: one pill with the counts divided by hairlines, rather
    than a pill per count — about half the width, every number still there. */
 .hud-chips {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: stretch;
   background: var(--surface);
   border: 1px solid var(--surface-2);
@@ -263,22 +285,6 @@ body.feeding #pond-canvas {
   color: var(--gold);
 }
 
-.chip-feed .icon {
-  color: #d9b45c;
-}
-
-.chip-premium .icon {
-  color: var(--lilac);
-}
-
-.chip-medicine .icon {
-  color: #e08585;
-}
-
-.chip-soap .icon {
-  color: #7fb6d8;
-}
-
 .festival-chip {
   color: var(--muted);
   cursor: pointer;
@@ -289,10 +295,6 @@ body.feeding #pond-canvas {
   color: var(--gold);
   border-color: var(--gold);
   animation: pulse 1.6s ease-in-out infinite;
-}
-
-.hud-spacer {
-  flex: 1;
 }
 
 /* The button family: one base here; each family's own section keeps only
@@ -820,7 +822,7 @@ body.feeding #pond-canvas {
 
 .dawn-card {
   position: absolute;
-  top: calc(var(--hud-h) + 8px);
+  top: calc(var(--corner-h) + 8px);
   left: 50%;
   transform: translate(-50%, -12px);
   width: min(460px, calc(100vw - 32px));
@@ -1053,16 +1055,6 @@ body.feeding #pond-canvas {
   50% {
     filter: brightness(1.3);
   }
-}
-
-/* ---------- Panels ---------- */
-.panel-host {
-  position: absolute;
-  top: calc(var(--hud-h) + 8px);
-  right: 0;
-  bottom: 0;
-  display: flex;
-  pointer-events: none;
 }
 
 .panel {
@@ -1534,7 +1526,7 @@ body.feeding #pond-canvas {
 /* ---------- Breeding panel (centred modal) ---------- */
 .modal-host {
   position: absolute;
-  top: calc(var(--hud-h) + 4px);
+  top: calc(var(--corner-h) + 4px);
   left: 50%;
   transform: translateX(-50%);
   pointer-events: none;
@@ -1550,7 +1542,7 @@ body.feeding #pond-canvas {
   border: 1px solid var(--line-strong);
   border-radius: 14px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
-  max-height: calc(100vh - var(--hud-h) - var(--dock-h) - 24px);
+  max-height: calc(100vh - var(--corner-h) - var(--dock-h) - 24px);
   max-width: calc(100vw - 32px);
   animation: float-in 0.16s ease-out;
 }
@@ -2733,7 +2725,7 @@ body.feeding #pond-canvas {
 /* The left-hand strip: the goals path on top, offers underneath. */
 .side-widgets {
   position: absolute;
-  top: calc(var(--hud-h) + 16px);
+  top: calc(var(--corner-h) + 16px);
   left: 12px;
   display: flex;
   flex-direction: column;
@@ -3757,7 +3749,7 @@ body.feeding #pond-canvas {
 .notice-column {
   position: absolute;
   right: 12px;
-  top: max(calc(var(--hud-h) + 8px), 38vh);
+  top: max(calc(var(--corner-h) + 8px), 38vh);
   width: 250px;
   display: flex;
   flex-direction: column;
@@ -3925,7 +3917,7 @@ body.feeding #pond-canvas {
    than a toast so the pond's big moments can't slip past unnoticed. */
 .banner-host {
   position: absolute;
-  top: calc(var(--hud-h) + 12px);
+  top: calc(var(--corner-h) + 12px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -4442,56 +4434,54 @@ body.feeding #pond-canvas {
   text-align: center;
 }
 
-/* ---------- HUD condensation ---------- */
-/* Mid-size screens: panel buttons drop their text (icons + tooltips stay). */
-@media (max-width: 1650px) {
-  .hud-btn-label {
+/* ---------- Breakpoints ---------- */
+/* Mid-size: the corner cards narrow, the dock's buttons and care slots go
+   icon-only (the armed slot keeps its name — the one signal that a tool is
+   armed). */
+@media (max-width: 1250px) {
+  :root {
+    --almanac-w: 232px;
+    --ledger-w: 260px;
+  }
+  .hud-btn-label,
+  .care-slot-label {
     display: none;
+  }
+  .care-slot.active .care-slot-label {
+    display: inline;
   }
   .hud-btn .icon {
     opacity: 1;
   }
-  /* And drop the supply chips whose counts live in the Care menu. (The
-     settings button and the life-event chip pushed the bar past 1600px with
-     them showing.) */
-  .chip-feed,
-  .chip-premium,
-  .chip-medicine,
-  .chip-soap {
-    display: none;
-  }
-  .hud {
-    gap: 6px;
-    padding: 8px 10px;
-  }
 }
 
-/* Narrow screens: the buttons take a deliberate second row rather than
-   wrapping wherever the width runs out. The ledger, clock, and festival
-   chip keep the first row; the speed controls hold the right end of the
-   second. (Whatever hangs below the bar follows --hud-h.) */
-@media (max-width: 1250px) {
-  .hud-spacer {
-    display: none;
-  }
-  .hud-speed {
-    margin-left: auto;
-  }
-}
-
-/* Below tablet width the festival and sync chips keep their icon and number
-   and drop their words, so the first row holds at 760px. */
+/* Tablet: the festival and sync chips keep their icon and number. */
 @media (max-width: 900px) {
+  :root {
+    --almanac-w: 200px;
+    --ledger-w: 224px;
+  }
   .festival-chip .chip-word,
   .sync-chip .chip-word {
     display: none;
   }
+  .side-widgets {
+    width: 220px;
+  }
 }
 
-/* Phone-width: the two least urgent counts go; coins, pond, and flock stay. */
+/* Phone-width: the clock, coins, the line, and the bottom dock remain. */
 @media (max-width: 640px) {
-  .chip-eggs,
-  .chip-society {
+  :root {
+    --almanac-w: 150px;
+    --ledger-w: 160px;
+  }
+  .chip-society,
+  .chip-flock,
+  .chip-pond,
+  .almanac-date,
+  .almanac-row.chips,
+  .side-widgets {
     display: none;
   }
 }
@@ -5003,6 +4993,8 @@ body.reduce-motion *::after {
   transition-duration: 0.001s !important;
 }
 
+body.text-large .corner-card,
+body.text-large .bottom-dock,
 body.text-large .panel,
 body.text-large .race-card,
 body.text-large .dawn-card,

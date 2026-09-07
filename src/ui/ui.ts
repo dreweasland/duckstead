@@ -1,7 +1,7 @@
 import type { Game } from '../game';
 import type { Renderer } from '../render/renderer';
 import { events } from '../events';
-import { formatClock } from '../sim/time';
+import { formatDate, formatTime } from '../sim/time';
 import { goalUnlocking, type ChapterDef, type GoalGo } from '../sim/goals';
 import type { Unlockable } from '../sim/unlocks';
 import { FESTIVAL_NAMES, festivalEnteredToday, festivalToday, festivalTitle, upcomingFestival } from '../sim/festivals';
@@ -11,7 +11,7 @@ import { isNight, TICKS_PER_HOUR } from '../sim/time';
 import { FOODS, TREATS, type FoodKind, type TreatKind } from '../sim/food';
 import { isUnlocked, UNLOCK_LABELS, UNLOCKABLES } from '../sim/unlocks';
 import { duckById } from '../state';
-import { duckCapacity, pondOccupancy, upgradeLevel } from '../sim/economy';
+import { duckCapacity, pondOccupancy } from '../sim/economy';
 import { el } from './dom';
 import { icon } from './icons';
 import { railSignature, renderCardRail } from './cardRail';
@@ -25,7 +25,8 @@ import { breedKey, breedLabel } from '../sim/breedBook';
 import { championCheck } from '../sim/line';
 import { renderGoalsPanel } from './goalsPanel';
 import { renderSettingsPanel } from './settingsPanel';
-import { buildHud } from './hud';
+import { buildAlmanac } from './almanac';
+import { buildLedger, type LedgerKey } from './ledger';
 import { bindCanvasInput } from './canvasInput';
 import { installTooltips } from './tooltip';
 import { actionForKey, loadSettings } from './settings';
@@ -52,10 +53,9 @@ const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .societ
 
 export class UI {
   private root: HTMLElement;
-  private hudClock!: HTMLElement;
-  private hudCounts: Record<'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society' | 'line', HTMLElement> =
-    {} as Record<'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society' | 'line', HTMLElement>;
-  private panelHost: HTMLElement;
+  private almanac!: ReturnType<typeof buildAlmanac>;
+  private festivalSig = '';
+  private hudCounts!: Record<LedgerKey, HTMLElement>;
   private toastHost: HTMLElement;
   private bannerHost: HTMLElement;
   // Two independent slots: the floating duck card and the centred modal
@@ -80,7 +80,6 @@ export class UI {
   private floats!: FloatWindows;
   private decor!: DecorMode;
   private notices!: Notices;
-  private festivalChip!: HTMLElement;
   private noticeColumn!: NoticeColumn;
   private showCards = localStorage.getItem(CARDS_PREF_KEY) === '1';
 
@@ -95,13 +94,11 @@ export class UI {
     window.addEventListener('pointerdown', () => unlockAudio(), { passive: true });
     window.addEventListener('keydown', () => unlockAudio());
     installTooltips();
-    const hud = buildHud({
-      game: this.game,
-      toast: (m) => this.toast(m),
+    this.almanac = buildAlmanac({
       onFestivalChip: () => this.onFestivalChip(),
-      openHall: () => this.openHall(),
       setSpeed: (sp) => this.setSpeed(sp),
     });
+    const ledger = buildLedger({ openHall: () => this.openHall() });
     const dock = buildBottomDock({
       togglePanel: (k) => this.togglePanel(k),
       toggleFeedMode: (k) => this.toggleFeedMode(k),
@@ -109,20 +106,14 @@ export class UI {
       showCards: () => this.showCards,
       toggleCardRail: () => this.toggleCardRail(),
     });
-    this.hudClock = hud.hudClock;
-    this.festivalChip = hud.festivalChip;
-    this.hudCounts = hud.hudCounts;
+    this.hudCounts = ledger.counts;
     this.careCounts = dock.careCounts;
-    this.root.append(hud.element);
-    // Everything that hangs below the bar (panels, widgets, toasts, the dawn
-    // card) offsets by its height, which is one row on a wide screen and two
-    // on a narrow one — so the bar publishes it rather than CSS guessing.
-    if (typeof ResizeObserver !== 'undefined') {
-      const publish = (): void => this.root.style.setProperty('--hud-h', `${hud.element.offsetHeight}px`);
-      new ResizeObserver(publish).observe(hud.element);
-      publish();
-    }
-    this.panelHost = el('div', { class: 'panel-host' });
+    this.root.append(this.almanac.element, ledger.element);
+    // Everything that hangs below the corner cards (widgets, the modal, the
+    // dawn card, the notices) offsets by the taller card, whose height
+    // depends on wrapping and content — so the cards publish it rather than
+    // CSS guessing.
+    this.publishHeight([this.almanac.element, ledger.element], '--corner-h', 10);
     this.noticeColumn = new NoticeColumn({
       game: this.game,
       renderer: this.renderer,
@@ -138,7 +129,7 @@ export class UI {
     this.side = new SideWidgets({ game: this.game, openPanel: (k) => this.openPanel(k), openHall: () => this.openHall() });
     this.floatHost = el('div', { class: 'float-host' });
     this.modalHost = el('div', { class: 'modal-host' });
-    this.root.append(this.railHost, this.side.element, this.panelHost, this.modalHost, this.floatHost, this.bannerHost, this.noticeColumn.element, dock.element);
+    this.root.append(this.railHost, this.side.element, this.modalHost, this.floatHost, this.bannerHost, this.noticeColumn.element, dock.element);
     this.floats = new FloatWindows({
       ui: this,
       root: this.root,
@@ -238,9 +229,6 @@ export class UI {
 
     // Never rebuild the panel mid-press: a rebuild between pointerdown and
     // pointerup destroys the button under the cursor and swallows the click.
-    this.panelHost.addEventListener('pointerdown', () => {
-      this.pointerDownInPanel = true;
-    });
     this.floatHost.addEventListener('pointerdown', () => {
       this.pointerDownInPanel = true;
     });
@@ -324,13 +312,6 @@ export class UI {
       default: return;
     }
     e.preventDefault();
-  }
-
-  // Buttons that come and go (sleep, scrub the pond) sit with the others,
-  // ahead of the speed controls, so they never wrap into a stray third row.
-  private addHudAction(btn: HTMLElement): void {
-    const bar = this.root.querySelector<HTMLElement>('.hud')!;
-    bar.insertBefore(btn, bar.querySelector('.hud-speed'));
   }
 
   setSpeed(speed: number): void {
@@ -458,7 +439,6 @@ export class UI {
 
   closeModal(): void {
     this.openModalKind = null;
-    this.panelHost.replaceChildren();
     this.modalHost.replaceChildren();
     resetSavePanelState();
   }
@@ -507,7 +487,7 @@ export class UI {
     const active = document.activeElement;
     if (
       active &&
-      (this.panelHost.contains(active) || this.floatHost.contains(active) || this.modalHost.contains(active)) &&
+      (this.floatHost.contains(active) || this.modalHost.contains(active)) &&
       midEntry(active)
     ) {
       return;
@@ -608,30 +588,32 @@ export class UI {
     this.togglePanel(go.panel);
   }
 
+  // The corner cards publish their taller height as a CSS variable, since
+  // what hangs below them anchors to it.
+  private publishHeight(nodes: HTMLElement[], varName: string, pad: number): void {
+    if (typeof ResizeObserver === 'undefined') return;
+    const publish = (): void => this.root.style.setProperty(varName, `${Math.max(...nodes.map((n) => n.offsetHeight)) + pad}px`);
+    const ro = new ResizeObserver(publish);
+    for (const n of nodes) ro.observe(n);
+    publish();
+  }
+
   private refreshHud(): void {
-    const s = this.game.state;
     this.side.refresh();
+    this.refreshAlmanac();
+    this.refreshLedger();
+    this.refreshDock();
+  }
+
+  // Clock, weather, date, the festival chip, and the night's sleep button.
+  private refreshAlmanac(): void {
+    const s = this.game.state;
     this.refreshFestivalChip();
     const weather = weatherOf(s);
-    this.hudClock.textContent = weather === 'clear' ? formatClock(s.clock) : `${formatClock(s.clock)} · ${WEATHER_NAMES[weather]}`;
+    this.almanac.time.textContent = formatTime(s.clock);
+    this.almanac.weather.textContent = weather === 'clear' ? '' : WEATHER_NAMES[weather];
+    this.almanac.date.textContent = formatDate(s.clock);
     setAmbienceNight(isNight(s.clock));
-    this.hudCounts.coin.textContent = String(s.money);
-    this.hudCounts.feed.textContent = String(s.inventory.feed);
-    this.hudCounts.premium.textContent = String(s.inventory.premiumFeed);
-    this.hudCounts.medicine.textContent = String(s.inventory.medicine);
-    // Soap only matters once there is a bath house to use it; until then the
-    // chip stays out of the bar (unless some was bought anyway).
-    const bathHouse = upgradeLevel(s, 'bathHouse') > 0;
-    this.hudCounts.soap.textContent = String(s.inventory.soap);
-    this.hudCounts.soap.parentElement!.hidden = !bathHouse && s.inventory.soap === 0;
-    this.hudCounts.soap.parentElement?.classList.toggle('chip-low', bathHouse && s.inventory.soap === 0);
-    this.hudCounts.eggs.textContent = String(s.inventory.eggs);
-    this.hudCounts.society.textContent = String(s.society.points);
-    this.hudCounts.line.textContent = `${s.line.championsTotal} · gen ${s.stats.deepestGen}`;
-    this.hudCounts.line.parentElement!.title = `The ${s.line.name} line — ${plural(s.line.championsTotal, 'champion')}, deepest generation ${s.stats.deepestGen}. Opens the Hall of Champions.`;
-    for (const [kind, node] of Object.entries(this.careCounts)) {
-      node.textContent = String(s.inventory[kind as keyof typeof s.inventory]);
-    }
     // Night: offer to sleep through to dawn.
     const sleepBtn = this.root.querySelector<HTMLElement>('.sleep-btn');
     if (isNight(s.clock) && !this.game.stale) {
@@ -648,10 +630,35 @@ export class UI {
           icon('pause', 13),
           "Sleep 'til dawn",
         );
-        this.addHudAction(btn);
+        this.almanac.actions.append(btn);
       }
     } else {
       sleepBtn?.remove();
+    }
+  }
+
+  // Coins, points, the line, flock against capacity, pond cleanliness.
+  private refreshLedger(): void {
+    const s = this.game.state;
+    this.hudCounts.coin.textContent = String(s.money);
+    this.hudCounts.society.textContent = String(s.society.points);
+    this.hudCounts.line.textContent = `${s.line.championsTotal} · gen ${s.stats.deepestGen}`;
+    this.hudCounts.line.parentElement!.title = `The ${s.line.name} line — ${plural(s.line.championsTotal, 'champion')}, deepest generation ${s.stats.deepestGen}. Opens the Hall of Champions.`;
+    const occ = pondOccupancy(s);
+    const cap = duckCapacity(s);
+    this.hudCounts.flock.textContent = `${occ}/${cap}`;
+    this.hudCounts.flock.parentElement?.classList.toggle('chip-bad', occ > cap);
+    this.hudCounts.flock.parentElement?.classList.toggle('chip-low', occ === cap);
+    const pondPct = Math.round(s.pond.cleanliness);
+    this.hudCounts.pond.textContent = `${pondPct}%`;
+    this.hudCounts.pond.parentElement?.classList.toggle('chip-low', pondPct < TUNING.visitors.inviteCleanliness);
+  }
+
+  // The care counts, and the panel buttons' locks as the goal chain opens them.
+  private refreshDock(): void {
+    const s = this.game.state;
+    for (const [kind, node] of Object.entries(this.careCounts)) {
+      node.textContent = String(s.inventory[kind as keyof typeof s.inventory]);
     }
     // Progressive reveal: panels appear as the goal chain introduces them.
     for (const what of UNLOCKABLES) {
@@ -675,17 +682,6 @@ export class UI {
       }
     }
     this.hudReady = true;
-    const occ = pondOccupancy(s);
-    const cap = duckCapacity(s);
-    this.hudCounts.flock.textContent = `${occ}/${cap}`;
-    this.hudCounts.flock.parentElement?.classList.toggle('chip-bad', occ > cap);
-    this.hudCounts.flock.parentElement?.classList.toggle('chip-low', occ === cap);
-    const pondPct = Math.round(s.pond.cleanliness);
-    this.hudCounts.pond.textContent = `${pondPct}%`;
-    this.hudCounts.pond.parentElement?.classList.toggle('chip-low', pondPct < TUNING.visitors.inviteCleanliness);
-    // Pond cleanliness nudge. Wild ducks stop visiting below 70%, so the
-    // scrub button shows from there — urgently once the water is truly foul.
-    // Dirty water, life events, and the rest wait in the notices column now.
   }
 
   private toggleCardRail(): void {
@@ -750,25 +746,29 @@ export class UI {
   private refreshFestivalChip(): void {
     const clock = this.game.state.clock;
     const today = festivalToday(clock);
+    const chip = this.almanac.festivalChip;
+    const sig = today ? `${today}:${festivalEnteredToday(this.game.state, today)}` : `${upcomingFestival(clock).kind}:${upcomingFestival(clock).inDays}`;
+    if (sig === this.festivalSig) return;
+    this.festivalSig = sig;
     if (today) {
       const entered =
         (today === 'eggShow' || today === 'grandPrix') &&
         festivalEnteredToday(this.game.state, today);
       // The name is its own span so a narrow bar can keep the chip short.
-      this.festivalChip.replaceChildren(
+      chip.replaceChildren(
         icon('flag', 11),
         el('span', { class: 'chip-word' }, festivalTitle(this.game.state, today)),
         entered ? '(entered)' : 'today',
       );
-      this.festivalChip.classList.add('today');
+      chip.classList.add('today');
     } else {
       const { kind, inDays } = upcomingFestival(clock);
-      this.festivalChip.replaceChildren(
+      chip.replaceChildren(
         icon('flag', 11),
         el('span', { class: 'chip-word' }, `${festivalTitle(this.game.state, kind)} in`),
         `${inDays}d`,
       );
-      this.festivalChip.classList.remove('today');
+      chip.classList.remove('today');
     }
   }
 
