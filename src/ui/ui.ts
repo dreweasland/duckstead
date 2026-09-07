@@ -14,7 +14,7 @@ import { duckById } from '../state';
 import { duckCapacity, pondOccupancy } from '../sim/economy';
 import { el } from './dom';
 import { icon } from './icons';
-import { railSignature, renderCardRail } from './cardRail';
+import { flockSignature, renderFlockBar } from './flockBar';
 import { renderDuckPanel } from './duckPanel';
 import { renderBreedingPanel, showBreedingTab } from './breedingPanel';
 import { renderShopPanel, showShopTab } from './shopPanel';
@@ -36,7 +36,7 @@ import { WEATHER_NAMES, weatherOf } from '../sim/weather';
 import { openRacePanel } from './racePanel';
 import { TUNING } from '../sim/tuning';
 import { plural } from '../text';
-import { FloatWindows } from './floatWindows';
+import { DuckDock } from './duckDock';
 import { DecorMode } from './decorMode';
 import { Notices, type ToastTone } from './notices';
 import { NoticeColumn } from './noticeColumn';
@@ -46,7 +46,7 @@ import { SideWidgets } from './sideWidgets';
 export type PanelKind = 'duck' | 'breeding' | 'shop' | 'roster' | 'save' | 'book' | 'settings' | 'goals';
 
 // UI preference, not game state — deliberately outside the save file.
-const CARDS_PREF_KEY = 'ducksim:ui:cards';
+const FLOCK_BAR_PREF_KEY = 'ducksim:ui:flockBar';
 // Inner scrollable lists whose scroll position must survive the periodic
 // panel rebuild. Any new scroll region in a panel belongs in this list.
 const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .society-ladder, .chronicle, .nest-grid, .gene-table-wrap';
@@ -66,22 +66,22 @@ export class UI {
   private justOpenedModal = false;
   private justOpenedDuck = false;
   private pointerDownInPanel = false;
-  private pointerDownInRail = false;
+  private pointerDownInFlockBar = false;
   private feedMode: 'none' | FoodKind | 'brush' = 'none';
   private careCounts: Partial<Record<FoodKind, HTMLElement>> = {};
   private unlockedSeen = new Set<string>();
   private hudReady = false; // first HUD refresh seeds unlockedSeen silently
-  private railHost!: HTMLElement;
+  private flockBarHost!: HTMLElement;
   private side!: SideWidgets;
-  private floatHost!: HTMLElement;
+  private dockHost!: HTMLElement;
   private modalHost!: HTMLElement;
   // The floating duck card + pinned copies, and decoration placement, live
   // in their own modules; the UI keeps thin delegates for the public calls.
-  private floats!: FloatWindows;
+  private dock!: DuckDock;
   private decor!: DecorMode;
   private notices!: Notices;
   private noticeColumn!: NoticeColumn;
-  private showCards = localStorage.getItem(CARDS_PREF_KEY) === '1';
+  private showFlockBar = localStorage.getItem(FLOCK_BAR_PREF_KEY) !== '0';
 
   constructor(
     readonly game: Game,
@@ -103,8 +103,6 @@ export class UI {
       togglePanel: (k) => this.togglePanel(k),
       toggleFeedMode: (k) => this.toggleFeedMode(k),
       openRace: () => this.openRace(),
-      showCards: () => this.showCards,
-      toggleCardRail: () => this.toggleCardRail(),
     });
     this.hudCounts = ledger.counts;
     this.careCounts = dock.careCounts;
@@ -125,22 +123,19 @@ export class UI {
     });
     this.toastHost = this.noticeColumn.toastHost;
     this.bannerHost = el('div', { class: 'banner-host' });
-    this.railHost = el('div', { class: 'rail-host' });
+    this.flockBarHost = el('div', { class: 'flock-bar-host' });
     this.side = new SideWidgets({ game: this.game, openPanel: (k) => this.openPanel(k), openHall: () => this.openHall() });
-    this.floatHost = el('div', { class: 'float-host' });
+    this.dockHost = el('div', { class: 'duck-dock' });
     this.modalHost = el('div', { class: 'modal-host' });
-    this.root.append(this.railHost, this.side.element, this.modalHost, this.floatHost, this.bannerHost, this.noticeColumn.element, dock.element);
-    this.floats = new FloatWindows({
+    this.root.append(this.flockBarHost, this.side.element, this.modalHost, this.dockHost, this.bannerHost, this.noticeColumn.element, dock.element);
+    this.dock = new DuckDock({
       ui: this,
-      root: this.root,
-      floatHost: this.floatHost,
-      modalHost: this.modalHost,
-      modalOpen: () => this.openModalKind !== null,
+      dock: this.dockHost,
       pointerDownInPanel: () => {
         this.pointerDownInPanel = true;
       },
+      toast: (m) => this.toast(m),
     });
-    this.floats.bindFloatDrag();
     this.decor = new DecorMode(this.game, this.renderer, (m) => this.toast(m));
     this.notices = new Notices({
       game: this.game,
@@ -151,22 +146,9 @@ export class UI {
       refreshPanel: () => this.refreshPanel(),
       closePanel: () => this.closePanel(),
     });
-    this.railHost.addEventListener('pointerdown', () => {
-      this.pointerDownInRail = true;
+    this.flockBarHost.addEventListener('pointerdown', () => {
+      this.pointerDownInFlockBar = true;
     });
-    // A horizontal strip should side-scroll with a plain mouse wheel, not
-    // just shift+wheel. Wheel events over cards bubble here.
-    this.railHost.addEventListener(
-      'wheel',
-      (e) => {
-        const rail = this.railHost.firstElementChild as HTMLElement | null;
-        if (!rail || rail.scrollWidth <= rail.clientWidth) return;
-        const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-        rail.scrollLeft += delta;
-        e.preventDefault();
-      },
-      { passive: false },
-    );
 
     // Sim-originated toasts are things the player didn't do (a duck fell
     // sick, a festival opened): they get the louder, longer-lived look.
@@ -229,24 +211,21 @@ export class UI {
 
     // Never rebuild the panel mid-press: a rebuild between pointerdown and
     // pointerup destroys the button under the cursor and swallows the click.
-    this.floatHost.addEventListener('pointerdown', () => {
-      this.pointerDownInPanel = true;
-    });
     this.modalHost.addEventListener('pointerdown', () => {
       this.pointerDownInPanel = true;
     });
     window.addEventListener('pointerup', () => {
       this.pointerDownInPanel = false;
-      this.pointerDownInRail = false;
+      this.pointerDownInFlockBar = false;
     });
 
     window.addEventListener('keydown', (e) => this.onKey(e));
 
     this.bindCanvas();
-    this.refreshCardRail();
+    this.refreshFlockBar();
     setInterval(() => {
       this.refreshPanel();
-      this.refreshCardRail();
+      this.refreshFlockBar();
       this.noticeColumn.refresh();
     }, 500);
     setInterval(() => this.refreshHud(), 250);
@@ -304,7 +283,7 @@ export class UI {
       case 'book': this.togglePanel('book'); break;
       case 'race': this.openRace(); break;
       case 'save': this.togglePanel('save'); break;
-      case 'cards': this.toggleCardRail(); break;
+      case 'cards': this.toggleFlockBar(); break;
       case 'settings': this.togglePanel('settings'); break;
       case 'pause': this.setSpeed(this.game.speed === 0 ? 1 : 0); break;
       case 'faster': this.setSpeed(this.game.speed === 0 ? 1 : this.game.speed === 1 ? 4 : 16); break;
@@ -360,15 +339,15 @@ export class UI {
 
   // ---- pinned comparison cards (see floatWindows.ts) ----
   pinDuck(id: string): void {
-    this.floats.pinDuck(id);
+    this.dock.pinDuck(id);
   }
 
   unpinDuck(id: string): void {
-    this.floats.unpinDuck(id);
+    this.dock.unpinDuck(id);
   }
 
   isPinned(id: string): boolean {
-    return this.floats.isPinned(id);
+    return this.dock.isPinned(id);
   }
 
   feedModeNow(): 'none' | FoodKind | 'brush' {
@@ -412,6 +391,9 @@ export class UI {
     if (kind === 'duck') {
       this.justOpenedDuck = !this.duckCardOpen;
       this.duckCardOpen = true;
+      // The dock takes the right edge: modals and overlays make room for it.
+      this.root.classList.add('dock-open');
+      this.dockHost.classList.add('has-cards');
     } else {
       this.justOpenedModal = this.openModalKind !== kind;
       this.openModalKind = kind;
@@ -433,8 +415,10 @@ export class UI {
 
   closeDuckCard(): void {
     this.duckCardOpen = false;
-    this.floatHost.classList.remove('above-overlay');
-    this.floatHost.replaceChildren();
+    this.dockHost.classList.remove('above-overlay');
+    this.dock.mainSlot.replaceChildren();
+    this.root.classList.remove('dock-open');
+    if (!this.dock.hasPins()) this.dockHost.classList.remove('has-cards');
   }
 
   closeModal(): void {
@@ -481,13 +465,13 @@ export class UI {
       return node instanceof HTMLInputElement && node.type !== 'checkbox' && node.type !== 'radio' && node.type !== 'button';
     };
     const active0 = document.activeElement;
-    const typingInPin = active0 && this.floats.pinnedContains(active0) && midEntry(active0);
-    if (!typingInPin) this.floats.refreshPinned();
+    const typingInPin = active0 && this.dock.pinnedContains(active0) && midEntry(active0);
+    if (!typingInPin) this.dock.refreshPinned();
     if (!this.duckCardOpen && !this.openModalKind) return;
     const active = document.activeElement;
     if (
       active &&
-      (this.floatHost.contains(active) || this.modalHost.contains(active)) &&
+      (this.dockHost.contains(active) || this.modalHost.contains(active)) &&
       midEntry(active)
     ) {
       return;
@@ -498,11 +482,10 @@ export class UI {
     if (this.duckCardOpen) {
       const panel = renderDuckPanel({ game: this.game, ui: this, close: () => this.closeDuckCard() });
       if (panel) {
-        panel.classList.add('floating');
-        this.floats.applyFloatPos();
+        panel.classList.add('docked');
         if (!this.justOpenedDuck) panel.classList.add('no-anim');
         this.justOpenedDuck = false;
-        this.swapPanel(this.floatHost, panel);
+        this.swapPanel(this.dock.mainSlot, panel);
       } else {
         this.closeDuckCard();
       }
@@ -684,11 +667,10 @@ export class UI {
     this.hudReady = true;
   }
 
-  private toggleCardRail(): void {
-    this.showCards = !this.showCards;
-    localStorage.setItem(CARDS_PREF_KEY, this.showCards ? '1' : '0');
-    this.root.querySelector('.cards-btn')?.classList.toggle('active', this.showCards);
-    this.refreshCardRail();
+  toggleFlockBar(): void {
+    this.showFlockBar = !this.showFlockBar;
+    localStorage.setItem(FLOCK_BAR_PREF_KEY, this.showFlockBar ? '1' : '0');
+    this.refreshFlockBar();
   }
 
   // Sleep 'til dawn, spread across animation frames: ~600 ticks per frame
@@ -712,35 +694,36 @@ export class UI {
         this.game.save();
         this.toast('You dozed off by the pond and woke at dawn');
         this.refreshPanel();
-        this.refreshCardRail();
+        this.refreshFlockBar();
       }
     };
     step();
   }
 
-  private lastRailSig = '';
+  private lastFlockSig = '';
 
-  private refreshCardRail(): void {
-    document.body.classList.toggle('cards-on', this.showCards);
-    if (!this.showCards) {
-      this.railHost.replaceChildren();
+  private refreshFlockBar(): void {
+    if (!this.showFlockBar) {
+      this.flockBarHost.replaceChildren();
+      this.lastFlockSig = '';
       return;
     }
-    if (this.pointerDownInRail) return;
-    // Skip the rebuild (and its 20 portraits) when nothing visible changed —
+    if (this.pointerDownInFlockBar) return;
+    // Skip the rebuild (and its portraits) when nothing visible changed —
     // the 500ms cadence mostly fires on an unchanged flock.
-    const sig = railSignature(this.game);
-    if (sig === this.lastRailSig && this.railHost.firstElementChild) return;
-    this.lastRailSig = sig;
-    // Preserve horizontal scroll across rebuilds.
-    const prevScroll = (this.railHost.firstElementChild as HTMLElement | null)?.scrollLeft ?? 0;
-    const rail = renderCardRail(this.game, {
-      select: (id, pin) => this.selectDuck(id, pin),
-      refresh: () => this.refreshCardRail(),
-      toast: (msg) => this.toast(msg),
-    });
-    this.railHost.replaceChildren(rail);
-    rail.scrollLeft = prevScroll;
+    const sig = flockSignature(this.game, (id) => this.isPinned(id));
+    if (sig === this.lastFlockSig && this.flockBarHost.firstElementChild) return;
+    this.lastFlockSig = sig;
+    this.flockBarHost.replaceChildren(
+      renderFlockBar(this.game, {
+        select: (id, pin) => this.selectDuck(id, pin),
+        isPinned: (id) => this.isPinned(id),
+        refresh: () => {
+          this.lastFlockSig = '';
+          this.refreshFlockBar();
+        },
+      }),
+    );
   }
 
   private refreshFestivalChip(): void {
@@ -776,7 +759,7 @@ export class UI {
     return {
       game: this.game,
       root: this.root,
-      floatHost: this.floatHost,
+      dockHost: this.dockHost,
       toast: (m) => this.toast(m),
       selectDuck: (id) => this.selectDuck(id),
     };

@@ -18,10 +18,15 @@ proxies `/api` to `npm run dev:worker`, so without it those features simply
 report the cloud as unreachable while everything else plays offline.
 
 - **Click a duck** to inspect it: needs, genetics, care actions, sell price.
-  The pin button on the card keeps it open as its own window while you
-  open other ducks — pin several to compare side by side; each is draggable
-  and stays live. Ctrl/Cmd-click a duck on the pond, a card in the Flock
-  panel, or a rail card to open it pinned straight away.
+  The card docks along the right edge. The pin button keeps it open while
+  you open other ducks — pin up to three to compare; they stack beneath the
+  card and stay live. Ctrl/Cmd-click a duck on the pond, a card in the Flock
+  panel, or a portrait in the flock bar to open it pinned straight away.
+- **Flock bar** — a row of portraits across the sky, one per duck: a thin
+  ring shows its lowest need (colour says which, arc says how low; calm
+  when nothing is under 60), a crown marks a champion, eggs sit at the end
+  with their incubation. Click to open, `C` to hide it, the little button
+  at its head to change the order.
 - **Care hotbar** — the strip along the bottom of the screen holds every
   hands-on tool with its count: pick Feed, Premium, a treat, or the Brush,
   then click the map to use it (the armed slot lights up). The panel

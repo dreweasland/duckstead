@@ -40,7 +40,7 @@ import { isChampion } from '../sim/line';
 export interface FestivalHost {
   game: Game;
   root: HTMLElement;
-  floatHost: HTMLElement;
+  dockHost: HTMLElement;
   toast(msg: string): void;
   selectDuck(id: string): void;
 }
@@ -174,7 +174,7 @@ export function openMarketStall(host: FestivalHost): void {
     return;
   }
 
-  const ev = eventCard(host.root, 'market', '', () => host.floatHost.classList.remove('above-overlay'));
+  const ev = eventCard(host.root, 'market', '', () => host.dockHost.classList.remove('above-overlay'));
   if (!ev) return;
   const { card, close, header } = ev;
   const index = 0;
@@ -278,8 +278,8 @@ export function openMarketStall(host: FestivalHost): void {
               // it above and it steps aside so both stay readable.
               // A card that was ever dragged carries an inline z-index that
               // would beat the lifting class; clear it first.
-              host.floatHost.style.zIndex = '';
-              host.floatHost.classList.add('above-overlay');
+              host.dockHost.style.zIndex = '';
+              host.dockHost.classList.add('above-overlay');
               host.selectDuck(duck.id);
             },
           },

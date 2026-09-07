@@ -34,7 +34,7 @@ export const KEY_ACTIONS: Array<{ id: KeyAction; label: string }> = [
   { id: 'book', label: 'Open the Book' },
   { id: 'race', label: 'Open the Race' },
   { id: 'save', label: 'Open Save' },
-  { id: 'cards', label: 'Show / hide duck cards' },
+  { id: 'cards', label: 'Show / hide the flock bar' },
   { id: 'pause', label: 'Pause / resume' },
   { id: 'faster', label: 'Faster' },
   { id: 'slower', label: 'Slower' },

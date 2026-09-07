@@ -5,6 +5,8 @@ import type { Duck } from '../sim/duck';
 import { cleanDuck, feedDuckDirectly, medicateDuck, petDuck } from '../sim/needs';
 import { el } from './dom';
 import { icon, type IconName } from './icons';
+import { drillsLeft, isTrainingDay } from '../sim/training';
+import { plural } from '../text';
 
 export interface QuickHandlers {
   refresh(): void;
@@ -52,4 +54,16 @@ export function quickActions(game: Game, duck: Duck, h: QuickHandlers): HTMLElem
     );
   }
   return row;
+}
+
+// A duck's training for the day, as a chip: drills still to run, or done.
+// Ducklings can't train and get nothing.
+export function trainingChip(game: Game, duck: Duck, size = 10, compact = false): HTMLElement | null {
+  if (duck.stage === 'egg' || duck.stage === 'duckling' || !isTrainingDay(game.state)) return null;
+  const left = drillsLeft(game.state, duck);
+  if (left > 0) {
+    const label = compact ? (left > 1 ? String(left) : '') : left > 1 ? `${left} drills` : 'drill';
+    return el('span', { class: 'chip chip-drill', title: `${plural(left, 'drill')} left today — open the card to train` }, icon('flag', size), label);
+  }
+  return el('span', { class: 'chip chip-trained', title: 'Trained today' }, icon('check', size), compact ? '' : 'trained');
 }

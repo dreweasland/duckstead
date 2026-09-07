@@ -12,7 +12,7 @@ import type { Duck } from '../sim/duck';
 import { breedReadiness } from '../sim/needs';
 import { pedigreeScore } from '../sim/pedigree';
 import { drillsLeft, isTrainingDay } from '../sim/training';
-import { trainingChip } from './cardRail';
+import { trainingChip } from './quickActions';
 import type { GameState } from '../state';
 import { generationOf } from '../sim/lineage';
 import { describeBalance, flockBalance, HENS_PER_DRAKE } from '../sim/flockBalance';

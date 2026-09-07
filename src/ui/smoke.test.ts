@@ -135,7 +135,7 @@ function exerciseDuckCard(ui: UI, game: Game, id: string): void {
   game.selectedDuckId = id;
   ui.openPanel('duck');
   ui.refreshPanel();
-  const host = () => document.querySelector('.float-host');
+  const host = () => document.querySelector('.duck-dock .dock-slot.main');
   expect(host()?.firstElementChild, `duck card for ${id} rendered nothing`).toBeTruthy();
   clickTabs(host, () => ui.refreshPanel());
   ui.closeDuckCard();
@@ -221,7 +221,7 @@ describe('ui smoke', () => {
     game.selectedDuckId = adult.id;
     ui.openPanel('duck');
     ui.refreshPanel();
-    expect(document.querySelector('.float-host .chip-champion')).toBeTruthy();
+    expect(document.querySelector('.duck-dock .chip-champion')).toBeTruthy();
     ui.closeDuckCard();
     ui.openPanel('roster');
     ui.refreshPanel();
@@ -293,7 +293,7 @@ describe('ui smoke', () => {
     expect(sick).toBeTruthy();
     sick!.click();
     expect(game.selectedDuckId).toBe(duck.id);
-    expect(document.querySelector('.float-host')?.firstElementChild).toBeTruthy();
+    expect(document.querySelector('.duck-dock .dock-slot.main')?.firstElementChild).toBeTruthy();
     ui.closeDuckCard();
   });
 
@@ -311,6 +311,39 @@ describe('ui smoke', () => {
     void ui;
   });
 
+  it('a flock-bar portrait opens its duck, and Ctrl-click pins one', () => {
+    const { game, ui } = bootUi();
+    const dots = document.querySelectorAll<HTMLElement>('.flock-bar .flock-dot:not(.egg)');
+    expect(dots.length).toBeGreaterThan(1);
+    dots[0].click();
+    expect(game.selectedDuckId).toBe(dots[0].dataset.id);
+    expect(document.querySelector('.duck-dock .dock-slot.main')?.firstElementChild).toBeTruthy();
+    dots[1].dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: true }));
+    expect(ui.isPinned(dots[1].dataset.id!)).toBe(true);
+    vi.advanceTimersByTime(600);
+    expect(document.querySelector(`.flock-dot.pinned[data-id="${dots[1].dataset.id}"]`)).toBeTruthy();
+    ui.closeDuckCard();
+  });
+
+  it('the dock makes room: a modal centres beside it, and pins are capped', () => {
+    const { game, ui } = bootUi();
+    const adults = game.state.ducks.filter((d) => d.stage !== 'egg');
+    game.selectedDuckId = adults[0].id;
+    ui.openPanel('duck');
+    expect(document.querySelector('.dock-open')).toBeTruthy();
+    ui.openPanel('shop');
+    ui.refreshPanel();
+    expect(document.querySelector('.modal-host')?.firstElementChild).toBeTruthy();
+    expect(document.querySelector('.duck-dock .dock-slot.main')?.firstElementChild).toBeTruthy();
+    ui.closeModal();
+    for (const d of adults.slice(1, 5)) ui.pinDuck(d.id);
+    expect(adults.slice(1, 4).every((d) => ui.isPinned(d.id))).toBe(true);
+    expect(ui.isPinned(adults[4]?.id ?? 'none')).toBe(false);
+    ui.closeDuckCard();
+    expect(document.querySelector('.dock-open')).toBeNull();
+    expect(document.querySelectorAll('.duck-dock .dock-slot.pinned').length).toBe(3);
+  });
+
   it('renders the duck card for an adult and for an egg, and a pinned copy', () => {
     const { game, ui } = bootUi();
     const adult = game.state.ducks.find((d) => d.stage === 'adult')!;
@@ -326,7 +359,7 @@ describe('ui smoke', () => {
     ui.pinDuck(other.id);
     expect(ui.isPinned(other.id)).toBe(true);
     ui.refreshPanel();
-    expect(document.querySelector('.float-host.pinned')?.firstElementChild).toBeTruthy();
+    expect(document.querySelector('.duck-dock .dock-slot.pinned')?.firstElementChild).toBeTruthy();
     // Card and modal open together (a pin survives opening the shop).
     ui.openPanel('shop');
     ui.refreshPanel();
@@ -335,14 +368,16 @@ describe('ui smoke', () => {
     ui.closePanel();
   });
 
-  it('shows the card rail, goals widget, dawn card, banners and overlays', () => {
+  it('shows the flock bar, goals widget, dawn card, banners and overlays', () => {
     const { game, ui } = bootUi();
-    // Card rail on (the toggle is what the HUD button and the 'c' key call).
+    // The flock bar is on by default; 'c' hides it and shows it again.
+    expect(document.querySelectorAll('.flock-bar .flock-dot').length).toBe(game.state.ducks.length);
     key('c');
-    expect(document.querySelector('.rail-host')?.firstElementChild).toBeTruthy();
+    expect(document.querySelector('.flock-bar-host')?.firstElementChild).toBeNull();
+    key('c');
+    expect(document.querySelector('.flock-bar-host')?.firstElementChild).toBeTruthy();
     vi.advanceTimersByTime(600); // one HUD refresh: goals + requests widgets
     expect(document.querySelector('.goals-widget')?.firstElementChild).toBeTruthy();
-    key('c');
 
     expect(() => events.emit('dawn')).not.toThrow();
     expect(document.querySelector('.dawn-card')).toBeTruthy();
@@ -451,9 +486,12 @@ describe('ui smoke', () => {
     for (const kind of MODALS) exerciseModal(ui, kind);
     for (const duck of game.state.ducks) exerciseDuckCard(ui, game, duck.id);
 
-    key('c');
+    // The keyboard test above may have left the flock bar hidden in storage.
+    if (!document.querySelector('.flock-bar-host')?.firstElementChild) key('c');
     vi.advanceTimersByTime(600);
-    expect(document.querySelector('.rail-host')?.firstElementChild).toBeTruthy();
+    // Walking every card's buttons may have sold the flock down; the bar
+    // shows exactly whoever is left.
+    expect(document.querySelectorAll('.flock-bar .flock-dot').length).toBe(game.state.ducks.length);
     events.emit('dawn');
     expect(document.querySelector('.dawn-card')).toBeTruthy();
 

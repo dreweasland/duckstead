@@ -13,8 +13,6 @@ interface BottomDockHost {
   togglePanel(kind: PanelKind): void;
   toggleFeedMode(kind: FoodKind | 'brush'): void;
   openRace(): void;
-  showCards(): boolean;
-  toggleCardRail(): void;
 }
 
 interface BottomDockRefs {
@@ -56,12 +54,6 @@ export function buildBottomDock(host: BottomDockHost): BottomDockRefs {
     el('button', { class: 'hud-btn', onclick: () => host.togglePanel('roster') }, icon('list'), el('span', { class: 'hud-btn-label' }, 'Flock')),
     el('button', { class: 'hud-btn unlock-book', onclick: () => host.togglePanel('book') }, icon('book'), el('span', { class: 'hud-btn-label' }, 'Book')),
     el('button', { class: 'hud-btn unlock-race', onclick: () => host.openRace() }, icon('flag'), el('span', { class: 'hud-btn-label' }, 'Race')),
-    el(
-      'button',
-      { class: `hud-btn cards-btn${host.showCards() ? ' active' : ''}`, title: 'Show duck cards on the main screen', onclick: () => host.toggleCardRail() },
-      icon('cards'),
-      el('span', { class: 'hud-btn-label' }, 'Cards'),
-    ),
     el('button', { class: 'hud-btn', onclick: () => host.togglePanel('save') }, icon('disk'), el('span', { class: 'hud-btn-label' }, 'Save')),
     el('button', { class: 'hud-btn settings-btn', title: `Settings and keyboard shortcuts (${keyLabel(keyFor('settings'))})`, onclick: () => host.togglePanel('settings') }, icon('star')),
   );

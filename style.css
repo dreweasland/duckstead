@@ -1059,44 +1059,55 @@ body.feeding #pond-canvas {
 
 .panel {
   pointer-events: auto;
-  width: 300px;
   max-height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
   background: rgba(18, 24, 32, 0.94);
-  border-left: 1px solid var(--surface-2);
   padding: 14px;
-  animation: slide-in 0.18s ease-out;
 }
 
 .panel.wide {
   width: 440px;
 }
 
-@keyframes slide-in {
-  from {
-    transform: translateX(30px);
-    opacity: 0;
-  }
-}
-
 .panel.no-anim {
   animation: none;
 }
 
-/* Floating duck info card (draggable by its header) */
-.float-host {
+/* The duck dock: the selected duck's card on the right edge, pinned cards
+   stacked beneath it, one scrolling column. It starts below the nest and
+   the notices, and stops above the bottom dock. */
+:root {
+  --dock-w: 340px;
+  --notices-h: 0px;
+}
+
+.duck-dock {
   position: absolute;
-  left: 50%;
-  top: 90px;
-  transform: translateX(-50%);
+  right: 8px;
+  top: max(calc(var(--corner-h) + var(--notices-h) + 8px), 38vh);
+  bottom: calc(var(--dock-h) + 8px);
+  width: var(--dock-w);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  scrollbar-width: thin;
   pointer-events: none;
   z-index: 20;
 }
 
-.float-host.pinned {
-  left: auto;
-  transform: none;
+.duck-dock:not(.has-cards) {
+  display: none;
+}
+
+.dock-slot {
+  pointer-events: auto;
+  flex: 0 0 auto;
+}
+
+.dock-slot:empty {
+  display: none;
 }
 
 .card-window-btns {
@@ -1133,23 +1144,18 @@ body.feeding #pond-canvas {
   font-size: 9px;
 }
 
-.float-host:empty {
-  display: none;
-}
-
-.panel.floating {
+.panel.docked {
   pointer-events: auto;
-  width: 340px;
-  max-height: calc(100vh - 140px);
-  overflow-y: auto;
-  scrollbar-width: thin;
+  width: 100%;
+  max-height: none;
+  overflow: visible;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   box-shadow: 0 14px 42px rgba(0, 0, 0, 0.5);
   animation: float-in 0.16s ease-out;
 }
 
-.panel.floating.no-anim {
+.panel.docked.no-anim {
   animation: none;
 }
 
@@ -1160,26 +1166,13 @@ body.feeding #pond-canvas {
   }
 }
 
-.panel.floating .panel-header {
-  cursor: grab;
+.panel.docked .panel-header {
   user-select: none;
-  /* Stop short of the right edge so a scrollbar never sits over the ✕. */
-  margin: -14px -2px 10px -14px;
-  padding: 12px 10px 8px 14px;
+  margin: -14px -14px 10px -14px;
+  padding: 12px 14px 8px 14px;
   border-bottom: 1px solid var(--surface-3);
-  position: sticky;
-  top: -14px;
   background: rgba(18, 24, 32, 0.97);
   border-radius: 12px 12px 0 0;
-  z-index: 1;
-}
-
-.float-host.dragging .panel-header {
-  cursor: grabbing;
-}
-
-.float-host.dragging .panel.floating {
-  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.65);
 }
 
 .panel-header {
@@ -1527,10 +1520,41 @@ body.feeding #pond-canvas {
 .modal-host {
   position: absolute;
   top: calc(var(--corner-h) + 4px);
-  left: 50%;
-  transform: translateX(-50%);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
   pointer-events: none;
   z-index: 18;
+}
+
+/* With a card docked, modals and event overlays centre in the space left of it. */
+#ui-root.dock-open .modal-host {
+  right: calc(var(--dock-w) + 8px);
+}
+
+#ui-root.dock-open .race-overlay {
+  padding-right: calc(var(--dock-w) + 8px);
+}
+
+/* And the notices go compact: icon chips in a row, the text in their titles. */
+#ui-root.dock-open .notice-stack {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+#ui-root.dock-open .notice-card {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+  align-items: center;
+}
+
+#ui-root.dock-open .notice-text,
+#ui-root.dock-open .notice-snooze {
+  display: none;
 }
 
 .modal-host:empty {
@@ -2565,126 +2589,134 @@ body.feeding #pond-canvas {
 
 
 
-/* Card rail (on-screen mini flock cards, centered along the bottom) */
-.rail-host {
+/* The flock bar: a row of portraits across the sky between the corner
+   cards. Only the dots catch clicks; the ring is the lowest need (its
+   colour says which, its arc how low), calm when nothing is below 60. */
+.flock-bar-host {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: var(--dock-h);
+  top: 10px;
+  left: calc(var(--almanac-w) + 24px);
+  right: calc(var(--ledger-w) + 24px);
   display: flex;
   justify-content: center;
   pointer-events: none;
 }
 
-.card-rail {
-  /* Only the cards themselves catch clicks — gaps and padding pass through
-     to the world so nothing underneath becomes unclickable. */
-  pointer-events: none;
+.flock-bar {
   display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: 8px;
-  padding: 8px 12px;
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  max-height: 100px;
+  overflow: hidden;
+  padding: 4px;
 }
 
-.rail-sort {
+.flock-sort {
   pointer-events: auto;
-  flex: none;
-  align-self: stretch;
-  width: 64px;
-  display: flex;
-  flex-direction: column;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: rgba(16, 22, 30, 0.82);
+  color: var(--muted);
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 8px 4px;
-  border-radius: 10px;
-  background: rgba(18, 24, 32, 0.82);
-  border: 1px solid rgba(60, 76, 94, 0.7);
-  color: var(--ink-soft);
   cursor: pointer;
+  padding: 0;
 }
 
-.rail-sort:hover {
-  background: rgba(38, 53, 74, 0.9);
-  color: var(--ink);
+.flock-sort:hover {
+  color: var(--gold);
+  border-color: var(--gold-dim);
 }
 
-.rail-sort-label {
-  font-size: 10.5px;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: center;
-  letter-spacing: 0.02em;
-}
-
-.rail-sort-hint {
-  font-size: 8.5px;
-  color: #7d8d9a;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.card-rail .mini-card {
-  width: 158px;
-}
-
-/* A bar placed directly in the card column must not stretch to fill it. */
-.mini-card > .bar {
-  flex: 0 0 auto;
-}
-
-.mini-card {
+.flock-dot {
   pointer-events: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  background: rgba(18, 24, 32, 0.82);
-  border: 1px solid rgba(60, 76, 94, 0.7);
-  border-radius: 9px;
-  padding: 7px 8px;
-  color: inherit;
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: rgba(16, 22, 30, 0.72);
+  padding: 0;
   cursor: pointer;
-  text-align: left;
-  font: inherit;
-  backdrop-filter: blur(3px);
-  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
 }
 
-.mini-card:hover {
-  background: rgba(38, 53, 74, 0.9);
+.flock-bar.dense .flock-dot {
+  width: 34px;
+  height: 34px;
 }
 
-.mini-card.selected {
+.flock-dot canvas {
+  border-radius: 50%;
+}
+
+.flock-dot:hover {
+  border-color: var(--line-strong);
+}
+
+.flock-dot.selected {
   border-color: var(--gold);
 }
 
-.mini-top {
-  display: flex;
+.flock-dot.pinned {
+  box-shadow: 0 0 0 2px var(--lilac);
+}
+
+.flock-dot.egg {
+  color: var(--gold);
+}
+
+.flock-dot.egg.ready {
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.flock-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(var(--ring-c) calc(var(--ring-v) * 1%), rgba(255, 255, 255, 0.08) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  pointer-events: none;
+}
+
+.flock-ring.calm {
+  background: var(--hairline);
+}
+
+.flock-mark {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
+  pointer-events: none;
 }
 
-.mini-id {
-  min-width: 0;
-  flex: 1;
-}
-.mini-stage {
-  font-size: 10px;
+.flock-mark.crown {
+  color: var(--gold);
 }
 
-.mini-needs {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+.flock-mark.sick {
+  color: #9cc48a;
 }
 
-.mini-card .chip {
-  padding: 1px 6px;
-  font-size: 10px;
+.flock-mark.pen {
+  color: var(--muted);
 }
 
 /* Quick-action icon buttons on cards */
@@ -3285,9 +3317,9 @@ body.feeding #pond-canvas {
   padding: 8px 14px;
 }
 
-/* The duck card lifted above an event overlay (e.g. checking a market
+/* The duck dock lifted above an event overlay (e.g. checking a market
    buyer's duck before selling). */
-.float-host.above-overlay {
+.duck-dock.above-overlay {
   z-index: 45;
 }
 
@@ -4453,13 +4485,21 @@ body.feeding #pond-canvas {
   .hud-btn .icon {
     opacity: 1;
   }
+  .flock-dot {
+    width: 34px;
+    height: 34px;
+  }
 }
 
-/* Tablet: the festival and sync chips keep their icon and number. */
+/* Tablet: the festival and sync chips keep their icon and number; the
+   flock bar has no room between the cards. */
 @media (max-width: 900px) {
   :root {
     --almanac-w: 200px;
     --ledger-w: 224px;
+  }
+  .flock-bar-host {
+    display: none;
   }
   .festival-chip .chip-word,
   .sync-chip .chip-word {
@@ -4483,6 +4523,9 @@ body.feeding #pond-canvas {
   .almanac-row.chips,
   .side-widgets {
     display: none;
+  }
+  :root {
+    --dock-w: calc(100vw - 24px);
   }
 }
 
@@ -4995,6 +5038,7 @@ body.reduce-motion *::after {
 
 body.text-large .corner-card,
 body.text-large .bottom-dock,
+body.text-large .flock-bar,
 body.text-large .panel,
 body.text-large .race-card,
 body.text-large .dawn-card,
