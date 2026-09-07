@@ -118,10 +118,12 @@ describe('an honoured passing', () => {
     const expected = passingPoints(elder);
     expect(expected).toBeGreaterThanOrEqual(2);
     const feathers = { ...state.featherAlbum };
+    // The elder's last feather may be a new colour for the album (+1 point).
+    const newColour = (feathers[elder.phenotype.bodyColor] ?? 0) === 0 ? 1 : 0;
     tickLifecycle(state, rng);
     expect(state.ducks).not.toContain(elder);
-    expect(state.society.points).toBe(expected);
-    expect(state.society.lifetimePoints).toBe(expected);
+    expect(state.society.points).toBe(expected + newColour);
+    expect(state.society.lifetimePoints).toBe(expected + newColour);
     expect(state.featherAlbum[elder.phenotype.bodyColor]).toBe(
       (feathers[elder.phenotype.bodyColor] ?? 0) + 1,
     );

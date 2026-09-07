@@ -15,6 +15,7 @@ import { assignAdultMarks, assignJuvenileMarks, upbringingOf } from './marks';
 import { events } from '../events';
 import { dayOf, DAYS_PER_SEASON, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 import { ordinal, plural } from '../text';
+import { collectFeather } from './featherAlbum';
 
 const YEAR_DAYS = DAYS_PER_SEASON * 4;
 
@@ -180,8 +181,7 @@ function buryDead(state: GameState, dead: Duck[]): void {
       honoured = passingPoints(duck);
       state.society.points += honoured;
       state.society.lifetimePoints += honoured;
-      state.featherAlbum[duck.phenotype.bodyColor] =
-        (state.featherAlbum[duck.phenotype.bodyColor] ?? 0) + 1;
+      collectFeather(state, duck.phenotype.bodyColor);
     }
     // A best friend grieves.
     const friend = state.ducks.find((d) => d.friendId === duck.id);

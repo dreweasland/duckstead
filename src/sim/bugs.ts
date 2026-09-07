@@ -19,6 +19,7 @@ import { isNight, TICKS_PER_MINUTE } from './time';
 import { upgradeLevel } from './economy';
 import { TUNING } from './tuning';
 import { weatherBugScale } from './weather';
+import { collectFeather } from './featherAlbum';
 
 const {
   maxCritters: MAX_CRITTERS,
@@ -220,7 +221,7 @@ export function catchBugAt(state: GameState, x: number, y: number): Pickup | nul
     switch (bug.kind) {
       case 'feather':
         state.stats.feathersCollected += 1;
-        if (bug.color) state.featherAlbum[bug.color] = (state.featherAlbum[bug.color] ?? 0) + 1;
+        if (bug.color) collectFeather(state, bug.color);
         break;
       case 'duckweed':
         feed = DUCKWEED_FEED;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../newGame';
 import { advanceTicks } from '../testFixtures';
 import { catchBugAt, tickBugs } from './bugs';
+import { collectFeather } from './featherAlbum';
 import { CHAPTERS, chapterGoals, currentChapter, GOALS, goalLabel, goalLater, goalsOverview, ROLLING_CHAPTER, tickGoals, widgetGoals } from './goals';
 import { fillFeeder } from './needs';
 import { TICKS_PER_HOUR } from './time';
@@ -72,6 +73,11 @@ describe('bugs', () => {
     expect(got.kind).toBe('feather');
     expect(state.featherAlbum[feather.color!]).toBe(1);
     expect(state.stats.feathersCollected).toBe(1);
+    // The first of a colour is a Society point; the second is just a feather.
+    expect(state.society.points).toBe(1);
+    expect(collectFeather(state, feather.color!)).toBe(false);
+    expect(state.society.points).toBe(1);
+    expect(state.featherAlbum[feather.color!]).toBe(2);
 
     const weed = state.bugs.find((b) => b.kind === 'duckweed')!;
     expect(weed).toBeDefined();

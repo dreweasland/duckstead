@@ -221,7 +221,7 @@ function breedsTab(state: GameState, discovered: number, total: number): HTMLEle
     { class: 'section' },
     el('strong', {}, 'Feather Album'),
     el('div', { class: 'muted small' }, album.length > 0
-      ? `${plural(state.stats.feathersCollected, 'feather')} in ${plural(album.length, 'color')} — pick up what your ducks molt.`
+      ? `${plural(state.stats.feathersCollected, 'feather')} in ${plural(album.length, 'color')} — pick up what your ducks molt. Each new colour is a Society point.`
       : 'Your ducks molt feathers on the grass — tap one to start the album.'),
   );
   if (album.length > 0) {
