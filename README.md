@@ -172,8 +172,10 @@ report the cloud as unreachable while everything else plays offline.
 - **Chronicle & Records** (Book tabs) — an auto-written history of the pond
   (new breeds, champions, farewells with descendants) and lifetime records.
 - **Heritage** (Save panel) — once the Book has 10 breeds, retire the pond
-  and refound it with one drake and one hen. Book, awards, Society, chronicle
-  and records carry over; each retirement adds a pond slot and +1% mutation
+  and refound it with one drake and one hen. Book, awards, Society, chronicle,
+  records, and the line's Hall carry over, and the founders keep their family
+  tree, so the new pond's first clutch is a generation deeper than they are
+  (a sibling pair reads as close kin, as it should). Each retirement adds a pond slot and +1% mutation
   for the first five, then a quarter as much (to +7.5% and 8 slots).
 - **A duck's life** — genes set the ceiling; raising sets the rest. Every
   duck from juvenile up has three **trained stats** (paddle, stamina, poise)

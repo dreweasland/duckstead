@@ -55,7 +55,10 @@ export function retirePond(old: GameState, drakeId: string, henId: string, seed:
   s.money = 50 + heritage * 100;
   s.inventory.premiumFeed += heritage * 2;
 
-  // The founder pair, carried over whole (genes, names), as gen 0 founders.
+  // The founder pair, carried over whole: genes, names, and their family
+  // tree, so the line continues — the new pond's first clutch is one
+  // generation deeper than the founders, not a restart at gen 1. (A pair of
+  // siblings will read as close kin here, as they should.)
   s.ducks = [];
   const spots = [{ x: WORLD_W / 2 - 60, y: 380 }, { x: WORLD_W / 2 + 60, y: 400 }];
   for (const [i, src] of [drake, hen].entries()) {
@@ -64,7 +67,7 @@ export function retirePond(old: GameState, drakeId: string, henId: string, seed:
     duck.bornDay = 0;
     duck.favouriteKnown = src.favouriteKnown;
     if (src.champion !== undefined) duck.champion = src.champion;
-    duck.lineage = founderLineage();
+    duck.lineage = src.lineage ?? founderLineage();
     s.ducks.push(duck);
     recordBreed(s, duck, true);
   }

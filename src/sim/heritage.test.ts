@@ -11,6 +11,7 @@ import { createStarterDuck, layEgg } from './duck';
 describe('heritage', () => {
   it('retires the pond carrying the legacy and founder pair, with permanent bonuses', () => {
     const { state, hen, drake } = newGameWithPair(80);
+    hen.lineage = { gen: 3, sire: null, dam: null, grand: [null, null, null, null] };
     expect(canRetire(state).ok).toBe(false);
     for (const k of ALL_BREED_KEYS.slice(0, 10)) state.breedBook[k] = { firstName: 'x', day: 1, count: 1 };
     state.awards['M|D|solid|n'] = { pure: 2 };
@@ -38,9 +39,14 @@ describe('heritage', () => {
     // re-introduce the panels is already done.
     for (const u of UNLOCKABLES) expect(isUnlocked(s, u)).toBe(true);
     expect(heritageMutationRate(s.heritage, MUTATION_RATE)).toBeCloseTo(0.03);
-    // Founders are gen 0 and can breed straight away.
-    const egg = layEgg(next.rng, s.ducks.find((d) => d.sex === 'F')!, s.ducks.find((d) => d.sex === 'M')!, { x: 0, y: 0 });
-    expect(egg.lineage!.gen).toBe(1);
+    // Founders keep their family tree, so the line continues: a gen-3 hen
+    // and a starter drake (no lineage) found a pond whose first egg is gen 4.
+    const foundHen = s.ducks.find((d) => d.sex === 'F')!;
+    const foundDrake = s.ducks.find((d) => d.sex === 'M')!;
+    expect(foundHen.lineage?.gen).toBe(3);
+    expect(foundDrake.lineage?.gen).toBe(0);
+    const egg = layEgg(next.rng, foundHen, foundDrake, { x: 0, y: 0 });
+    expect(egg.lineage!.gen).toBe(4);
     void createStarterDuck;
   });
 });
