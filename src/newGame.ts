@@ -8,6 +8,7 @@ import { recordBreed } from './sim/breedBook';
 import { BALANCE } from './sim/economy';
 import { createRng, type Rng } from './rng';
 import { createRivals } from './sim/rivals';
+import { defaultLine } from './sim/line';
 import { defaultStats, STATE_VERSION, WORLD_W, type GameState } from './state';
 
 // The RNG is re-created from serialized state each tick boundary; Game owns a
@@ -58,6 +59,7 @@ export function createNewGame(seed: number): { state: GameState; rng: Rng } {
     cup: null,
     drillPurse: { day: -1, earned: 0 },
     weather: { kind: 'clear', day: 0 },
+    line: defaultLine(),
   };
 
   // Starter flock: two pairs so breeding is possible from minute one.

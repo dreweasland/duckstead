@@ -12,6 +12,7 @@ import { tickBugs } from './bugs';
 import { tickLaying } from './laying';
 import { tickGoals } from './goals';
 import { tickAwards } from './awards';
+import { tickLine } from './line';
 import { tickCommissions } from './commissions';
 import { tickFestivals } from './festivals';
 import { tickTraining, train } from './training';
@@ -52,6 +53,7 @@ describe.skipIf(watchMode)('soak', () => {
       tickFestivals(state);
       tickGoals(state);
       tickAwards(state);
+      tickLine(state);
       tickCommissions(state, rng);
       tickTraining(state);
       tickLifeEvents(state, rng);

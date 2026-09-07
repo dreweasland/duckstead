@@ -100,6 +100,13 @@ Generations bred on your pond (capped 6) + homozygous Book loci (0–4) + rare
 alleles carried (`B`/`P`/`R`, capped 4) + 1 for purebred parents. Every point
 adds 8% to sale price; commissions and buyers can demand minimum generations.
 
+### Champion
+The bar the whole game points at: a grown duck that is **purebred** (both
+parents its own breed), **at its breed's standard** (90%+), and **gen 3 or
+deeper** on your line. All three are fixed at hatch, so a champion is one
+for life. Recognition pays 50 coins and 6 Society points once, and the duck
+joins the line's Hall of Champions, which survives retirement.
+
 ### Vigor in play
 Race speed ×0.85–1.15, adult lifespan 11.2–16.8 days, sickness chance scaled
 by up to −50%, and a slot of every show standard. The one stat with no

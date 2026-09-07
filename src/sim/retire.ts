@@ -32,6 +32,7 @@ export function retirePond(old: GameState, drakeId: string, henId: string, seed:
   s.chronicle = old.chronicle;
   s.featherAlbum = old.featherAlbum;
   s.festivalWins = old.festivalWins;
+  s.line = old.line;
   s.stats = {
     ...s.stats,
     // Lifetime records survive; per-pond counters restart.
@@ -62,6 +63,7 @@ export function retirePond(old: GameState, drakeId: string, henId: string, seed:
     duck.name = dedupeName(duck.name, s.ducks.map((d) => d.name));
     duck.bornDay = 0;
     duck.favouriteKnown = src.favouriteKnown;
+    if (src.champion !== undefined) duck.champion = src.champion;
     duck.lineage = founderLineage();
     s.ducks.push(duck);
     recordBreed(s, duck, true);

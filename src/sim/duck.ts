@@ -59,6 +59,7 @@ export interface Duck {
   upbringing?: import('./marks').Upbringing; // tallies kept only while young
   broodyDay?: number; // a hen sitting the nest today (life event)
   parentRarity?: number; // eggs: the parents' average rarity, so the price never reads the hidden genes
+  champion?: number; // day recognised as a Champion of the line (see line.ts)
 }
 
 // "adult · 3.5d" — the age line on cards and rows.

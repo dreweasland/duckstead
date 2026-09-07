@@ -3,6 +3,7 @@ import { defaultStats, GROUND_TOP, STATE_VERSION, trimMemorial, WORLD_H, WORLD_W
 import { completeGenome, computePhenotype, type Genome } from '../sim/genetics';
 import { createRng, fnv1a } from '../rng';
 import { createRivals } from '../sim/rivals';
+import { DEFAULT_LINE_NAME, defaultLine } from '../sim/line';
 import { recordBreed } from '../sim/breedBook';
 import { nestPos } from '../sim/pond';
 import { FOODS } from '../sim/food';
@@ -123,6 +124,13 @@ export function deserialize(json: string): GameState {
     r.lastEggSoldDay ??= -1;
   }
   state.cup ??= null;
+  state.line ??= defaultLine();
+  state.line.champions ??= [];
+  state.line.championsTotal ??= state.line.champions.length;
+  state.line.milestones ??= [];
+  state.line.honours ??= [];
+  state.line.goalBase ??= null;
+  state.line.name ||= DEFAULT_LINE_NAME;
   state.drillPurse ??= { day: -1, earned: 0 };
   state.weather ??= { kind: 'clear', day: -1 };
   state.request ??= null;
@@ -212,6 +220,12 @@ const MIGRATIONS: Record<number, (state: GameState) => void> = {
     for (const m of state.memorial ?? []) if (m.genome) completeGenome(m.genome);
     if (state.visitor?.duck) completeGenome(state.visitor.duck.genome, createRng(seedFrom(state.visitor.duck.id)));
     for (const e of state.lastFestival?.eggShow?.entries ?? []) completeGenome(e.genome);
+  },
+  // v2 → v3: the Line arrived. An old pond starts its book of champions
+  // empty; any living duck that already meets the bar is recognised, with
+  // full fanfare, on the first tick after loading.
+  2: (state) => {
+    state.line ??= defaultLine();
   },
 };
 

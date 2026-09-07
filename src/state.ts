@@ -132,7 +132,7 @@ export function defaultStats(): GameStats {
 
 // The save format version this state shape corresponds to (save.ts owns the
 // migration chain; it reads this so the two can't drift).
-export const STATE_VERSION = 2;
+export const STATE_VERSION = 3;
 
 export interface DuckSummary {
   name: string;
@@ -148,6 +148,7 @@ export interface DuckSummary {
   gen?: number;
   pedigree?: number;
   descendants?: number;
+  champion?: boolean;
 }
 
 export interface GameState {
@@ -220,4 +221,6 @@ export interface GameState {
   drillPurse: { day: number; earned: number };
   // Today's weather (see weather.ts); rolled at dawn.
   weather: import('./sim/weather').Weather;
+  // The bloodline: name, champions, honours. Survives retirement (see line.ts).
+  line: import('./sim/line').LineState;
 }

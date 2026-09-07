@@ -110,4 +110,12 @@ export const TUNING = {
     prizeBase: 300, // coins × year for the winner
     minRank: 5,
   },
+  // The Line (line.ts): what makes a Champion and what one is worth.
+  line: {
+    championGen: 3, // generations bred on the line a champion needs
+    championPoints: 6, // Society points — between a Standard (4) and a Master (8)
+    championCoins: 50,
+    championCupPoints: 10, // on top of the Society points the Cup already counts
+    hallCap: 150, // Hall records kept (each carries a genome)
+  },
 } as const;

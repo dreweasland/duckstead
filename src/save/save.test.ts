@@ -19,6 +19,16 @@ describe('save round-trip', () => {
     expect(restored).toEqual(state);
   });
 
+  it('walks a v2 save to v3: the line arrives empty with its default name', () => {
+    const { state } = createNewGame(3);
+    const raw = JSON.parse(serialize(state)) as { version: number; state: Partial<typeof state> };
+    delete raw.state.line;
+    raw.version = 2;
+    const restored = deserialize(JSON.stringify(raw));
+    expect(restored.version).toBe(SAVE_VERSION);
+    expect(restored.line).toEqual({ name: 'Homestead', foundedDay: 0, champions: [], championsTotal: 0, milestones: [], honours: [], goalBase: null });
+  });
+
   it('migrates the renamed nestSlot perk to pondSlot', () => {
     const { state } = createNewGame(2);
     state.society.perks.push('pondSlot');

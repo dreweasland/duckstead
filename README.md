@@ -114,6 +114,12 @@ report the cloud as unreachable while everything else plays offline.
   buyer at the gate, wild visitor, cracking or cold eggs, courting pairs,
   festival countdown, hungry ducks, pond state. At night a **Sleep 'til
   dawn** button skips straight to it.
+- **The line** — the point of the pond. A **Champion** is a grown duck that
+  is purebred (both parents its own breed), at its breed's show standard,
+  and at least the third generation bred on your line. A champion is one
+  for life: it pays coins and Society points once, goes into the line's
+  Hall of Champions, and the Hall survives retiring the pond. Every duck
+  card shows how far it is from the bar and what it lacks.
 - **Pedigree & lineage** — every egg is stamped with two generations of
   ancestry (it survives the parents leaving). A duck's **pedigree score**
   (generations bred here, fixed Book genes, rare alleles, purebred parents)
