@@ -6,6 +6,7 @@ import { flock } from '../state';
 import type { Duck } from './duck';
 import { breedReadiness, eggWarmth } from './needs';
 import { duckCapacity, henEggPrice, overcrowding, pondOccupancy, upgradeLevel } from './economy';
+import { closestToChampion, lineInView } from './line';
 import { describeRequest, matchesRequest, requestPrice, TREATS_TO_RECRUIT } from './visitors';
 import { festivalToday, FESTIVAL_NAMES, upcomingFestival } from './festivals';
 import { dayOf, dayOfSeason, seasonOf, yearOf } from './time';
@@ -20,7 +21,7 @@ import { TREATS } from './food';
 
 type DawnIcon =
   | 'coin' | 'duck' | 'egg' | 'flag' | 'heart' | 'wheat' | 'bubbles' | 'sparkle' | 'warning' | 'pill' | 'grave'
-  | 'feather' | 'smile';
+  | 'feather' | 'smile' | 'crown';
 
 interface DawnLine {
   icon: DawnIcon;
@@ -83,7 +84,7 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
   // card doubles as the catch-up surface for the flock's life events.
   {
     const dayNow = dayOf(state.clock);
-    const LIFE_ICON: Partial<Record<string, DawnIcon>> = { death: 'grave', elder: 'feather', ofAge: 'duck', birthday: 'smile' };
+    const LIFE_ICON: Partial<Record<string, DawnIcon>> = { death: 'grave', elder: 'feather', ofAge: 'duck', birthday: 'smile', milestone: 'crown' };
     // Scope to this pond's era: a retired pond's chronicle carries over, and
     // its old day numbers would otherwise replay in the new pond's recap.
     const news = state.chronicle.filter((c) => (c.era ?? 0) === state.heritage && c.day >= dayNow - 1 && LIFE_ICON[c.kind] !== undefined);
@@ -223,9 +224,24 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
     });
   }
 
+  // The line: the duck nearest Champion and what it still lacks.
+  const line: DawnLine[] = [];
+  if (lineInView(state)) {
+    const closest = closestToChampion(state);
+    if (closest) {
+      line.push({
+        icon: 'crown',
+        duck: closest.duck,
+        text: `${closest.duck.name} is ${closest.check.progress}% of the way to Champion.`,
+        detail: closest.check.gaps.join(' · '),
+      });
+    }
+  }
+
   const sections: DawnSection[] = [];
   if (opportunities.length) sections.push({ title: 'Opportunities', lines: opportunities });
   if (milestones.length) sections.push({ title: 'Milestones', lines: milestones });
+  if (line.length) sections.push({ title: 'The line', lines: line });
   if (nest.length) sections.push({ title: 'The nest', lines: nest });
   if (chores.length) sections.push({ title: 'Chores', lines: chores });
   if (sections.length === 0) sections.push({ title: 'All quiet', lines: [{ icon: 'duck', text: 'The flock is content. Enjoy the morning.' }] });

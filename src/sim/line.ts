@@ -110,6 +110,12 @@ export function isChampion(duck: Duck): boolean {
   return duck.champion !== undefined;
 }
 
+// The line steps into view once the player has bred a little (chapter four
+// done) or has a champion — before that the strip is about learning the pond.
+export function lineInView(state: GameState): boolean {
+  return Boolean(state.goals['chapter:ducks-life']) || state.line.championsTotal > 0;
+}
+
 // The living duck nearest the bar that isn't over it yet — what the widget
 // and the dawn report point at. Ties go to the deeper pedigree.
 export function closestToChampion(state: GameState): { duck: Duck; check: ChampionCheck } | null {

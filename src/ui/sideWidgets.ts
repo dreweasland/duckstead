@@ -1,5 +1,6 @@
-// The strip beside the pond: the current chapter's goals, then the open
-// commissions and buyer request. Rebuilt on the UI's half-second refresh.
+// The strip beside the pond: the current chapter's goals, the line (once it
+// is in view), then the open commissions and buyer request. Rebuilt on the
+// UI's half-second refresh.
 import type { Game } from '../game';
 import type { GameState } from '../state';
 import { CHAPTERS, chapterProgress, currentChapter, goalProgress, tickGoals, widgetGoals } from '../sim/goals';
@@ -7,6 +8,7 @@ import { describeCommission, duckFits } from '../sim/commissions';
 import { describeRequest, matchesRequest } from '../sim/visitors';
 import { isUnlocked, UNLOCK_LABELS } from '../sim/unlocks';
 import { dayOf } from '../sim/time';
+import { closestToChampion, lineInView } from '../sim/line';
 import { plural } from '../text';
 import { el } from './dom';
 import { icon } from './icons';
@@ -15,15 +17,17 @@ import type { PanelKind } from './ui';
 interface SideWidgetsHost {
   game: Game;
   openPanel(kind: PanelKind): void;
+  openHall(): void;
 }
 
 export class SideWidgets {
   readonly element: HTMLElement;
   private goalsHost = el('div', { class: 'goals-widget' });
+  private lineHost = el('div', { class: 'goals-widget line-widget' });
   private requestsHost = el('div', { class: 'requests-widget' });
 
   constructor(private host: SideWidgetsHost) {
-    this.element = el('div', { class: 'side-widgets' }, this.goalsHost, this.requestsHost);
+    this.element = el('div', { class: 'side-widgets' }, this.goalsHost, this.lineHost, this.requestsHost);
   }
 
   refresh(): void {
@@ -34,7 +38,46 @@ export class SideWidgets {
     if (this.host.game.speed === 0 && !this.host.game.stale) tickGoals(this.host.game.state);
     const state = this.host.game.state;
     this.refreshGoalsWidget(state);
+    this.refreshLineWidget(state);
     this.refreshRequestsWidget(state);
+  }
+
+  // The line: how many champions, how deep, and the duck nearest the bar
+  // with the first thing it lacks — the north star, beside the pond.
+  private refreshLineWidget(state: GameState): void {
+    if (!lineInView(state)) {
+      this.lineHost.replaceChildren();
+      return;
+    }
+    const open = () => this.host.openHall();
+    const line = state.line;
+    const children: HTMLElement[] = [
+      el(
+        'button',
+        { class: 'goals-head', title: 'Open the Hall of Champions', onclick: open },
+        el('span', { class: 'goals-title with-icon' }, icon('crown', 11), 'The line'),
+        el('span', { class: 'goals-chapter' }, `${line.name} · gen ${state.stats.deepestGen}`),
+        el('span', { class: 'goals-count' }, plural(line.championsTotal, 'champion')),
+      ),
+    ];
+    const closest = closestToChampion(state);
+    if (closest) {
+      const { duck, check } = closest;
+      const row = el(
+        'div',
+        { class: 'goal-row', title: check.gaps.length ? `${duck.name} lacks: ${check.gaps.join('; ')}` : `${duck.name} meets the bar`, onclick: open },
+        el('span', { class: `goal-dot request-dot${check.progress >= 90 ? ' fits' : ''}` }),
+        el('span', { class: 'goal-label' }, `${duck.name} — ${check.gaps[0] ?? 'at the bar'}`),
+        el('span', { class: 'goal-progress' }, `${check.progress}%`),
+      );
+      const fill = el('div', { class: 'goal-bar-fill' });
+      fill.style.width = `${check.progress}%`;
+      row.append(el('div', { class: 'goal-bar' }, fill));
+      children.push(row);
+    } else {
+      children.push(el('div', { class: 'muted small' }, 'Nobody on the pond is short of the bar.'));
+    }
+    this.lineHost.replaceChildren(...children);
   }
 
   // The current chapter, doable goals first; click anywhere to open the

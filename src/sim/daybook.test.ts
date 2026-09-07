@@ -49,6 +49,15 @@ describe('dawn report', () => {
     expect(report.sections.map((s) => s.title)).toEqual(['Opportunities', 'The nest', 'Chores']);
   });
 
+  it('names the duck nearest Champion and what it lacks, once the line is in view', () => {
+    const { state } = createNewGame(7);
+    expect(dawnLines(dawnReport(state)).join('\n')).not.toContain('to Champion');
+    state.goals['chapter:ducks-life'] = true;
+    const text = dawnLines(dawnReport(state)).join('\n');
+    expect(text).toContain('of the way to Champion');
+    expect(text).toContain('needs gen');
+  });
+
   it('warns when the pond is overcrowded; elders do not count against the cap', () => {
     const { state, rng } = createNewGame(6);
     for (let i = 0; i < 5; i += 1) state.ducks.push(createStarterDuck(rng, { x: 0, y: 0 }));

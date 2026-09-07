@@ -22,6 +22,8 @@ import { renderShopPanel, showShopTab } from './shopPanel';
 import { renderRosterPanel } from './rosterPanel';
 import { renderSavePanel, resetSavePanelState } from './savePanel';
 import { renderBookPanel, showBookTab } from './bookPanel';
+import { breedKey, breedLabel } from '../sim/breedBook';
+import { championCheck } from '../sim/line';
 import { renderGoalsPanel } from './goalsPanel';
 import { renderSettingsPanel } from './settingsPanel';
 import { buildHud } from './hud';
@@ -50,8 +52,8 @@ const SCROLL_REGIONS = '.chooser, .card-grid, .br-cand-grid, .dawn-body, .societ
 export class UI {
   private root: HTMLElement;
   private hudClock!: HTMLElement;
-  private hudCounts: Record<'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society', HTMLElement> =
-    {} as Record<'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society', HTMLElement>;
+  private hudCounts: Record<'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society' | 'line', HTMLElement> =
+    {} as Record<'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society' | 'line', HTMLElement>;
   private panelHost: HTMLElement;
   private toastHost: HTMLElement;
   private bannerHost: HTMLElement;
@@ -98,6 +100,7 @@ export class UI {
       onFestivalChip: () => this.onFestivalChip(),
       openLifeEvent: () => this.notices.openLifeEvent(),
       togglePanel: (k) => this.togglePanel(k),
+      openHall: () => this.openHall(),
       toggleCareMenu: () => this.toggleCareMenu(),
       toggleFeedMode: (k) => this.toggleFeedMode(k),
       showCards: () => this.showCards,
@@ -123,7 +126,7 @@ export class UI {
     this.toastHost = el('div', { class: 'toast-host' });
     this.bannerHost = el('div', { class: 'banner-host' });
     this.railHost = el('div', { class: 'rail-host' });
-    this.side = new SideWidgets({ game: this.game, openPanel: (k) => this.openPanel(k) });
+    this.side = new SideWidgets({ game: this.game, openPanel: (k) => this.openPanel(k), openHall: () => this.openHall() });
     this.floatHost = el('div', { class: 'float-host' });
     this.modalHost = el('div', { class: 'modal-host' });
     this.root.append(this.railHost, this.side.element, this.panelHost, this.modalHost, this.floatHost, this.bannerHost, this.toastHost);
@@ -205,6 +208,14 @@ export class UI {
       if (this.duckCardOpen) this.refreshPanel();
     });
     events.on('chapter-done', (payload) => this.notices.chapterBanner(payload as ChapterDef));
+    events.on('champion', (payload) => {
+      const duck = payload as Duck;
+      const check = championCheck(duck);
+      this.notices.lifeBanner('champion', duck, `${duck.name} is a Champion`, [
+        `A ${breedLabel(breedKey(duck.genome))} at the standard, purebred, gen ${check.gen} of the ${this.game.state.line.name} line.`,
+        'Recorded in the Hall of Champions for good.',
+      ]);
+    });
     events.on('takeover', (payload) => this.notices.showTakeoverOverlay(Boolean((payload as { remote?: boolean } | undefined)?.remote)));
     // The companion put the pond down: the state was reloaded from the cloud
     // and play may carry on where the phone left it.
@@ -431,6 +442,12 @@ export class UI {
     this.refreshPanel();
   }
 
+  // The Hall of Champions lives in the Book.
+  openHall(): void {
+    showBookTab('hall');
+    this.openPanel('book');
+  }
+
   closeDuckCard(): void {
     this.duckCardOpen = false;
     this.floatHost.classList.remove('above-overlay');
@@ -608,6 +625,8 @@ export class UI {
     this.hudCounts.soap.parentElement?.classList.toggle('chip-low', bathHouse && s.inventory.soap === 0);
     this.hudCounts.eggs.textContent = String(s.inventory.eggs);
     this.hudCounts.society.textContent = String(s.society.points);
+    this.hudCounts.line.textContent = `${s.line.championsTotal} · gen ${s.stats.deepestGen}`;
+    this.hudCounts.line.parentElement!.title = `The ${s.line.name} line — ${plural(s.line.championsTotal, 'champion')}, deepest generation ${s.stats.deepestGen}. Opens the Hall of Champions.`;
     for (const [kind, node] of Object.entries(this.careCounts)) {
       node.textContent = String(s.inventory[kind as keyof typeof s.inventory]);
     }

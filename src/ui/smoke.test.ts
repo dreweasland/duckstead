@@ -239,6 +239,23 @@ describe('ui smoke', () => {
     ui.closeModal();
   });
 
+  it('raises a banner for a new champion and keeps the line beside the pond', () => {
+    const { game, ui } = bootUi();
+    const adult = game.state.ducks.find((d) => d.stage === 'adult')!;
+    expect(document.querySelector('.line-widget')?.childElementCount ?? 0).toBe(0);
+    adult.champion = 1;
+    game.state.line.championsTotal = 1;
+    events.emit('champion', adult);
+    expect(document.querySelector('.life-banner.champion')).toBeTruthy();
+    ui.refreshPanel();
+    vi.advanceTimersByTime(600);
+    expect(document.querySelector('.line-widget .goals-head')).toBeTruthy();
+    expect(document.querySelector('.chip-line .hud-chip-count')?.textContent).toContain('1');
+    ui.openHall();
+    expect(document.querySelector('.modal-host')?.firstElementChild).toBeTruthy();
+    ui.closeModal();
+  });
+
   it('renders the duck card for an adult and for an egg, and a pinned copy', () => {
     const { game, ui } = bootUi();
     const adult = game.state.ducks.find((d) => d.stage === 'adult')!;

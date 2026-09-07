@@ -11,7 +11,7 @@ import { icon } from './icons';
 import { keyFor, keyLabel } from './settings';
 import { TUNING } from '../sim/tuning';
 
-type HudCountKey = 'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society';
+type HudCountKey = 'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society' | 'line';
 
 interface HudHost {
   game: Game;
@@ -19,6 +19,7 @@ interface HudHost {
   onFestivalChip(): void;
   openLifeEvent(): void;
   togglePanel(kind: PanelKind): void;
+  openHall(): void;
   toggleCareMenu(): void;
   toggleFeedMode(kind: FoodKind | 'brush'): void;
   showCards(): boolean;
@@ -69,6 +70,17 @@ export function buildHud(host: HudHost): HudRefs {
     syncChip.textContent = '☁';
   }
 
+  // The line: champions and deepest generation — the score of the game, in
+  // the bar at all times. A button, since it opens the Hall of Champions.
+  const lineCount = el('span', { class: 'hud-chip-count' }, '0');
+  hudCounts.line = lineCount;
+  const lineChip = el(
+    'button',
+    { class: 'hud-chip chip-line', title: 'The line: champions · deepest generation. Opens the Hall of Champions.', onclick: () => host.openHall() },
+    icon('crown', 13),
+    lineCount,
+  );
+
   // Resource chips: the icon is built once; only the count span updates.
   const chip = (
     key: HudCountKey,
@@ -90,7 +102,8 @@ export function buildHud(host: HudHost): HudRefs {
     chip('eggs', 'egg', 'Egg basket — hens lay daily; sell at the shop'),
     chip('pond', 'bubbles', `Pond cleanliness — wild ducks only visit above ${TUNING.visitors.inviteCleanliness}%`),
     chip('flock', 'duck', 'Grown ducks on the pond / capacity — over it, the flock is stressed. Elders, the young, and penned ducks don\'t count.'),
-    chip('society', 'star', 'Society points — earned from breed awards, commissions, and festival placings'),
+    lineChip,
+    chip('society', 'star', 'Society points — earned from champions, breed awards, commissions, festival placings, and new feather colours'),
   );
 
   const speedBtns = [0, 1, 4, 16].map((s) =>

@@ -262,7 +262,7 @@ export class Notices {
 
   // The pond's big life moments — coming of age, elderhood, and passings —
   // with the duck's portrait.
-  lifeBanner(tone: 'grown' | 'elder' | 'passing', duck: Duck, title: string, lines: string[]): void {
+  lifeBanner(tone: 'grown' | 'elder' | 'passing' | 'champion', duck: Duck, title: string, lines: string[]): void {
     this.showBanner(tone, el('span', { class: 'life-portrait' }, duckPortrait(duck, 44)), title, lines, tone === 'passing' ? 12_000 : 8_000);
   }
 

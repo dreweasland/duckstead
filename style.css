@@ -254,6 +254,21 @@ body.feeding #pond-canvas {
   color: var(--gold);
 }
 
+/* The line chip is a button (it opens the Hall) dressed as a ledger entry. */
+.chip-line {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.chip-line .icon {
+  color: var(--gold);
+}
+
+.chip-line:hover {
+  color: var(--gold);
+}
+
 .chip-feed .icon {
   color: #d9b45c;
 }
@@ -3861,6 +3876,7 @@ body.feeding #pond-canvas {
 }
 
 .life-banner.grown { border-left-color: #6fbf5f; }
+.life-banner.champion { border-left-color: var(--gold); }
 .life-banner.elder { border-left-color: #e8c35a; }
 
 .life-banner.passing {
