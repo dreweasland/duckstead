@@ -8,7 +8,7 @@ import { BALANCE } from '../sim/economy';
 import { currentTier, leagueStanding } from '../sim/league';
 import { randomCommonGenome } from '../sim/genetics';
 import { createRng, type Rng } from '../rng';
-import { boostPower, enterRace, raceEligible, raceRested, raceSpeed, settleRace } from '../sim/race';
+import { aiPaddleBoost, boostPower, enterRace, paddleBoost, raceEligible, raceRested, raceSpeed, settleRace } from '../sim/race';
 import { staminaHold } from '../sim/training';
 import { TUNING } from '../sim/tuning';
 import { play } from '../audio/audio';
@@ -29,10 +29,7 @@ const CANVAS_H = 300;
 // each with their own knack (skill). Numbers live in tuning.ts.
 const {
   boostCooldownMs: BOOST_COOLDOWN_MS,
-  playerBoost: PLAYER_BOOST,
   aiHitsPerSec: AI_HITS_PER_SEC,
-  aiBoostMin: AI_BOOST_MIN,
-  aiBoostVar: AI_BOOST_VAR,
   meterPeriodMs: METER_PERIOD_MS,
 } = TUNING.race;
 
@@ -192,7 +189,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
     canvas.height = CANVAS_H;
     const meterFill = el('div', { class: 'race-meter-marker' });
     const meter = el('div', { class: 'race-meter' }, meterFill);
-    const hint = el('div', { class: 'muted small race-hint' }, `Click the water (or press ${keyLabel(keyFor('paddle'))}) when the marker is centered to paddle!`);
+    const hint = el('div', { class: 'muted small race-hint' }, `Click the water (or press ${keyLabel(keyFor('paddle'))}) when the marker is centered to paddle — a fast duck gains more from every stroke.`);
     card.replaceChildren(
       header('flag', title),
       canvas,
@@ -214,7 +211,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
       lastBoost = now;
       const meterVal = meterValue(now - start);
       const power = boostPower(meterVal);
-      player.boost += PLAYER_BOOST * power;
+      player.boost += paddleBoost(player.baseSpeed, power);
       meter.classList.remove('hit-good', 'hit-weak');
       void meter.offsetWidth; // restart the flash animation
       meter.classList.add(power > 0.7 ? 'hit-good' : 'hit-weak');
@@ -240,7 +237,7 @@ export function openRacePanel(game: Game, ui: UiHooks, opts: RaceOpts = {}): voi
         const wobble = 1 + Math.sin(now / 400 + racer.phase) * 0.12;
         const v = racer.baseSpeed * wobble + racer.boost;
         if (!racer.isPlayer && rng.chance(dt * AI_HITS_PER_SEC * racer.skill)) {
-          racer.boost += AI_BOOST_MIN + rng.next() * AI_BOOST_VAR;
+          racer.boost += aiPaddleBoost(racer.baseSpeed, rng.next());
         }
         racer.boost *= Math.pow(racer.isPlayer ? 0.15 + playerHold * 0.15 : 0.15, dt);
         racer.x += v * dt;

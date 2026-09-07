@@ -32,6 +32,17 @@ export function raceRested(state: GameState, duck: Duck): boolean {
   return !racedToday(duck, dayOf(state.clock));
 }
 
+// A paddle's worth: a share of the racer's own base speed, scaled by how
+// well-timed it was — so the same perfect tap moves a champion further than
+// a starter. The AI's paddles roll in the same currency.
+export function paddleBoost(baseSpeed: number, power: number): number {
+  return baseSpeed * TUNING.race.playerBoost * power;
+}
+
+export function aiPaddleBoost(baseSpeed: number, roll: number): number {
+  return baseSpeed * (TUNING.race.aiBoostMin + roll * TUNING.race.aiBoostVar);
+}
+
 // Base speed from the duck itself: vigorous, bold, trim ducks are fast; a
 // trained one faster still. The Training Perch no longer adds speed directly
 // — it buys extra drills a day (see training.ts).

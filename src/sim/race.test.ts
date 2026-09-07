@@ -3,7 +3,8 @@ import { createRng } from '../rng';
 import { createNewGame } from '../newGame';
 import { createDuck } from './duck';
 import { randomCommonGenome, type Genome } from './genetics';
-import { boostPower, enterRace, racedToday, raceEligible, raceSpeed, settleRace } from './race';
+import { TUNING } from './tuning';
+import { aiPaddleBoost, boostPower, enterRace, paddleBoost, racedToday, raceEligible, raceSpeed, settleRace } from './race';
 import { train } from './training';
 
 function duckWith(edit: (g: Genome) => void, seed = 3): ReturnType<typeof createDuck> {
@@ -96,5 +97,26 @@ describe('race settlement', () => {
     const before = raceSpeed(duck);
     expect(train(state, duck.id, 'paddle', 1)).toBeGreaterThan(0);
     expect(raceSpeed(duck)).toBeGreaterThan(before);
+  });
+});
+
+describe('paddles amplify the duck', () => {
+  it('a perfect paddle is worth a fixed share of the racer\'s own base speed', () => {
+    expect(paddleBoost(52, 1)).toBeCloseTo(52 * TUNING.race.playerBoost);
+    // The same tap moves a duck 30% faster 30% further.
+    expect(paddleBoost(52 * 1.3, 1)).toBeCloseTo(paddleBoost(52, 1) * 1.3);
+    // A sloppy tap is worth its power.
+    expect(paddleBoost(52, boostPower(0.35))).toBeLessThan(paddleBoost(52, 1) * 0.5);
+  });
+
+  it('wild racers paddle in the same currency, bounded by the tuning', () => {
+    expect(aiPaddleBoost(52, 0)).toBeCloseTo(52 * TUNING.race.aiBoostMin);
+    expect(aiPaddleBoost(52, 1)).toBeCloseTo(52 * (TUNING.race.aiBoostMin + TUNING.race.aiBoostVar));
+    // At equilibrium the player's perfect paddling still beats the field's — but not by a duck's worth.
+    const k = -Math.log(0.15);
+    const player = TUNING.race.playerBoost / (TUNING.race.boostCooldownMs / 1000) / k;
+    const ai = TUNING.race.aiHitsPerSec * (TUNING.race.aiBoostMin + TUNING.race.aiBoostVar / 2) / k;
+    expect(player).toBeGreaterThan(ai);
+    expect(player).toBeLessThan(0.5);
   });
 });

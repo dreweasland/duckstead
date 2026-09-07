@@ -69,7 +69,9 @@ report the cloud as unreachable while everything else plays offline.
   line's page: name the line, see its champions pond by pond, and the duck
   nearest the bar.
 - **Race** — the Pond Derby: your duck's vigor, boldness, build, and paddle
-  training set its speed; time your paddle boosts to win prize money. Wild racers paddle like
+  training set its speed; time your paddle boosts to win prize money. A
+  paddle is worth a share of the duck's own speed, so a fast duck gains more
+  from every stroke and hands never outweigh genes. Wild racers paddle like
   a competent player and precision matters (sloppy taps barely help), and
   each duck races once a day — so breeding fast ducks is the way to a
   winning stable. Festival tournaments ignore the daily limit.

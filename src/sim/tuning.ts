@@ -77,10 +77,16 @@ export const TUNING = {
   },
   race: {
     boostCooldownMs: 550,
-    playerBoost: 55,
+    // A paddle adds a share of the racer's OWN base speed, so taps amplify
+    // the duck rather than replace it. Boost decays by 0.15^dt (k ≈ 1.9/s);
+    // perfect paddles every 550ms settle at 0.42/0.55/1.9 ≈ +40% of base,
+    // against a genetic spread of roughly 0.74×–1.37× — the derby stays a
+    // payoff for a well-bred flock, with hands worth less than genes.
+    playerBoost: 0.42,
     aiHitsPerSec: 1.6,
-    aiBoostMin: 30,
-    aiBoostVar: 18,
+    // Wild racers: 1.6 hits/s × (0.22 + 0.08) ≈ 0.48 base/s → ≈ +25%.
+    aiBoostMin: 0.22,
+    aiBoostVar: 0.16,
     meterPeriodMs: 210,
     baseSpeed: 52,
   },
