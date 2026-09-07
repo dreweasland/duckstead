@@ -170,7 +170,6 @@ body.feeding #pond-canvas {
 }
 
 .with-icon,
-.hud-title,
 .hud-btn,
 .speed-btn,
 .action-btn,
@@ -1922,13 +1921,6 @@ body.feeding #pond-canvas {
 }
 
 .br-cand-name,
-.mini-name {
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 .br-cand-meta {
   font-size: 10px;
@@ -2476,17 +2468,6 @@ body.feeding #pond-canvas {
   font-weight: 600;
 }
 
-.mini-stage-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.mini-stage-row .chip {
-  padding: 0 4px;
-  gap: 2px;
-  line-height: 14px;
-}
 
 /* Today's drills: still to run, or done. */
 .chip-drill {
@@ -4527,6 +4508,19 @@ body.feeding #pond-canvas {
   :root {
     --dock-w: calc(100vw - 24px);
   }
+  /* The dock keeps every tool and button on one row by going tighter. */
+  .bottom-dock {
+    padding: 0 6px;
+    gap: 6px;
+  }
+  .care-hotbar,
+  .dock-actions {
+    gap: 3px;
+    padding: 4px;
+  }
+  .bottom-dock .hud-btn {
+    padding: 5px 7px;
+  }
 }
 
 /* Companion: hand-drawn badges + care indicators */
@@ -4654,22 +4648,6 @@ body.feeding #pond-canvas {
   margin-left: 6px;
 }
 
-.life-chip {
-  background: #5a3a1e;
-  color: #ffd98a;
-  border-color: #b57b2e;
-  cursor: pointer;
-  animation: life-chip-pulse 1.6s ease-in-out infinite;
-}
-
-.life-chip span {
-  margin-left: 4px;
-}
-
-@keyframes life-chip-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(232, 184, 58, 0.45); }
-  50% { box-shadow: 0 0 0 5px rgba(232, 184, 58, 0); }
-}
 
 .race-card.theme-life .race-header {
   background: linear-gradient(90deg, #4a3560, #6a4a8a);

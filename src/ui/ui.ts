@@ -337,7 +337,7 @@ export class UI {
     this.decor.updateDecorGhost(world);
   }
 
-  // ---- pinned comparison cards (see floatWindows.ts) ----
+  // ---- pinned comparison cards (see duckDock.ts) ----
   pinDuck(id: string): void {
     this.dock.pinDuck(id);
   }

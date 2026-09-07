@@ -361,7 +361,9 @@ Key files:
 - [ ] Duckweed clumps on the pond rim; tap → +1 feed
 - [ ] Fireflies drift after 21:00, gone by 06:00
 - [ ] 06:00: dawn card lists buyer/eggs/festival; click dismisses
-- [ ] Night: "Sleep 'til dawn" jumps to 06:00 and shows the card
+- [ ] Night: "Sleep 'til dawn" appears in the almanac, jumps to 06:00 and shows the card
+- [ ] Flock bar across the sky: a hungry duck's ring turns amber; `C` hides the bar; clicking a portrait docks its card on the right
+- [ ] Open a duck card, then the Shop: the modal centres left of the dock; pin three ducks, a fourth is refused
 - [ ] Sell an egg; buy the incubator; the next egg hatches in a quarter day instead of half
 - [ ] Pond capacity blocks adoption until expansion is bought
 - [ ] Reload mid-game: identical state (autosave)
