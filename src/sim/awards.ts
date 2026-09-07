@@ -6,13 +6,13 @@
 import type { GameState } from '../state';
 import type { Duck } from './duck';
 import { events } from '../events';
-import { breedKey, breedLabel, representativeGenome } from './breedBook';
+import { ALL_BREED_KEYS, breedKey, breedLabel, representativeGenome } from './breedBook';
 import { computePhenotype } from './genetics';
 import { isPureBred } from './pedigree';
 import { standardMatch, STANDARD_THRESHOLD } from './standards';
 import { chronicle } from './chronicle';
 import { dayOf, TICKS_PER_HOUR } from './time';
-import { addSocietyPoints } from './society';
+import { addSocietyPoints, grantHonour } from './society';
 
 type AwardTier = 'pure' | 'standard' | 'master';
 export const AWARD_TIERS: AwardTier[] = ['pure', 'standard', 'master'];
@@ -40,6 +40,7 @@ function grant(state: GameState, key: string, tier: AwardTier, who?: string): vo
         : `Five ${label}s on the pond at once — Master of the breed.`;
   chronicle(state, 'award', text);
   events.emit('toast', `${AWARD_LABELS[tier]} ${label}! +${coins} coins, +${AWARD_POINTS[tier]} Society`);
+  if (awardCount(state) === ALL_BREED_KEYS.length * AWARD_TIERS.length) grantHonour(state, 'awards');
 }
 
 // On hatch: Pure is decided by parentage.

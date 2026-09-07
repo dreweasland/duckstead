@@ -11,7 +11,7 @@ export { breedKey };
 import { dayOf } from './time';
 import { events } from '../events';
 import { chronicle } from './chronicle';
-import { addSocietyPoints } from './society';
+import { addSocietyPoints, grantHonour } from './society';
 
 export interface BreedEntry {
   firstName: string;
@@ -84,7 +84,7 @@ export function recordBreed(state: GameState, duck: Duck, silent = false): boole
     addSocietyPoints(state, 1 + Math.floor(duck.phenotype.rarityScore / 3));
     const n = Object.keys(state.breedBook).length;
     chronicle(state, 'breed', `${duck.name} hatched — the pond's first ${breedLabel(key)} (${n}/${ALL_BREED_KEYS.length} breeds).`);
-    if (n === ALL_BREED_KEYS.length) chronicle(state, 'milestone', 'Every breed in the Book has hatched on this pond.');
+    if (n === ALL_BREED_KEYS.length) grantHonour(state, 'book');
   }
   return true;
 }

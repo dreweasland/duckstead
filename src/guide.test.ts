@@ -4,7 +4,7 @@ import pondGuide from '../public/guide/game/index.html?raw';
 import geneticsGuide from '../public/guide/genetics/index.html?raw';
 import bookPanelSource from './ui/bookPanel.ts?raw';
 import { FESTIVAL_NAMES } from './sim/festivals';
-import { RANKS } from './sim/society';
+import { RANKS, LINE_MILESTONES, HONOUR_TITLES } from './sim/society';
 import { MARKS } from './sim/marks';
 import { WEATHER_NAMES } from './sim/weather';
 import { RIVAL_DEFS } from './sim/rivals';
@@ -34,6 +34,9 @@ describe('the pond guide', () => {
       ...Object.values(TRAIN_STAT_META).map((s) => s.label),
       ...SHORTCUTS.map((key) => key.split(' ')[0]),
       'Society Cup', 'stud service', 'heritage', 'Pedigree Scope', 'companion', 'broody', 'commissions',
+      ...LINE_MILESTONES.map((m) => m.title),
+      ...Object.values(HONOUR_TITLES).map((h) => h.title),
+      'Champion',
     ];
     const missing = expected.filter((name) => !guide.includes(name.toLowerCase()));
     expect(missing).toEqual([]);

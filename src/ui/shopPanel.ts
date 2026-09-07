@@ -32,7 +32,7 @@ import type { GameState } from '../state';
 import { duckPortrait } from './portrait';
 import { bestPairFor, commissionGap, commissionSpecimen, commissionsUnlocked, duckFits, type Commission } from '../sim/commissions';
 import { breedKey, breedLabel, recordBreed as recordBreedEntry } from '../sim/breedBook';
-import { advanceRank, canAdvance, hasPerk, nextRank, RANKS, rewardLabel, STYLES, type StyleSlot } from '../sim/society';
+import { advanceRank, canAdvance, hasPerk, nextRank, RANKS, rewardLabel, STYLES, type StyleSlot, allTitles } from '../sim/society';
 import { createDuck } from '../sim/duck';
 import { randomCommonGenome, type Genome } from '../sim/genetics';
 import { FESTIVAL_NAMES, festivalTier, festivalToday, upcomingFestival } from '../sim/festivals';
@@ -760,6 +760,12 @@ function societyTab(ctx: PanelCtx): HTMLElement {
 
   // Styles: pick which unlocked look is active per slot.
   if (soc.unlockedStyles.length > 0) {
+    const titles = allTitles(state);
+    if (titles.length > 0) {
+      const row = el('div', { class: 'gene-badges' });
+      for (const t of titles) row.append(el('span', { class: 'chip chip-rare with-icon' }, icon('star', 9), t));
+      box.append(el('div', { class: 'br-section-title' }, 'Titles held'), row, el('div', { class: 'muted small' }, 'Rank titles go to the pond\'s top-pedigree duck; the line\'s titles to its champions.'));
+    }
     box.append(el('div', { class: 'br-section-title' }, 'Pond styles'));
     const row = el('div', { class: 'society-styles' });
     const slots: StyleSlot[] = ['water', 'lily', 'grass', 'hutch'];

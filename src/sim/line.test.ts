@@ -7,6 +7,7 @@ import { championCheck, championProgress, closestToChampion, championedBreeds, i
 import { enterCup } from './cup';
 import { TICKS_PER_HOUR } from './time';
 import { TUNING } from './tuning';
+import { LINE_MILESTONES } from './society';
 
 // A purebred at the standard: two standard-genome parents and their egg,
 // which the Mendelian draw keeps at the standard (every locus homozygous).
@@ -40,13 +41,16 @@ describe('the line', () => {
     expect(state.line.championsTotal).toBe(1);
     expect(state.line.champions[0]).toMatchObject({ id: child.id, breedKey: key, gen: TUNING.line.championGen, era: 0 });
     expect(state.money).toBe(money + TUNING.line.championCoins);
-    expect(state.society.points).toBe(TUNING.line.championPoints);
+    // The first champion also lands the first line milestone.
+    const firstPoints = TUNING.line.championPoints + LINE_MILESTONES[0].points;
+    expect(state.society.points).toBe(firstPoints);
+    expect(state.line.milestones).toEqual([1]);
     expect(state.chronicle.filter((c) => c.kind === 'milestone').map((c) => c.text).join()).toContain(`${child.name} is a Champion`);
     expect(championedBreeds(state).has(key)).toBe(true);
     // Once only, and the parents (founders, gen 2) never qualify.
     tickLine(state);
     expect(state.line.championsTotal).toBe(1);
-    expect(state.society.points).toBe(TUNING.line.championPoints);
+    expect(state.society.points).toBe(firstPoints);
   });
 
   it('progress climbs with each requirement and names what is missing', () => {
@@ -89,6 +93,6 @@ describe('the line', () => {
     state.clock.totalTicks = TICKS_PER_HOUR;
     tickLine(state);
     expect(isChampion(child)).toBe(true);
-    expect(state.cup?.score).toBe(TUNING.line.championPoints + TUNING.line.championCupPoints);
+    expect(state.cup?.score).toBe(TUNING.line.championPoints + TUNING.line.championCupPoints + LINE_MILESTONES[0].points);
   });
 });

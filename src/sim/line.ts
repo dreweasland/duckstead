@@ -19,7 +19,7 @@ import type { Genome } from './genetics';
 import { events } from '../events';
 import { breedKey, breedLabel } from './breedBook';
 import { chronicle } from './chronicle';
-import { addSocietyPoints } from './society';
+import { addSocietyPoints, grantLineMilestones } from './society';
 import { noteCupPoints } from './cup';
 import { isPureBred, pedigreeScore } from './pedigree';
 import { standardMatch, STANDARD_THRESHOLD } from './standards';
@@ -144,6 +144,7 @@ export function tickLine(state: GameState): void {
     if (!check.ok) continue;
     recogniseChampion(state, duck, check);
   }
+  grantLineMilestones(state);
 }
 
 function recogniseChampion(state: GameState, duck: Duck, check: ChampionCheck): void {

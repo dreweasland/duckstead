@@ -38,6 +38,10 @@ report the cloud as unreachable while everything else plays offline.
 - **Goals** unlock the game step by step — Breeding after you've petted the
   flock, the Shop after your first egg, the Breed Book and Pond Derby after
   your first hatch. Saves that have already done those things see everything.
+  Eight chapters, then a ninth that never closes: the next champion, the
+  next generation, a breed you haven't championed yet — each pays and
+  reopens one notch further on, so the strip beside the pond always names
+  the line's next thing.
 - **Breed** — open the Breed panel and click two adults on the pond (or use
   the chooser, which sorts by readiness and how many new breeds each pairing
   could unlock). The pair's genetics sit side by side — swatches, traits,
@@ -149,7 +153,7 @@ report the cloud as unreachable while everything else plays offline.
   most likely to hatch one and the chance per egg. Open commissions also
   show under Goals.
 - **Duck Fanciers' Society** (Shop → Society) — twenty ranks paid with coins
-  *and* Society points (awards, commissions, festival placings, derby
+  *and* Society points (champions, awards, commissions, festival placings, derby
   promotions, discoveries — never coins). Ranks unlock pond styles (water,
   lilies, grass, hutch), titles for your top-pedigree duck, a champion
   statue, commissioned stock (order a duck with a chosen rare gene), an

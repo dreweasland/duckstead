@@ -8,6 +8,8 @@ import { events } from '../events';
 import { chronicle } from './chronicle';
 import { pedigreeScore } from './pedigree';
 import { noteCupPoints } from './cup';
+import type { LineHonour } from './line';
+import { plural } from '../text';
 
 export type StyleSlot = 'water' | 'lily' | 'grass' | 'hutch';
 
@@ -112,9 +114,65 @@ export function activeStyle(state: GameState, slot: StyleSlot): StyleDef | null 
   return id ? STYLES[id] ?? null : null;
 }
 
-// Titles bestowed so far, highest last.
+// The line's own ladder: every so many champions the Society names the line,
+// with points and a title a champion wears. It never runs out of rungs the
+// way the rank ladder does — the last one is a long way off.
+export interface LineMilestone {
+  n: number; // champions
+  points: number;
+  title: string;
+}
+
+export const LINE_MILESTONES: LineMilestone[] = [
+  { n: 1, points: 5, title: 'Champion Breeder' },
+  { n: 3, points: 8, title: 'Line Founder' },
+  { n: 5, points: 12, title: 'Keeper of the Line' },
+  { n: 10, points: 20, title: 'Bloodline Master' },
+  { n: 25, points: 30, title: 'Dynast' },
+  { n: 50, points: 50, title: 'Legend of the Society' },
+];
+
+// One-off honours for finishing the finite ladders.
+export const HONOUR_TITLES: Record<LineHonour, { title: string; points: number }> = {
+  book: { title: 'Keeper of the Book', points: 30 },
+  awards: { title: 'Master of All Breeds', points: 50 },
+};
+
+// Grant any line milestone the champion count has reached, once each.
+export function grantLineMilestones(state: GameState): void {
+  for (const m of LINE_MILESTONES) {
+    if (state.line.championsTotal < m.n || state.line.milestones.includes(m.n)) continue;
+    state.line.milestones.push(m.n);
+    addSocietyPoints(state, m.points);
+    chronicle(state, 'society', `The Society names the ${state.line.name} line "${m.title}" — ${plural(m.n, 'champion')} bred.`);
+    events.emit('toast', `${m.title}! The Society honours the line: +${m.points} Society`);
+  }
+}
+
+export function grantHonour(state: GameState, honour: LineHonour): void {
+  if (state.line.honours.includes(honour)) return;
+  state.line.honours.push(honour);
+  const h = HONOUR_TITLES[honour];
+  addSocietyPoints(state, h.points);
+  chronicle(state, 'milestone', honour === 'book' ? `Every breed in the Book has hatched — the Society names the ${state.line.name} line "${h.title}".` : `Every award in the Book is won — the Society names the ${state.line.name} line "${h.title}".`);
+  events.emit('toast', `${h.title}! +${h.points} Society`);
+}
+
+// Rank titles bestowed so far, highest last.
 function societyTitles(state: GameState): string[] {
   return RANKS.filter((r) => r.rank <= state.society.rank && r.title).map((r) => r.title!);
+}
+
+// The line's titles, highest last: milestones reached, then honours.
+export function lineTitles(state: GameState): string[] {
+  const milestones = LINE_MILESTONES.filter((m) => state.line.milestones.includes(m.n)).map((m) => m.title);
+  const honours = state.line.honours.map((h) => HONOUR_TITLES[h].title);
+  return [...milestones, ...honours];
+}
+
+// Everything the pond may call itself, for the Society tab.
+export function allTitles(state: GameState): string[] {
+  return [...societyTitles(state), ...lineTitles(state)];
 }
 
 export function rewardLabel(r: RankDef): string {
@@ -130,8 +188,13 @@ export function rewardLabel(r: RankDef): string {
   return '';
 }
 
-// The pond's top-pedigree adult holds the highest Society title earned.
-export function championTitle(state: GameState, duck: { id: string }): string | null {
+// A champion wears the line's highest title; the pond's top-pedigree adult
+// holds the highest rank title. Two ladders, two holders.
+export function championTitle(state: GameState, duck: { id: string; champion?: number }): string | null {
+  if (duck.champion !== undefined) {
+    const line = lineTitles(state);
+    if (line.length > 0) return line[line.length - 1];
+  }
   const titles = societyTitles(state);
   if (titles.length === 0) return null;
   let best: { id: string; score: number } | null = null;
