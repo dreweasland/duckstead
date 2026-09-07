@@ -296,6 +296,20 @@ describe('ui smoke', () => {
     ui.closeDuckCard();
   });
 
+  it('the bottom dock arms care tools and holds the panel buttons', () => {
+    const { ui } = bootUi();
+    const feed = document.querySelector<HTMLElement>('.bottom-dock .care-slot[data-kind="feed"]')!;
+    expect(feed).toBeTruthy();
+    feed.click();
+    expect(document.body.classList.contains('feeding')).toBe(true);
+    expect(feed.classList.contains('active')).toBe(true);
+    feed.click();
+    expect(document.body.classList.contains('feeding')).toBe(false);
+    expect(document.querySelector('.bottom-dock .dock-actions .unlock-shop')).toBeTruthy();
+    expect(document.querySelector('.hud .care-menu')).toBeNull();
+    void ui;
+  });
+
   it('renders the duck card for an adult and for an egg, and a pinned copy', () => {
     const { game, ui } = bootUi();
     const adult = game.state.ducks.find((d) => d.stage === 'adult')!;

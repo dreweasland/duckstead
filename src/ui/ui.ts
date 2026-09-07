@@ -39,6 +39,7 @@ import { FloatWindows } from './floatWindows';
 import { DecorMode } from './decorMode';
 import { Notices, type ToastTone } from './notices';
 import { NoticeColumn } from './noticeColumn';
+import { buildBottomDock } from './bottomDock';
 import { SideWidgets } from './sideWidgets';
 
 export type PanelKind = 'duck' | 'breeding' | 'shop' | 'roster' | 'save' | 'book' | 'settings' | 'goals';
@@ -98,19 +99,20 @@ export class UI {
       game: this.game,
       toast: (m) => this.toast(m),
       onFestivalChip: () => this.onFestivalChip(),
-      togglePanel: (k) => this.togglePanel(k),
       openHall: () => this.openHall(),
-      toggleCareMenu: () => this.toggleCareMenu(),
+      setSpeed: (sp) => this.setSpeed(sp),
+    });
+    const dock = buildBottomDock({
+      togglePanel: (k) => this.togglePanel(k),
       toggleFeedMode: (k) => this.toggleFeedMode(k),
+      openRace: () => this.openRace(),
       showCards: () => this.showCards,
       toggleCardRail: () => this.toggleCardRail(),
-      setSpeed: (sp) => this.setSpeed(sp),
-      openRace: () => this.openRace(),
     });
     this.hudClock = hud.hudClock;
     this.festivalChip = hud.festivalChip;
     this.hudCounts = hud.hudCounts;
-    this.careCounts = hud.careCounts;
+    this.careCounts = dock.careCounts;
     this.root.append(hud.element);
     // Everything that hangs below the bar (panels, widgets, toasts, the dawn
     // card) offsets by its height, which is one row on a wide screen and two
@@ -136,7 +138,7 @@ export class UI {
     this.side = new SideWidgets({ game: this.game, openPanel: (k) => this.openPanel(k), openHall: () => this.openHall() });
     this.floatHost = el('div', { class: 'float-host' });
     this.modalHost = el('div', { class: 'modal-host' });
-    this.root.append(this.railHost, this.side.element, this.panelHost, this.modalHost, this.floatHost, this.bannerHost, this.noticeColumn.element);
+    this.root.append(this.railHost, this.side.element, this.panelHost, this.modalHost, this.floatHost, this.bannerHost, this.noticeColumn.element, dock.element);
     this.floats = new FloatWindows({
       ui: this,
       root: this.root,
@@ -327,8 +329,8 @@ export class UI {
   // Buttons that come and go (sleep, scrub the pond) sit with the others,
   // ahead of the speed controls, so they never wrap into a stray third row.
   private addHudAction(btn: HTMLElement): void {
-    const actions = this.root.querySelector<HTMLElement>('.hud-actions')!;
-    actions.insertBefore(btn, actions.querySelector('.hud-speed'));
+    const bar = this.root.querySelector<HTMLElement>('.hud')!;
+    bar.insertBefore(btn, bar.querySelector('.hud-speed'));
   }
 
   setSpeed(speed: number): void {
@@ -340,25 +342,11 @@ export class UI {
   toggleFeedMode(mode: FoodKind | 'brush'): void {
     this.feedMode = this.feedMode === mode ? 'none' : mode;
     document.body.classList.toggle('feeding', this.feedMode !== 'none');
-    const careBtn = this.root.querySelector('.care-btn')!;
-    careBtn.classList.toggle('active', this.feedMode !== 'none');
-    const label = this.root.querySelector('.care-label')!;
-    label.textContent =
-      this.feedMode === 'none'
-        ? 'Care'
-        : this.feedMode === 'brush'
-          ? 'Brush'
-          : FOODS[this.feedMode].name;
-    this.root.querySelectorAll<HTMLElement>('.treat-pick').forEach((b) => b.classList.toggle('active', b.dataset.kind === this.feedMode));
-    this.root.querySelector('.care-menu')?.classList.remove('open');
+    this.root.querySelectorAll<HTMLElement>('.care-slot').forEach((b) => b.classList.toggle('active', b.dataset.kind === this.feedMode));
     if (this.feedMode === 'brush') this.toast('Rub a grubby duck to brush it clean!');
     else if (TREATS.includes(this.feedMode as TreatKind)) this.toast(`Click the pond to toss ${FOODS[this.feedMode as FoodKind].name.toLowerCase()}`);
   }
 
-
-  private toggleCareMenu(): void {
-    this.root.querySelector('.care-menu')?.classList.toggle('open');
-  }
 
   private bindCanvas(): void {
     bindCanvasInput(this);
@@ -598,7 +586,8 @@ export class UI {
     this.closeModal();
     switch (go.panel) {
       case 'care':
-        this.toggleCareMenu();
+        // "Show me" for a care goal: arm the feed so the next click on the pond does it.
+        if (this.feedMode === 'none') this.toggleFeedMode('feed');
         return;
       case 'race':
         if (!this.gate('race')) return;

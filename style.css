@@ -126,12 +126,6 @@ body.feeding #pond-canvas {
 /* The buttons travel as one group: on a wide screen they sit at the right
    end of the row; when the bar can't fit them beside the ledger they take a
    whole second row, speed controls still at the far right. */
-.hud-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: inherit;
-}
-
 .hud-speed {
   display: inline-flex;
   align-items: center;
@@ -339,7 +333,6 @@ body.feeding #pond-canvas {
 /* The "on" green: an armed HUD tool, a chosen treat, a primary action. */
 .hud-btn.active,
 .speed-btn.active,
-.treat-pick.active,
 .action-btn.primary,
 .comp-btn.primary {
   background: #4a7a4e;
@@ -351,49 +344,54 @@ body.feeding #pond-canvas {
   color: var(--gold);
 }
 
-.treats-wrap {
-  position: relative;
-  display: inline-flex;
+/* The bottom dock: the care hotbar (left) and the panel buttons (right)
+   along the strip no duck ever reaches. Only the buttons catch clicks. */
+:root {
+  --dock-h: 52px;
 }
 
-.treats-menu {
-  display: none;
+.bottom-dock {
   position: absolute;
-  top: 34px;
   left: 0;
-  z-index: 30;
-  min-width: 150px;
-  background: rgba(18, 24, 32, 0.97);
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
-  padding: 6px;
-  flex-direction: column;
-  gap: 4px;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
-}
-
-.treats-menu.open {
+  right: 0;
+  bottom: 0;
+  height: var(--dock-h);
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  pointer-events: none;
+  z-index: 30;
 }
 
-.treat-pick {
+.care-hotbar,
+.dock-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 7px;
-  background: var(--surface-4);
-  border: 1px solid var(--line);
-  color: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  text-align: left;
+  gap: 6px;
+  pointer-events: auto;
+  background: rgba(16, 22, 30, 0.82);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--surface-2);
+  border-radius: 12px;
+  padding: 5px 6px;
 }
 
-/* :not(.active) keeps a chosen treat's green border under the pointer now
-   that the green rule sits earlier, with the button base. */
-.treat-pick:hover:not(.active) {
-  border-color: var(--gold);
+.care-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.care-slot-count {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
+.care-slot.active .care-slot-count {
+  color: inherit;
 }
 
 .treat-dot {
@@ -401,16 +399,6 @@ body.feeding #pond-canvas {
   height: 10px;
   border-radius: 50%;
   flex: none;
-}
-
-.treat-count {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 11px;
-}
-
-.treat-hint {
-  padding: 2px 4px 0;
 }
 
 .fav-line {
@@ -1562,7 +1550,7 @@ body.feeding #pond-canvas {
   border: 1px solid var(--line-strong);
   border-radius: 14px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
-  max-height: calc(100vh - 190px);
+  max-height: calc(100vh - var(--hud-h) - var(--dock-h) - 24px);
   max-width: calc(100vw - 32px);
   animation: float-in 0.16s ease-out;
 }
@@ -2590,7 +2578,7 @@ body.feeding #pond-canvas {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--dock-h);
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -4455,15 +4443,6 @@ body.feeding #pond-canvas {
 }
 
 /* ---------- HUD condensation ---------- */
-/* The Care menu inherits the treats-menu dropdown look. */
-.care-menu {
-  min-width: 170px;
-}
-
-.care-menu .treat-pick .icon {
-  flex: none;
-}
-
 /* Mid-size screens: panel buttons drop their text (icons + tooltips stay). */
 @media (max-width: 1650px) {
   .hud-btn-label {
@@ -4471,11 +4450,6 @@ body.feeding #pond-canvas {
   }
   .hud-btn .icon {
     opacity: 1;
-  }
-  /* Keep the Care button's mode label visible — it's the only signal that a
-     tool is armed. */
-  .care-btn.active .care-label {
-    display: inline;
   }
   /* And drop the supply chips whose counts live in the Care menu. (The
      settings button and the life-event chip pushed the bar past 1600px with
@@ -4499,9 +4473,6 @@ body.feeding #pond-canvas {
 @media (max-width: 1250px) {
   .hud-spacer {
     display: none;
-  }
-  .hud-actions {
-    flex-basis: 100%;
   }
   .hud-speed {
     margin-left: auto;

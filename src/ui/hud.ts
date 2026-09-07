@@ -1,14 +1,11 @@
-// The top bar: clock, resource chips, festival and life-event chips, the
-// care menu, panel buttons, and speed controls. Built once; the UI keeps the
+// The top bar: clock, resource chips, the festival and sync chips, and the
+// speed controls. Tools and panel buttons live in the bottom dock. Built once; the UI keeps the
 // refs it needs to update counts and chips.
 import type { Game } from '../game';
-import type { PanelKind } from './ui';
 import { events } from '../events';
 import { isSyncConfigured } from '../sync/syncMeta';
-import { FOODS, TREATS, type FoodKind } from '../sim/food';
 import { el } from './dom';
 import { icon } from './icons';
-import { keyFor, keyLabel } from './settings';
 import { TUNING } from '../sim/tuning';
 
 type HudCountKey = 'coin' | 'feed' | 'premium' | 'medicine' | 'soap' | 'pond' | 'flock' | 'eggs' | 'society' | 'line';
@@ -17,14 +14,8 @@ interface HudHost {
   game: Game;
   toast(msg: string): void;
   onFestivalChip(): void;
-  togglePanel(kind: PanelKind): void;
   openHall(): void;
-  toggleCareMenu(): void;
-  toggleFeedMode(kind: FoodKind | 'brush'): void;
-  showCards(): boolean;
-  toggleCardRail(): void;
   setSpeed(speed: number): void;
-  openRace(): void;
 }
 
 interface HudRefs {
@@ -32,11 +23,9 @@ interface HudRefs {
   hudClock: HTMLElement;
   festivalChip: HTMLElement;
   hudCounts: Record<HudCountKey, HTMLElement>;
-  careCounts: Partial<Record<FoodKind, HTMLElement>>;
 }
 
 export function buildHud(host: HudHost): HudRefs {
-  const careCounts: Partial<Record<FoodKind, HTMLElement>> = {};
   const hudCounts = {} as HudRefs['hudCounts'];
   const hudClock = el('span', { class: 'hud-clock' });
   const festivalChip = el('button', { class: 'hud-chip festival-chip', onclick: () => host.onFestivalChip() });
@@ -109,56 +98,7 @@ export function buildHud(host: HudHost): HudRefs {
   );
   speedBtns[1].classList.add('active');
 
-  // The buttons live in one group so that, when the bar is too narrow for
-  // everything on one line, they drop to a second row together instead of
-  // wrapping wherever the width happens to run out.
-  const actions = el(
-    'span',
-    { class: 'hud-actions' },
-    el(
-      'span',
-      { class: 'treats-wrap care-wrap' },
-      el(
-        'button',
-        {
-          class: 'hud-btn care-btn',
-          title: 'Care tools: feed, treats, and the brush',
-          onclick: () => host.toggleCareMenu(),
-        },
-        icon('wheat'),
-        el('span', { class: 'hud-btn-label care-label' }, 'Care'),
-      ),
-      buildCareMenu(host, careCounts),
-    ),
-    el(
-      'button',
-      { class: 'hud-btn unlock-breeding', onclick: () => host.togglePanel('breeding') },
-      icon('heart'),
-      el('span', { class: 'hud-btn-label' }, 'Breed'),
-    ),
-    el('button', { class: 'hud-btn unlock-shop', onclick: () => host.togglePanel('shop') }, icon('cart'), el('span', { class: 'hud-btn-label' }, 'Shop')),
-    el('button', { class: 'hud-btn', onclick: () => host.togglePanel('roster') }, icon('list'), el('span', { class: 'hud-btn-label' }, 'Flock')),
-    el('button', { class: 'hud-btn unlock-book', onclick: () => host.togglePanel('book') }, icon('book'), el('span', { class: 'hud-btn-label' }, 'Book')),
-    el(
-      'button',
-      { class: 'hud-btn unlock-race', onclick: () => host.openRace() },
-      icon('flag'),
-      el('span', { class: 'hud-btn-label' }, 'Race'),
-    ),
-    el(
-      'button',
-      {
-        class: `hud-btn cards-btn${host.showCards() ? ' active' : ''}`,
-        title: 'Show duck cards on the main screen',
-        onclick: () => host.toggleCardRail(),
-      },
-      icon('cards'),
-      el('span', { class: 'hud-btn-label' }, 'Cards'),
-    ),
-    el('button', { class: 'hud-btn', onclick: () => host.togglePanel('save') }, icon('disk'), el('span', { class: 'hud-btn-label' }, 'Save')),
-    el('button', { class: 'hud-btn settings-btn', title: `Settings and keyboard shortcuts (${keyLabel(keyFor('settings'))})`, onclick: () => host.togglePanel('settings') }, icon('star')),
-    el('span', { class: 'hud-speed' }, ...speedBtns),
-  );
+  const speed = el('span', { class: 'hud-speed' }, ...speedBtns);
   const element = el(
     'header',
     { class: 'hud' },
@@ -168,51 +108,7 @@ export function buildHud(host: HudHost): HudRefs {
     festivalChip,
     syncChip,
     el('span', { class: 'hud-spacer' }),
-    actions,
+    speed,
   );
-  return { element, hudClock, festivalChip, hudCounts, careCounts };
-}
-
-// One menu for every hands-on tool: scatter feed, toss treats, brush.
-function buildCareMenu(host: HudHost, careCounts: Partial<Record<FoodKind, HTMLElement>>): HTMLElement {
-  const menu = el('div', { class: 'treats-menu care-menu' });
-  const foodPick = (kind: FoodKind, iconName: Parameters<typeof icon>[0], label: string): void => {
-    const count = el('span', { class: 'treat-count' }, '0');
-    careCounts[kind] = count;
-    menu.append(
-      el(
-        'button',
-        { class: 'treat-pick', 'data-kind': kind, onclick: () => host.toggleFeedMode(kind) },
-        icon(iconName, 13),
-        label,
-        count,
-      ),
-    );
-  };
-  foodPick('feed', 'wheat', 'Feed');
-  foodPick('premiumFeed', 'sparkle', 'Premium');
-  for (const kind of TREATS) {
-    const count = el('span', { class: 'treat-count' }, '0');
-    careCounts[kind] = count;
-    menu.append(
-      el(
-        'button',
-        { class: 'treat-pick', 'data-kind': kind, onclick: () => host.toggleFeedMode(kind) },
-        el('span', { class: 'treat-dot' }),
-        FOODS[kind].name,
-        count,
-      ),
-    );
-    (menu.lastElementChild!.querySelector('.treat-dot') as HTMLElement).style.background = FOODS[kind].color;
-  }
-  menu.append(
-    el(
-      'button',
-      { class: 'treat-pick', 'data-kind': 'brush', title: 'Rub over a duck to scrub it clean', onclick: () => host.toggleFeedMode('brush') },
-      icon('bubbles', 13),
-      'Brush',
-    ),
-    el('div', { class: 'muted small treat-hint' }, 'Every duck secretly loves one treat.'),
-  );
-  return menu;
+  return { element, hudClock, festivalChip, hudCounts };
 }

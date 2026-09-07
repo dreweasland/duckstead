@@ -22,9 +22,10 @@ report the cloud as unreachable while everything else plays offline.
   open other ducks — pin several to compare side by side; each is draggable
   and stays live. Ctrl/Cmd-click a duck on the pond, a card in the Flock
   panel, or a rail card to open it pinned straight away.
-- **Care menu** — one HUD button holds every hands-on tool: pick Feed,
-  Premium, a treat, or the Brush, then click the map to use it (the button
-  shows which tool is armed). Treats — peas, worms, berries — are special:
+- **Care hotbar** — the strip along the bottom of the screen holds every
+  hands-on tool with its count: pick Feed, Premium, a treat, or the Brush,
+  then click the map to use it (the armed slot lights up). The panel
+  buttons sit beside it. Treats — peas, worms, berries — are special:
   every duck secretly loves one of them; the first time it eats its
   favourite you get a heart burst and it's written on the duck's card, and
   favourites restore 1.5× hunger plus happiness.
