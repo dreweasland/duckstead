@@ -10,7 +10,6 @@ import type { Duck } from '../sim/duck';
 import { isNight, TICKS_PER_HOUR } from '../sim/time';
 import { FOODS, TREATS, type FoodKind, type TreatKind } from '../sim/food';
 import { isUnlocked, UNLOCK_LABELS, UNLOCKABLES } from '../sim/unlocks';
-import { cleanPond } from '../sim/pond';
 import { duckById } from '../state';
 import { duckCapacity, pondOccupancy, upgradeLevel } from '../sim/economy';
 import { el } from './dom';
@@ -31,7 +30,7 @@ import { bindCanvasInput } from './canvasInput';
 import { installTooltips } from './tooltip';
 import { actionForKey, loadSettings } from './settings';
 import { keyCaptureActive } from './settingsPanel';
-import { play, quack, setAmbienceNight, unlockAudio, wireGameAudio } from '../audio/audio';
+import { quack, setAmbienceNight, unlockAudio, wireGameAudio } from '../audio/audio';
 import { WEATHER_NAMES, weatherOf } from '../sim/weather';
 import { openRacePanel } from './racePanel';
 import { TUNING } from '../sim/tuning';
@@ -39,6 +38,7 @@ import { plural } from '../text';
 import { FloatWindows } from './floatWindows';
 import { DecorMode } from './decorMode';
 import { Notices, type ToastTone } from './notices';
+import { NoticeColumn } from './noticeColumn';
 import { SideWidgets } from './sideWidgets';
 
 export type PanelKind = 'duck' | 'breeding' | 'shop' | 'roster' | 'save' | 'book' | 'settings' | 'goals';
@@ -80,7 +80,7 @@ export class UI {
   private decor!: DecorMode;
   private notices!: Notices;
   private festivalChip!: HTMLElement;
-  private lifeChip!: HTMLElement;
+  private noticeColumn!: NoticeColumn;
   private showCards = localStorage.getItem(CARDS_PREF_KEY) === '1';
 
   constructor(
@@ -98,7 +98,6 @@ export class UI {
       game: this.game,
       toast: (m) => this.toast(m),
       onFestivalChip: () => this.onFestivalChip(),
-      openLifeEvent: () => this.notices.openLifeEvent(),
       togglePanel: (k) => this.togglePanel(k),
       openHall: () => this.openHall(),
       toggleCareMenu: () => this.toggleCareMenu(),
@@ -110,7 +109,6 @@ export class UI {
     });
     this.hudClock = hud.hudClock;
     this.festivalChip = hud.festivalChip;
-    this.lifeChip = hud.lifeChip;
     this.hudCounts = hud.hudCounts;
     this.careCounts = hud.careCounts;
     this.root.append(hud.element);
@@ -123,13 +121,22 @@ export class UI {
       publish();
     }
     this.panelHost = el('div', { class: 'panel-host' });
-    this.toastHost = el('div', { class: 'toast-host' });
+    this.noticeColumn = new NoticeColumn({
+      game: this.game,
+      renderer: this.renderer,
+      toast: (m, tone) => this.toast(m, tone),
+      openLifeEvent: () => this.openLifeEvent(),
+      selectDuck: (id) => this.selectDuck(id),
+      openPanel: (k) => this.openPanel(k),
+      refreshPanel: () => this.refreshPanel(),
+    });
+    this.toastHost = this.noticeColumn.toastHost;
     this.bannerHost = el('div', { class: 'banner-host' });
     this.railHost = el('div', { class: 'rail-host' });
     this.side = new SideWidgets({ game: this.game, openPanel: (k) => this.openPanel(k), openHall: () => this.openHall() });
     this.floatHost = el('div', { class: 'float-host' });
     this.modalHost = el('div', { class: 'modal-host' });
-    this.root.append(this.railHost, this.side.element, this.panelHost, this.modalHost, this.floatHost, this.bannerHost, this.toastHost);
+    this.root.append(this.railHost, this.side.element, this.panelHost, this.modalHost, this.floatHost, this.bannerHost, this.noticeColumn.element);
     this.floats = new FloatWindows({
       ui: this,
       root: this.root,
@@ -250,6 +257,7 @@ export class UI {
     setInterval(() => {
       this.refreshPanel();
       this.refreshCardRail();
+      this.noticeColumn.refresh();
     }, 500);
     setInterval(() => this.refreshHud(), 250);
   }
@@ -442,6 +450,12 @@ export class UI {
     this.refreshPanel();
   }
 
+  // A life event card (a broody hen, a rivalry) — the notices column opens
+  // it, and so can the smoke test.
+  openLifeEvent(): void {
+    this.notices.openLifeEvent();
+  }
+
   // The Hall of Champions lives in the Book.
   openHall(): void {
     showBookTab('hall');
@@ -609,7 +623,6 @@ export class UI {
     const s = this.game.state;
     this.side.refresh();
     this.refreshFestivalChip();
-    this.lifeChip.style.display = s.lifeEvent ? '' : 'none';
     const weather = weatherOf(s);
     this.hudClock.textContent = weather === 'clear' ? formatClock(s.clock) : `${formatClock(s.clock)} · ${WEATHER_NAMES[weather]}`;
     setAmbienceNight(isNight(s.clock));
@@ -683,33 +696,7 @@ export class UI {
     this.hudCounts.pond.parentElement?.classList.toggle('chip-low', pondPct < TUNING.visitors.inviteCleanliness);
     // Pond cleanliness nudge. Wild ducks stop visiting below 70%, so the
     // scrub button shows from there — urgently once the water is truly foul.
-    const existing = this.root.querySelector<HTMLElement>('.pond-warn');
-    if (pondPct < TUNING.visitors.inviteCleanliness) {
-      const urgent = pondPct < 30;
-      if (!existing) {
-        const warn = el(
-          'button',
-          {
-            class: 'hud-btn pond-warn',
-            onclick: () => {
-              cleanPond(this.game.state);
-              play('splash');
-              this.toast('You scrubbed the pond sparkling clean!');
-              warn.remove();
-            },
-          },
-          icon('broom'),
-          el('span', { class: 'pond-warn-label' }, urgent ? 'Clean pond!' : 'Scrub pond'),
-        );
-        warn.classList.toggle('urgent', urgent);
-        this.addHudAction(warn);
-      } else {
-        existing.classList.toggle('urgent', urgent);
-        existing.querySelector('.pond-warn-label')!.textContent = urgent ? 'Clean pond!' : 'Scrub pond';
-      }
-    } else {
-      existing?.remove();
-    }
+    // Dirty water, life events, and the rest wait in the notices column now.
   }
 
   private toggleCardRail(): void {

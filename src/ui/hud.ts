@@ -17,7 +17,6 @@ interface HudHost {
   game: Game;
   toast(msg: string): void;
   onFestivalChip(): void;
-  openLifeEvent(): void;
   togglePanel(kind: PanelKind): void;
   openHall(): void;
   toggleCareMenu(): void;
@@ -32,7 +31,6 @@ interface HudRefs {
   element: HTMLElement;
   hudClock: HTMLElement;
   festivalChip: HTMLElement;
-  lifeChip: HTMLElement;
   hudCounts: Record<HudCountKey, HTMLElement>;
   careCounts: Partial<Record<FoodKind, HTMLElement>>;
 }
@@ -42,14 +40,6 @@ export function buildHud(host: HudHost): HudRefs {
   const hudCounts = {} as HudRefs['hudCounts'];
   const hudClock = el('span', { class: 'hud-clock' });
   const festivalChip = el('button', { class: 'hud-chip festival-chip', onclick: () => host.onFestivalChip() });
-  // A pending life event: shown until answered (or until evening settles it).
-  const lifeChip = el(
-    'button',
-    { class: 'hud-chip life-chip', style: 'display:none', title: 'Something is happening on the pond — click to decide', onclick: () => host.openLifeEvent() },
-    icon('warning', 12),
-    el('span', {}, 'Decide'),
-  );
-
   // Cloud-sync status chip: only exists once a device has been linked.
   const syncChip = el('span', { class: 'hud-chip sync-chip', style: 'display:none' });
   events.on('sync-status', (status) => {
@@ -176,12 +166,11 @@ export function buildHud(host: HudHost): HudRefs {
     hudClock,
     chips,
     festivalChip,
-    lifeChip,
     syncChip,
     el('span', { class: 'hud-spacer' }),
     actions,
   );
-  return { element, hudClock, festivalChip, lifeChip, hudCounts, careCounts };
+  return { element, hudClock, festivalChip, hudCounts, careCounts };
 }
 
 // One menu for every hands-on tool: scatter feed, toss treats, brush.

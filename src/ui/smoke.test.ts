@@ -275,6 +275,27 @@ describe('ui smoke', () => {
     ui.closeModal();
   });
 
+  it('a foul pond and a sick duck wait in the notices column until handled', () => {
+    const { game, ui } = bootUi();
+    game.state.pond.cleanliness = 40;
+    vi.advanceTimersByTime(600);
+    const pond = document.querySelector<HTMLElement>('.notice-card[data-notice="pond"]');
+    expect(pond).toBeTruthy();
+    pond!.click();
+    expect(game.state.pond.cleanliness).toBe(100);
+    vi.advanceTimersByTime(600);
+    expect(document.querySelector('.notice-card[data-notice="pond"]')).toBeNull();
+    const duck = game.state.ducks.find((d) => d.stage === 'adult')!;
+    duck.sick = true;
+    vi.advanceTimersByTime(600);
+    const sick = document.querySelector<HTMLElement>('.notice-card[data-notice="sick"]');
+    expect(sick).toBeTruthy();
+    sick!.click();
+    expect(game.selectedDuckId).toBe(duck.id);
+    expect(document.querySelector('.float-host')?.firstElementChild).toBeTruthy();
+    ui.closeDuckCard();
+  });
+
   it('renders the duck card for an adult and for an egg, and a pinned copy', () => {
     const { game, ui } = bootUi();
     const adult = game.state.ducks.find((d) => d.stage === 'adult')!;
@@ -407,7 +428,7 @@ describe('ui smoke', () => {
     // open overlay owns the keyboard). Take a look at it, then close it.
     if (game.state.lifeEvent) {
       closeOverlay();
-      (ui as unknown as { openLifeEvent(): void }).openLifeEvent();
+      ui.openLifeEvent();
       expect(document.querySelector('.race-overlay .life-choice')).toBeTruthy();
     }
     closeOverlay();

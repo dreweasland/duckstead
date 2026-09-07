@@ -18,6 +18,110 @@ import { TUNING } from './tuning';
 import { plural } from '../text';
 import { isTrainingDay, squadSize, TRAINING } from './training';
 import { TREATS } from './food';
+import { describeLifeEvent } from './lifeEvents';
+
+// The situations that stay wrong until someone handles them, for the
+// notices column beside the pond. Same predicates as the dawn report's
+// chores, but live, and only the ones with a hand to lend: pickups, loose
+// eggs, and courting pairs are news, not chores, so they stay with dawn.
+export type NoticeKind = 'life' | 'egg-cold' | 'sick' | 'hungry' | 'overcrowded' | 'egg-ready' | 'visitor' | 'pond' | 'commission' | 'soap' | 'feed-low';
+
+export interface LiveNotice {
+  key: string; // stable per situation, so a rebuild can tell "same" from "new"
+  kind: NoticeKind;
+  icon: DawnIcon;
+  title: string;
+  detail?: string;
+  urgent?: boolean;
+  duckId?: string; // the duck (or egg) to open or act on
+  count?: number;
+}
+
+function hungryDucks(state: GameState): Duck[] {
+  return flock(state).filter((d) => d.needs.hunger < 40);
+}
+
+function sickDucks(state: GameState): Duck[] {
+  return flock(state).filter((d) => d.sick);
+}
+
+function coldEggs(state: GameState): Duck[] {
+  return state.ducks.filter((d) => d.stage === 'egg' && !d.readyToHatch && eggWarmth(d) < 40);
+}
+
+function readyEggs(state: GameState): Duck[] {
+  return state.ducks.filter((d) => d.stage === 'egg' && d.readyToHatch);
+}
+
+export function liveNotices(state: GameState): LiveNotice[] {
+  const out: LiveNotice[] = [];
+  const day = dayOf(state.clock);
+  if (state.lifeEvent) {
+    const { title } = describeLifeEvent(state, state.lifeEvent);
+    out.push({ key: 'life', kind: 'life', icon: 'warning', title, detail: 'Something on the pond needs a decision.', urgent: true });
+  }
+  const cold = coldEggs(state);
+  if (cold.length > 0) out.push({ key: 'egg-cold', kind: 'egg-cold', icon: 'egg', title: `${plural(cold.length, 'egg')} gone cold`, detail: 'Tuck them into the straw.', urgent: true, count: cold.length });
+  const sick = sickDucks(state);
+  if (sick.length > 0) {
+    out.push({
+      key: 'sick',
+      kind: 'sick',
+      icon: 'pill',
+      title: `${plural(sick.length, 'duck')} sick`,
+      detail: state.inventory.medicine > 0 ? `${sick[0].name} first — ${plural(state.inventory.medicine, 'dose')} of medicine in stock.` : `${sick[0].name} first — medicine is in the shop.`,
+      urgent: true,
+      duckId: sick[0].id,
+      count: sick.length,
+    });
+  }
+  const hungry = [...hungryDucks(state)].sort((a, b) => a.needs.hunger - b.needs.hunger);
+  if (hungry.length > 0) {
+    const starving = hungry[0].needs.hunger < 20;
+    out.push({
+      key: 'hungry',
+      kind: 'hungry',
+      icon: 'wheat',
+      title: `${plural(hungry.length, 'duck')} hungry`,
+      detail: starving ? `${hungry[0].name} is starving.` : `${hungry[0].name} is hungriest.`,
+      urgent: starving,
+      duckId: hungry[0].id,
+      count: hungry.length,
+    });
+  }
+  const crowd = overcrowding(state);
+  if (crowd > 0) out.push({ key: 'overcrowded', kind: 'overcrowded', icon: 'warning', title: `Pond overcrowded by ${plural(crowd, 'duck')}`, detail: 'Sell, pen, or expand.', urgent: true, count: crowd });
+  for (const egg of readyEggs(state)) out.push({ key: `egg-ready:${egg.id}`, kind: 'egg-ready', icon: 'egg', title: 'An egg is cracking', detail: 'Help it hatch.', duckId: egg.id });
+  if (state.visitor) {
+    out.push({
+      key: 'visitor',
+      kind: 'visitor',
+      icon: 'sparkle',
+      title: `${state.visitor.duck.name} is on the bank`,
+      detail: `A wild duck — ${state.visitor.treatsGiven}/${TREATS_TO_RECRUIT} treats so far.`,
+      duckId: state.visitor.duck.id,
+    });
+  }
+  if (state.pond.cleanliness < TUNING.visitors.inviteCleanliness) {
+    const urgent = state.pond.cleanliness < 30;
+    out.push({ key: 'pond', kind: 'pond', icon: 'bubbles', title: urgent ? 'The pond is foul' : 'The pond needs a scrub', detail: `${Math.round(state.pond.cleanliness)}% clean — wild ducks visit above ${TUNING.visitors.inviteCleanliness}%.`, urgent });
+  }
+  for (const c of state.commissions) {
+    if (c.expiresDay - day > 1) continue;
+    const fit = flock(state).find((d) => duckFits(d, c));
+    out.push({
+      key: `commission:${c.id}`,
+      kind: 'commission',
+      icon: 'flag',
+      title: `${c.client}'s contract lapses tonight`,
+      detail: fit ? `${fit.name} fits — deliver from its card for ${c.reward} coins.` : `${describeCommission(c)} — nobody fits.`,
+      duckId: fit?.id,
+    });
+  }
+  if (upgradeLevel(state, 'bathHouse') > 0 && state.inventory.soap === 0) out.push({ key: 'soap', kind: 'soap', icon: 'bubbles', title: 'The bath house is out of soap', detail: 'Restock at the shop.' });
+  if (state.inventory.feed < 5 && state.feeder.food === 0) out.push({ key: 'feed-low', kind: 'feed-low', icon: 'wheat', title: `Feed is low (${state.inventory.feed} left)`, detail: 'Gather duckweed or visit the shop.' });
+  return out;
+}
 
 type DawnIcon =
   | 'coin' | 'duck' | 'egg' | 'flag' | 'heart' | 'wheat' | 'bubbles' | 'sparkle' | 'warning' | 'pill' | 'grave'
@@ -149,8 +253,8 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
     });
   }
 
-  const ready = eggs.filter((e) => e.readyToHatch).length;
-  const cold = eggs.filter((e) => !e.readyToHatch && eggWarmth(e) < 40).length;
+  const ready = readyEggs(state).length;
+  const cold = coldEggs(state).length;
   if (ready > 0) nest.push({ icon: 'egg', text: `${plural(ready, 'egg')} cracking — tap to hatch.` });
   if (cold > 0) nest.push({ icon: 'egg', text: `${plural(cold, 'egg')} went cold overnight.`, detail: 'Tap each to tuck it into the straw.', urgent: true });
   if (state.pendingClutches.length > 0) {
@@ -197,9 +301,9 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
       urgent: bal.status === 'rowdy',
     });
   }
-  const hungry = active.filter((d) => d.needs.hunger < 40).length;
+  const hungry = hungryDucks(state).length;
   if (hungry > 0) chores.push({ icon: 'wheat', text: `${plural(hungry, 'duck')} hungry after the night.`, urgent: true });
-  const sick = active.filter((d) => d.sick).length;
+  const sick = sickDucks(state).length;
   if (sick > 0) chores.push({ icon: 'pill', text: `${plural(sick, 'duck')} sick.`, detail: 'Medicine is in the shop.', urgent: true });
   if (upgradeLevel(state, 'bathHouse') > 0 && state.inventory.soap === 0) {
     chores.push({ icon: 'bubbles', text: 'The bath house is out of soap.', detail: 'Nobody gets scrubbed at dawn until you restock at the shop.' });

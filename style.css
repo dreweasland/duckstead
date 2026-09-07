@@ -346,16 +346,6 @@ body.feeding #pond-canvas {
   border-color: #67a36b;
 }
 
-.pond-warn {
-  background: #5a6a3a;
-  border-color: #8fa35f;
-}
-
-.pond-warn.urgent {
-  background: #7a5a2a;
-  border-color: var(--gold-dim);
-  animation: pulse 1.2s ease-in-out infinite;
-}
 
 .hud-chip.chip-low {
   color: var(--gold);
@@ -3773,17 +3763,104 @@ body.feeding #pond-canvas {
 /* Notices sit above every in-game overlay (race, drills, festivals at 40;
    a lifted card at 45; the takeover screen at 50) so a warning that lands
    mid-race is still readable — only the pre-boot conflict dialog is higher. */
-#ui-root > .toast-host {
+/* The notices column: toasts at the top, then the cards that wait until
+   handled. It starts below the nest (which hugs the top-right of the bank)
+   so eggs stay tappable, and only the cards catch clicks. */
+.notice-column {
   position: absolute;
-  top: calc(var(--hud-h) + 4px);
-  left: 50%;
-  transform: translateX(-50%);
+  right: 12px;
+  top: max(calc(var(--hud-h) + 8px), 38vh);
+  width: 250px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  gap: 8px;
   pointer-events: none;
   z-index: 55;
+}
+
+.toast-host {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.notice-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notice-card {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(18, 24, 32, 0.92);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px var(--shadow);
+  position: relative;
+}
+
+.notice-card:hover {
+  border-color: var(--gold-dim);
+}
+
+.notice-card:focus-visible {
+  outline: 2px solid var(--gold);
+}
+
+.notice-card.urgent {
+  border-color: var(--gold-dim);
+  box-shadow: 0 6px 18px var(--shadow), inset 3px 0 0 var(--gold);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.notice-badge {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--chip);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+}
+
+.notice-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.notice-title {
+  font-weight: 600;
+}
+
+.notice-detail {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 1px;
+}
+
+.notice-snooze {
+  flex: none;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.notice-snooze:hover {
+  color: var(--ink);
+  background: var(--chip);
 }
 
 .toast {
@@ -3860,7 +3937,7 @@ body.feeding #pond-canvas {
    than a toast so the pond's big moments can't slip past unnoticed. */
 .banner-host {
   position: absolute;
-  top: 88px;
+  top: calc(var(--hud-h) + 12px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -4959,6 +5036,7 @@ body.text-large .panel,
 body.text-large .race-card,
 body.text-large .dawn-card,
 body.text-large .goals-widget,
+body.text-large .notice-card,
 body.text-large .life-banner,
 body.text-large .toast {
   font-size: 1.12em;

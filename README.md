@@ -193,7 +193,7 @@ report the cloud as unreachable while everything else plays offline.
   scrappy, steady, keen, spoiled, proud): permanent chips with small bonuses
   or trade-offs, written to the Chronicle. And a few times a week a **life
   event** needs a decision — a hen goes broody, two drakes fall out — with a
-  *Decide* chip in the HUD and a real trade-off either way; left alone, the
+  *Decide* card in the notices column and a real trade-off either way; left alone, the
   flock settles it by evening. Details in [GENETICS.md](GENETICS.md).
 - **Weather** — rolled at dawn by season and shown beside the clock: rain
   freshens the pond and chills eggs (ducks love a swim in it), snow chills
@@ -349,7 +349,7 @@ Key files:
 - [ ] Nest a pair, pet both during courtship: viability % rises in the panel
 - [ ] Egg warmth bar drops; click egg → tucked (hearts), cooldown shown
 - [ ] Egg cracks and rocks at 100%; click → hatches; leave one → self-hatches
-- [ ] Pond chip turns amber <70% and the Scrub button appears
+- [ ] Pond chip turns amber <70% and a scrub card appears in the notices column
 - [ ] Day 2, 10:00: a wild duck visits regardless of pond state
 - [ ] Feathers appear near ducks in their plumage color; tap → album grows in Book
 - [ ] Duckweed clumps on the pond rim; tap → +1 feed

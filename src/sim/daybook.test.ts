@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { createNewGame } from '../newGame';
 import { Game } from '../game';
 import { events } from '../events';
-import { dawnLines, dawnReport } from './daybook';
+import { dawnLines, dawnReport, liveNotices } from './daybook';
 import { createStarterDuck } from './duck';
-import { installFakeStorage } from '../testFixtures';
+import { installFakeStorage, pushEgg } from '../testFixtures';
 import { NIGHT_END, TICKS_PER_HOUR, dayOf, hourOf, isNight } from './time';
 
 describe('dawn report', () => {
@@ -47,6 +47,31 @@ describe('dawn report', () => {
     expect(report.dayLabel).toBe('Day 4 of Spring · Year 1');
     expect(report.stats.pond).toBe(50);
     expect(report.sections.map((s) => s.title)).toEqual(['Opportunities', 'The nest', 'Chores']);
+  });
+
+  it('live notices: nothing on a content pond; each situation gets a card, urgent first', () => {
+    const { state, rng } = createNewGame(8);
+    for (const d of state.ducks) d.needs.hunger = 90;
+    expect(liveNotices(state)).toEqual([]);
+    state.pond.cleanliness = 40;
+    let notes = liveNotices(state);
+    expect(notes.map((n) => n.kind)).toEqual(['pond']);
+    expect(notes[0].urgent).toBeFalsy();
+    state.pond.cleanliness = 20;
+    expect(liveNotices(state)[0].urgent).toBe(true);
+    const sick = state.ducks[0];
+    sick.sick = true;
+    notes = liveNotices(state);
+    expect(notes[0]).toMatchObject({ kind: 'sick', duckId: sick.id, urgent: true });
+    state.lifeEvent = { id: 1, kind: 'broody', duckId: state.ducks[1].id, day: 0 } as unknown as typeof state.lifeEvent;
+    expect(liveNotices(state)[0].kind).toBe('life');
+    const egg = pushEgg(state, rng);
+    egg.warmth = 10;
+    expect(liveNotices(state).some((n) => n.kind === 'egg-cold' && n.urgent)).toBe(true);
+    egg.readyToHatch = true;
+    expect(liveNotices(state).some((n) => n.kind === 'egg-ready' && n.duckId === egg.id)).toBe(true);
+    state.commissions.push({ id: 9, client: 'Marta', key: 'M|D|solid|n', reward: 100, postedDay: 0, expiresDay: dayOf(state.clock) + 1 } as unknown as (typeof state.commissions)[number]);
+    expect(liveNotices(state).some((n) => n.kind === 'commission' && n.key === 'commission:9')).toBe(true);
   });
 
   it('names the duck nearest Champion and what it lacks, once the line is in view', () => {
