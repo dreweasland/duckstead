@@ -1073,9 +1073,9 @@ body.feeding #pond-canvas {
   animation: none;
 }
 
-/* The duck dock: the selected duck's card on the right edge, pinned cards
-   stacked beneath it, one scrolling column. It starts below the notices and
-   never above the nest, and stops above the bottom dock. */
+/* The duck dock: the selected duck's card in the bottom-right, anchored to
+   the bottom dock, with pinned cards stacking upward from it. One scrolling
+   column that can grow no higher than the notices under the ledger. */
 :root {
   --dock-w: 340px;
   --notices-h: 0px;
@@ -1084,11 +1084,11 @@ body.feeding #pond-canvas {
 .duck-dock {
   position: absolute;
   right: 8px;
-  top: max(calc(var(--corner-h) + var(--notices-h) + 16px), 38vh);
   bottom: calc(var(--dock-h) + 8px);
+  max-height: calc(100vh - var(--dock-h) - var(--corner-h) - var(--notices-h) - 24px);
   width: var(--dock-w);
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   gap: 8px;
   overflow-y: auto;
   scrollbar-width: thin;
