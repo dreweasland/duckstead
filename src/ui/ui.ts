@@ -107,10 +107,12 @@ export class UI {
     this.hudCounts = ledger.counts;
     this.careCounts = dock.careCounts;
     this.root.append(this.almanac.element, ledger.element);
-    // Everything that hangs below the corner cards (widgets, the modal, the
-    // dawn card, the notices) offsets by the taller card, whose height
-    // depends on wrapping and content — so the cards publish it rather than
-    // CSS guessing.
+    // Each column below the top anchors to what is actually above it — the
+    // widgets to the almanac, the notices to the ledger, the windows to the
+    // flock bar — and those heights depend on wrapping and content, so the
+    // surfaces publish them rather than CSS guessing.
+    this.publishHeight([this.almanac.element], '--almanac-h', 0);
+    this.publishHeight([ledger.element], '--ledger-h', 0);
     this.publishHeight([this.almanac.element, ledger.element], '--corner-h', 10);
     this.noticeColumn = new NoticeColumn({
       game: this.game,
@@ -126,6 +128,7 @@ export class UI {
     this.publishHeight([this.noticeColumn.stack], '--notices-h', 0);
     this.bannerHost = el('div', { class: 'banner-host' });
     this.flockBarHost = el('div', { class: 'flock-bar-host' });
+    this.publishHeight([this.flockBarHost], '--flock-h', 0);
     this.side = new SideWidgets({ game: this.game, openPanel: (k) => this.openPanel(k), openHall: () => this.openHall() });
     this.dockHost = el('div', { class: 'duck-dock' });
     this.modalHost = el('div', { class: 'modal-host' });

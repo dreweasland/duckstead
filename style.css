@@ -107,8 +107,14 @@ body.feeding #pond-canvas {
    tokens so the flock bar between them and the breakpoints share them. */
 :root {
   --corner-h: 130px;
+  --almanac-h: 120px;
+  --ledger-h: 60px;
+  --flock-h: 56px;
   --almanac-w: 272px;
   --ledger-w: 300px;
+  /* Windows sit under the flock bar; below 1250px they must also clear the
+     corner cards, which they would otherwise overlap sideways. */
+  --modal-clear: 0px;
 }
 
 .corner-card {
@@ -821,7 +827,7 @@ body.feeding #pond-canvas {
 
 .dawn-card {
   position: absolute;
-  top: calc(var(--corner-h) + 8px);
+  top: max(calc(var(--flock-h) + 18px), var(--modal-clear));
   left: 50%;
   transform: translate(-50%, -12px);
   width: min(460px, calc(100vw - 32px));
@@ -1085,7 +1091,7 @@ body.feeding #pond-canvas {
   position: absolute;
   right: 8px;
   bottom: calc(var(--dock-h) + 8px);
-  max-height: calc(100vh - var(--dock-h) - var(--corner-h) - var(--notices-h) - 24px);
+  max-height: calc(100vh - var(--dock-h) - var(--ledger-h) - var(--notices-h) - 42px);
   width: var(--dock-w);
   display: flex;
   flex-direction: column-reverse;
@@ -1524,7 +1530,7 @@ body.feeding #pond-canvas {
 /* ---------- Breeding panel (centred modal) ---------- */
 .modal-host {
   position: absolute;
-  top: calc(var(--corner-h) + 4px);
+  top: max(calc(var(--flock-h) + 18px), var(--modal-clear));
   left: 0;
   right: 0;
   display: flex;
@@ -1577,7 +1583,7 @@ body.feeding #pond-canvas {
   border: 1px solid var(--line-strong);
   border-radius: 14px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
-  max-height: calc(100vh - var(--corner-h) - var(--dock-h) - 24px);
+  max-height: calc(100vh - max(calc(var(--flock-h) + 18px), var(--modal-clear)) - var(--dock-h) - 16px);
   max-width: calc(100vw - 32px);
   animation: float-in 0.16s ease-out;
 }
@@ -2750,7 +2756,7 @@ body.feeding #pond-canvas {
 /* The left-hand strip: the goals path on top, offers underneath. */
 .side-widgets {
   position: absolute;
-  top: calc(var(--corner-h) + 16px);
+  top: calc(var(--almanac-h) + 26px);
   left: 12px;
   display: flex;
   flex-direction: column;
@@ -3775,7 +3781,7 @@ body.feeding #pond-canvas {
 .notice-column {
   position: absolute;
   right: 12px;
-  top: calc(var(--corner-h) + 8px);
+  top: calc(var(--ledger-h) + 18px);
   width: 250px;
   display: flex;
   flex-direction: column;
@@ -3943,7 +3949,7 @@ body.feeding #pond-canvas {
    than a toast so the pond's big moments can't slip past unnoticed. */
 .banner-host {
   position: absolute;
-  top: calc(var(--corner-h) + 12px);
+  top: max(calc(var(--flock-h) + 22px), var(--modal-clear));
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -4468,6 +4474,9 @@ body.feeding #pond-canvas {
   :root {
     --almanac-w: 232px;
     --ledger-w: 260px;
+  }
+  #ui-root {
+    --modal-clear: calc(var(--corner-h) + 4px);
   }
   .hud-btn-label,
   .care-slot-label {
