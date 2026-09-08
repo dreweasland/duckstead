@@ -1074,8 +1074,8 @@ body.feeding #pond-canvas {
 }
 
 /* The duck dock: the selected duck's card on the right edge, pinned cards
-   stacked beneath it, one scrolling column. It starts below the nest and
-   the notices, and stops above the bottom dock. */
+   stacked beneath it, one scrolling column. It starts below the notices and
+   never above the nest, and stops above the bottom dock. */
 :root {
   --dock-w: 340px;
   --notices-h: 0px;
@@ -1084,7 +1084,7 @@ body.feeding #pond-canvas {
 .duck-dock {
   position: absolute;
   right: 8px;
-  top: calc(max(calc(var(--corner-h) + 8px), 38vh) + var(--notices-h) + 8px);
+  top: max(calc(var(--corner-h) + var(--notices-h) + 16px), 38vh);
   bottom: calc(var(--dock-h) + 8px);
   width: var(--dock-w);
   display: flex;
@@ -3763,12 +3763,13 @@ body.feeding #pond-canvas {
    a lifted card at 45; the takeover screen at 50) so a warning that lands
    mid-race is still readable — only the pre-boot conflict dialog is higher. */
 /* The notices column: toasts at the top, then the cards that wait until
-   handled. It starts below the nest (which hugs the top-right of the bank)
-   so eggs stay tappable, and only the cards catch clicks. */
+   handled, tucked under the ledger. Only the cards catch clicks. (The nest
+   hugs the top-right of the bank beneath it; a long stack can cover it, so
+   eggs also live in the flock bar and get their own notice cards.) */
 .notice-column {
   position: absolute;
   right: 12px;
-  top: max(calc(var(--corner-h) + 8px), 38vh);
+  top: calc(var(--corner-h) + 8px);
   width: 250px;
   display: flex;
   flex-direction: column;
