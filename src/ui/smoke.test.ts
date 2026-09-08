@@ -344,6 +344,19 @@ describe('ui smoke', () => {
     expect(document.querySelectorAll('.duck-dock .dock-slot.pinned').length).toBe(3);
   });
 
+  it('a click on empty ground closes an open window as well as the docked card', () => {
+    const { game, ui } = bootUi();
+    game.selectedDuckId = game.state.ducks[0].id;
+    ui.openPanel('duck');
+    ui.openPanel('shop');
+    expect(ui.modalKindNow()).toBe('shop');
+    expect(ui.duckCardIsOpen()).toBe(true);
+    // The sky, far from any duck.
+    canvasEl().dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 2, clientY: 2 }));
+    expect(ui.modalKindNow()).toBeNull();
+    expect(ui.duckCardIsOpen()).toBe(false);
+  });
+
   it('renders the duck card for an adult and for an egg, and a pinned copy', () => {
     const { game, ui } = bootUi();
     const adult = game.state.ducks.find((d) => d.stage === 'adult')!;

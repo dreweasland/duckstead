@@ -31,6 +31,7 @@ interface CanvasHost {
   modalKindNow(): Exclude<PanelKind, 'duck'> | null;
   duckCardIsOpen(): boolean;
   closeDuckCard(): void;
+  closeModal(): void;
   openPanel(kind: PanelKind): void;
   selectDuck(id: string, pin?: boolean): void;
   refreshPanel(): void;
@@ -203,8 +204,11 @@ export function bindCanvasInput(host: CanvasHost): void {
     }
     if (id) host.selectDuck(id);
     else {
+      // A click on nothing puts everything away: the docked card and any
+      // open window alike, the way a click on the desk clears the table.
       host.game.selectedDuckId = null;
       if (host.duckCardIsOpen()) host.closeDuckCard();
+      if (host.modalKindNow()) host.closeModal();
     }
   });
 }
