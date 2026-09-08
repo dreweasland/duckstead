@@ -1533,13 +1533,19 @@ body.feeding #pond-canvas {
   z-index: 18;
 }
 
-/* With a card docked, modals and event overlays centre in the space left of it. */
-#ui-root.dock-open .modal-host {
-  right: calc(var(--dock-w) + 8px);
+/* Windows centre on the screen. Only when the screen is too narrow for a
+   window and a docked card side by side do they centre in the space left
+   of the dock (widest panel 780px + the dock's 348px on each side). */
+@media (max-width: 1480px) {
+  #ui-root:has(.duck-dock.has-cards) .modal-host {
+    right: calc(var(--dock-w) + 8px);
+  }
 }
 
-#ui-root.dock-open .race-overlay {
-  padding-right: calc(var(--dock-w) + 8px);
+@media (max-width: 1620px) {
+  #ui-root:has(.duck-dock.has-cards) .race-overlay {
+    padding-right: calc(var(--dock-w) + 8px);
+  }
 }
 
 /* And the notices go compact: icon chips in a row, the text in their titles. */
