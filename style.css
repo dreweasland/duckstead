@@ -100,18 +100,17 @@ body.feeding #pond-canvas {
 }
 
 /* ---------- Corner cards ---------- */
-/* The almanac (top-left: time, weather, date, festival, speed) and the
-   ledger (top-right: coins, points, the line, flock, pond). Their taller
-   height is published by the UI as --corner-h so what hangs below them
-   anchors to it; the fallback is the almanac's usual height. Widths are
-   tokens so the flock bar between them and the breakpoints share them. */
+/* The almanac (top-left) and the ledger (top-right). Each publishes its
+   height (--almanac-h, --ledger-h; --corner-h is the taller) so what hangs
+   below anchors to it. The width tokens reserve the space the flock bar
+   keeps clear; the cards themselves fit their content. */
 :root {
   --corner-h: 130px;
-  --almanac-h: 120px;
-  --ledger-h: 60px;
+  --almanac-h: 66px;
+  --ledger-h: 58px;
   --flock-h: 56px;
-  --almanac-w: 272px;
-  --ledger-w: 300px;
+  --almanac-w: 400px;
+  --ledger-w: 380px;
   /* Windows sit under the flock bar; below 1250px they must also clear the
      corner cards, which they would otherwise overlap sideways. */
   --modal-clear: 0px;
@@ -120,9 +119,6 @@ body.feeding #pond-canvas {
 .corner-card {
   position: absolute;
   top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
   padding: 8px 12px;
   background: rgba(16, 22, 30, 0.82);
   backdrop-filter: blur(6px);
@@ -131,42 +127,191 @@ body.feeding #pond-canvas {
   font-size: 14px;
 }
 
+/* Almanac: dial | time & date over festival | speed & sync. */
 .almanac {
   left: 12px;
-  width: var(--almanac-w);
+  max-width: var(--almanac-w);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
 }
 
-.ledger {
-  right: 12px;
-  width: var(--ledger-w);
+.almanac-dial {
+  width: 34px;
+  height: 34px;
+  flex: none;
+}
+
+.dial-ring {
+  fill: var(--surface-4);
+  stroke: var(--surface-2);
+  stroke-width: 1;
+}
+
+.dial-day {
+  fill: none;
+  stroke: var(--gold-dim);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
+.dial-disc {
+  fill: var(--gold);
+}
+
+.dial-disc.night {
+  fill: var(--lilac);
+}
+
+.almanac-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .almanac-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
-  flex-wrap: wrap;
+  white-space: nowrap;
 }
 
 .almanac-time {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  letter-spacing: 0.01em;
 }
 
-.almanac-weather:empty {
-  display: none;
-}
-
-.almanac-date {
+.almanac-when {
+  display: inline-flex;
+  gap: 6px;
   font-size: 13px;
+  color: var(--ink-dim);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+.almanac-weather:not(:empty)::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--muted);
+}
+
+.almanac-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+/* The speed control is one segmented switch, not four loose buttons. */
 .hud-speed {
   display: inline-flex;
+  align-items: stretch;
+}
+
+.hud-speed .speed-btn {
+  border-radius: 0;
+  margin-left: -1px;
+  padding: 4px 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-speed .speed-btn:first-child {
+  border-radius: 6px 0 0 6px;
+  margin-left: 0;
+}
+
+.hud-speed .speed-btn:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.hud-speed .speed-btn.active {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ledger: a row of stat tiles, value over label, evenly spaced. */
+.ledger {
+  right: 12px;
+  max-width: var(--ledger-w);
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px 8px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
+  min-width: 56px;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: none;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+}
+
+.stat + .stat {
+  border-left: 1px solid var(--hairline);
+  border-radius: 0 8px 8px 0;
+}
+
+.stat-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stat-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stat.chip-coin .stat-value .icon,
+.stat.chip-line .stat-value .icon {
+  color: var(--gold);
+}
+
+.stat.chip-society .stat-value .icon {
+  color: var(--gold-bright);
+}
+
+button.stat {
+  cursor: pointer;
+}
+
+button.stat:hover {
+  background: var(--chip);
+}
+
+button.stat:focus-visible {
+  outline: 2px solid var(--gold);
+}
+
+.stat.chip-low .stat-value {
+  color: var(--gold);
+}
+
+.stat.chip-bad .stat-value {
+  color: #f08a80;
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
 /* ---------- Hand-drawn icons ---------- */
@@ -229,18 +374,6 @@ body.feeding #pond-canvas {
   color: #eeaad4;
 }
 
-/* The resource ledger: one pill with the counts divided by hairlines, rather
-   than a pill per count — about half the width, every number still there. */
-.hud-chips {
-  display: inline-flex;
-  align-items: stretch;
-  align-self: flex-start;
-  background: var(--surface);
-  border: 1px solid var(--surface-2);
-  border-radius: 14px;
-  padding: 0 3px;
-}
-
 .hud-chip {
   display: inline-flex;
   align-items: center;
@@ -255,38 +388,11 @@ body.feeding #pond-canvas {
   cursor: default;
 }
 
-.hud-chips .hud-chip {
-  background: none;
-  border: 0;
-  border-radius: 0;
-  padding: 3px 7px;
-  gap: 4px;
-}
-
-.hud-chips .hud-chip + .hud-chip {
-  border-left: 1px solid var(--surface-2);
-}
-
 .hud-chip-count {
   min-width: 2ch;
 }
 
 .chip-coin .icon {
-  color: var(--gold);
-}
-
-/* The line chip is a button (it opens the Hall) dressed as a ledger entry. */
-.chip-line {
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-}
-
-.chip-line .icon {
-  color: var(--gold);
-}
-
-.chip-line:hover {
   color: var(--gold);
 }
 
@@ -4472,8 +4578,12 @@ body.feeding #pond-canvas {
    armed). */
 @media (max-width: 1250px) {
   :root {
-    --almanac-w: 232px;
-    --ledger-w: 260px;
+    --almanac-w: 340px;
+    --ledger-w: 330px;
+  }
+  .stat {
+    min-width: 0;
+    padding: 3px 6px;
   }
   #ui-root {
     --modal-clear: calc(var(--corner-h) + 4px);
@@ -4498,8 +4608,12 @@ body.feeding #pond-canvas {
    flock bar has no room between the cards. */
 @media (max-width: 900px) {
   :root {
-    --almanac-w: 200px;
-    --ledger-w: 224px;
+    --almanac-w: 260px;
+    --ledger-w: 260px;
+  }
+  .stat-label,
+  .almanac-weather {
+    display: none;
   }
   .flock-bar-host {
     display: none;
@@ -4516,13 +4630,15 @@ body.feeding #pond-canvas {
 /* Phone-width: the clock, coins, the line, and the bottom dock remain. */
 @media (max-width: 640px) {
   :root {
-    --almanac-w: 150px;
-    --ledger-w: 160px;
+    --almanac-w: 190px;
+    --ledger-w: 150px;
   }
-  .chip-society,
-  .ledger-pond,
-  .almanac-date,
-  .almanac-row.chips,
+  .stat.chip-society,
+  .stat.chip-flock,
+  .stat.chip-pond,
+  .almanac-when,
+  .festival-chip,
+  .sync-chip,
   .side-widgets {
     display: none;
   }

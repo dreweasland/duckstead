@@ -7,7 +7,7 @@ import type { Unlockable } from '../sim/unlocks';
 import { FESTIVAL_NAMES, festivalEnteredToday, festivalToday, festivalTitle, upcomingFestival } from '../sim/festivals';
 import { openEggShow, openGrandPrix, openMarketStall, openWinterLights, type FestivalHost } from './festivalScreens';
 import type { Duck } from '../sim/duck';
-import { isNight, TICKS_PER_HOUR } from '../sim/time';
+import { hourOf, isNight, TICKS_PER_HOUR } from '../sim/time';
 import { FOODS, TREATS, type FoodKind, type TreatKind } from '../sim/food';
 import { isUnlocked, UNLOCK_LABELS, UNLOCKABLES } from '../sim/unlocks';
 import { duckById } from '../state';
@@ -25,7 +25,7 @@ import { breedKey, breedLabel } from '../sim/breedBook';
 import { championCheck } from '../sim/line';
 import { renderGoalsPanel } from './goalsPanel';
 import { renderSettingsPanel } from './settingsPanel';
-import { buildAlmanac } from './almanac';
+import { buildAlmanac, setDialHour } from './almanac';
 import { buildLedger, type LedgerKey } from './ledger';
 import { bindCanvasInput } from './canvasInput';
 import { installTooltips } from './tooltip';
@@ -601,6 +601,7 @@ export class UI {
     this.almanac.time.textContent = formatTime(s.clock);
     this.almanac.weather.textContent = weather === 'clear' ? '' : WEATHER_NAMES[weather];
     this.almanac.date.textContent = formatDate(s.clock);
+    setDialHour(this.almanac.dial, hourOf(s.clock), isNight(s.clock));
     setAmbienceNight(isNight(s.clock));
     // Night: offer to sleep through to dawn.
     const sleepBtn = this.root.querySelector<HTMLElement>('.sleep-btn');
