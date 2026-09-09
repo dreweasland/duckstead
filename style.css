@@ -109,7 +109,7 @@ body.feeding #pond-canvas {
   --almanac-h: 66px;
   --ledger-h: 58px;
   --flock-h: 56px;
-  --almanac-w: 400px;
+  --almanac-w: 420px;
   --ledger-w: 380px;
   /* Windows sit under the flock bar; below 1250px they must also clear the
      corner cards, which they would otherwise overlap sideways. */
@@ -197,9 +197,14 @@ body.feeding #pond-canvas {
   text-overflow: ellipsis;
 }
 
-.almanac-weather:not(:empty)::before {
+.almanac-weather {
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.almanac-weather:not(:empty)::after {
   content: '·';
-  margin-right: 6px;
+  margin-left: 8px;
   color: var(--muted);
 }
 

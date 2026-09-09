@@ -1,5 +1,5 @@
 // The almanac: the top-left corner card. A day-night dial and the time,
-// big, with the date and weather beside them; the festival chip beneath;
+// big, with the date beside them; the weather and the festival chip beneath;
 // and, to the right, the speed control as one segmented switch with the
 // cloud-sync status under it. "Sleep 'til dawn" joins that column at
 // night. Two lines tall by design, whatever the content does.
@@ -92,8 +92,8 @@ export function buildAlmanac(host: AlmanacHost): AlmanacRefs {
     el(
       'div',
       { class: 'almanac-main' },
-      el('div', { class: 'almanac-row' }, time, el('span', { class: 'almanac-when' }, date, weather)),
-      el('div', { class: 'almanac-row' }, festivalChip),
+      el('div', { class: 'almanac-row' }, time, el('span', { class: 'almanac-when' }, date)),
+      el('div', { class: 'almanac-row' }, weather, festivalChip),
     ),
     actions,
   );
