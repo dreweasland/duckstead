@@ -44,20 +44,25 @@ export function hasMark(duck: Duck, mark: Mark): boolean {
   return duck.marks?.includes(mark) ?? false;
 }
 
-export function grantMark(state: GameState, duck: Duck, mark: Mark, why?: string): boolean {
+// `notify` is off when the caller folds the mark into its own announcement
+// (a growth toast or banner), so one moment never fires two notices.
+export function grantMark(state: GameState, duck: Duck, mark: Mark, why?: string, notify = true): boolean {
   if (hasMark(duck, mark)) return false;
   (duck.marks ??= []).push(mark);
   state.stats.marksEarned += 1;
   chronicle(state, 'mark', `${duck.name} turned out ${MARKS[mark].label}${why ? ` — ${why}` : ''}.`);
-  events.emit('toast', `${duck.name} is ${MARKS[mark].label}: ${MARKS[mark].blurb}`);
+  if (notify) events.emit('toast', `${duck.name} is ${MARKS[mark].label}: ${MARKS[mark].blurb}`);
   return true;
 }
 
-// At the juvenile molt: the egg's warmth has shown in the bird.
-export function assignJuvenileMarks(state: GameState, duck: Duck): void {
+// At the juvenile molt: the egg's warmth has shown in the bird. Returns the
+// marks granted so the growth announcement can carry them.
+export function assignJuvenileMarks(state: GameState, duck: Duck): Mark[] {
   const u = upbringingOf(duck);
-  if (u.tended >= TUNING.marks.hardyWarmth) grantMark(state, duck, 'hardy', 'a snug egg makes a sturdy bird');
-  else if (u.tended < TUNING.marks.scrappyWarmth) grantMark(state, duck, 'scrappy', 'a cold egg, and it pulled through');
+  const got: Mark[] = [];
+  if (u.tended >= TUNING.marks.hardyWarmth && grantMark(state, duck, 'hardy', 'a snug egg makes a sturdy bird', false)) got.push('hardy');
+  else if (u.tended < TUNING.marks.scrappyWarmth && grantMark(state, duck, 'scrappy', 'a cold egg, and it pulled through', false)) got.push('scrappy');
+  return got;
 }
 
 // At coming of age: what its youth was like. The tallies are dropped
@@ -65,12 +70,14 @@ export function assignJuvenileMarks(state: GameState, duck: Duck): void {
 const STEADY_MENTOR_SHARE = TUNING.marks.steadyMentorShare;
 const SPOILED_TREATS = TUNING.marks.spoiledTreats;
 
-export function assignAdultMarks(state: GameState, duck: Duck): void {
+export function assignAdultMarks(state: GameState, duck: Duck): Mark[] {
   const u = upbringingOf(duck);
-  if (u.youngTicks > 0 && u.mentorTicks / u.youngTicks >= STEADY_MENTOR_SHARE) grantMark(state, duck, 'steady', 'raised in an elder\'s shadow');
-  if (u.raced) grantMark(state, duck, 'keen', 'raced before it had its full feathers');
-  if (u.treats >= SPOILED_TREATS) grantMark(state, duck, 'spoiled', 'too many treats too young');
+  const got: Mark[] = [];
+  if (u.youngTicks > 0 && u.mentorTicks / u.youngTicks >= STEADY_MENTOR_SHARE && grantMark(state, duck, 'steady', 'raised in an elder\'s shadow', false)) got.push('steady');
+  if (u.raced && grantMark(state, duck, 'keen', 'raced before it had its full feathers', false)) got.push('keen');
+  if (u.treats >= SPOILED_TREATS && grantMark(state, duck, 'spoiled', 'too many treats too young', false)) got.push('spoiled');
   delete duck.upbringing;
+  return got;
 }
 
 // --- Effects, read by the systems they touch ---

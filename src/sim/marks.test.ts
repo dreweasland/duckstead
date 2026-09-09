@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createRng } from '../rng';
 import { createNewGame } from '../newGame';
 import { newGameWithPair } from '../testFixtures';
-import { createDuck, layEgg } from './duck';
+import { createDuck, createStarterDuck, layEgg } from './duck';
 import { tickLifecycle } from './lifecycle';
 import { assignAdultMarks, assignJuvenileMarks, hasMark, happinessDecayScale, raceMarkScale, sicknessScale, treatCheerScale, upbringingOf } from './marks';
 import { eatFood } from './food';
@@ -75,5 +75,26 @@ describe('upbringing marks', () => {
     expect(happinessDecayScale(g)).toBeCloseTo(0.99);
     expect(treatCheerScale(g)).toBe(1.5);
     expect(raceMarkScale(g)).toBeCloseTo(1.03 * 1.02 * 1.02);
+  });
+});
+
+describe('growth announcements', () => {
+  it('a molt that reveals a mark fires one toast, not two', async () => {
+    const { events } = await import('../events');
+    const { state, rng } = createNewGame(31);
+    const duck = createStarterDuck(rng, { x: 0, y: 0 });
+    duck.stage = 'duckling';
+    duck.ageTicks = 10 ** 9; // due to molt on the next tick
+    upbringingOf(duck).tended = 1; // a snug egg: hardy
+    state.ducks = [duck];
+    const toasts: string[] = [];
+    const off = events.on('toast', (m) => toasts.push(String(m)));
+    tickLifecycle(state, rng);
+    off();
+    expect(duck.stage).toBe('juvenile');
+    expect(hasMark(duck, 'hardy')).toBe(true);
+    expect(toasts.filter((m) => m.startsWith(duck.name))).toHaveLength(1);
+    expect(toasts[0]).toContain('juvenile');
+    expect(toasts[0]).toContain('hardy');
   });
 });

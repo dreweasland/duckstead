@@ -26,6 +26,7 @@ import { championCheck } from '../sim/line';
 import { renderGoalsPanel } from './goalsPanel';
 import { renderSettingsPanel } from './settingsPanel';
 import { buildAlmanac, setDialHour } from './almanac';
+import { MARKS, type Mark } from '../sim/marks';
 import { buildLedger, type LedgerKey } from './ledger';
 import { bindCanvasInput } from './canvasInput';
 import { installTooltips } from './tooltip';
@@ -165,13 +166,14 @@ export class UI {
       if (this.duckCardOpen) this.refreshPanel();
     });
     events.on('duck-grew', (payload) => {
-      const { duck, to } = payload as { duck: Duck; to: 'juvenile' | 'adult' | 'elder' };
+      const { duck, to, marks = [] } = payload as { duck: Duck; to: 'juvenile' | 'adult' | 'elder'; marks?: Mark[] };
       for (let i = 0; i < (to === 'juvenile' ? 6 : 10); i += 1) {
         this.renderer.spawnParticle(duck.pos.x, duck.pos.y - 14, 'sparkle');
       }
       if (to === 'adult') {
         this.notices.lifeBanner('grown', duck, `${duck.name} is all grown up`, [
           'Come of age — ready to nest, race, and win rosettes.',
+          ...marks.map((m) => `${MARKS[m].label}: ${MARKS[m].blurb}`),
         ]);
       } else if (to === 'elder') {
         this.notices.lifeBanner('elder', duck, `${duck.name} is an elder now`, [

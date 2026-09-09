@@ -11,7 +11,7 @@ import { checkHatchAwards } from './awards';
 import { generationOf, livingDescendants } from './lineage';
 import { pedigreeScore } from './pedigree';
 import { passingPoints } from './elders';
-import { assignAdultMarks, assignJuvenileMarks, upbringingOf } from './marks';
+import { assignAdultMarks, assignJuvenileMarks, MARKS, upbringingOf } from './marks';
 import { events } from '../events';
 import { dayOf, DAYS_PER_SEASON, TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 import { ordinal, plural } from '../text';
@@ -107,9 +107,16 @@ function tickStages(state: GameState, rng: Rng): Duck[] {
           duck.stage = 'juvenile';
           duck.ageTicks = 0;
           state.stats.juvenilesRaised += 1;
-          assignJuvenileMarks(state, duck);
-          events.emit('duck-grew', { duck, to: 'juvenile' });
-          events.emit('toast', `${duck.name} is finding ${duck.sex === 'F' ? 'her' : 'his'} feathers — a juvenile now!`);
+          // One notice for the moment: the molt, and the mark it revealed.
+          const marks = assignJuvenileMarks(state, duck);
+          events.emit('duck-grew', { duck, to: 'juvenile', marks });
+          const mark = marks[0];
+          events.emit(
+            'toast',
+            mark
+              ? `${duck.name} is a juvenile now, and ${MARKS[mark].label}: ${MARKS[mark].blurb}`
+              : `${duck.name} is finding ${duck.sex === 'F' ? 'her' : 'his'} feathers — a juvenile now!`,
+          );
         }
         break;
       case 'juvenile':
@@ -117,9 +124,9 @@ function tickStages(state: GameState, rng: Rng): Duck[] {
           duck.stage = 'adult';
           duck.ageTicks = 0;
           chronicle(state, 'ofAge', `${duck.name} came of age.`);
-          assignAdultMarks(state, duck);
-          // The UI turns this into a banner; the companion into a toast.
-          events.emit('duck-grew', { duck, to: 'adult' });
+          // The UI turns this into a banner (with the marks); the companion into a toast.
+          const marks = assignAdultMarks(state, duck);
+          events.emit('duck-grew', { duck, to: 'adult', marks });
         }
         break;
       case 'adult':
