@@ -4196,7 +4196,9 @@ button.stat:focus-visible {
 /* ---------- Cloud sync ---------- */
 .sync-chip {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: default;
 }
 
 .sync-chip.sync-synced {
@@ -4210,7 +4212,6 @@ button.stat:focus-visible {
 .sync-chip.sync-offline,
 .sync-chip.sync-stale {
   color: var(--amber);
-  border-color: var(--gold-dim);
 }
 
 .pair-code-box {
@@ -4623,8 +4624,7 @@ button.stat:focus-visible {
   .flock-bar-host {
     display: none;
   }
-  .festival-chip .chip-word,
-  .sync-chip .chip-word {
+  .festival-chip .chip-word {
     display: none;
   }
   .side-widgets {
