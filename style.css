@@ -177,6 +177,21 @@ body.feeding #pond-canvas {
   align-items: baseline;
   gap: 8px;
   white-space: nowrap;
+  min-width: 0;
+}
+
+/* The festival chip shrinks to its row rather than running under the
+   speed switch; a long name trails off, and "entered" is a tick. */
+.almanac .festival-chip {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.almanac .festival-chip .chip-word {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .almanac-time {

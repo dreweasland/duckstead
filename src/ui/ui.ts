@@ -749,7 +749,7 @@ export class UI {
       chip.replaceChildren(
         icon('flag', 11),
         el('span', { class: 'chip-word' }, festivalTitle(this.game.state, today)),
-        entered ? '(entered)' : 'today',
+        entered ? icon('check', 11) : 'today',
       );
       chip.classList.add('today');
     } else {
