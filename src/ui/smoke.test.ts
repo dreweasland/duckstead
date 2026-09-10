@@ -357,6 +357,30 @@ describe('ui smoke', () => {
     expect(ui.duckCardIsOpen()).toBe(false);
   });
 
+  it('the breeding chooser judges candidates on their own readiness, even beside a resting mate', async () => {
+    const { pickMateFromPond, showBreedingTab } = await import('./breedingPanel');
+    const { game, ui } = bootUi();
+    const drake = game.state.ducks.find((d) => d.sex === 'M' && d.stage === 'adult')!;
+    for (const d of game.state.ducks) {
+      d.needs.happiness = 90;
+      d.needs.health = 100;
+    }
+    drake.breedingCooldownTicks = 3000; // resting
+    pickMateFromPond(game.state, drake.id);
+    showBreedingTab('pairing'); // an earlier test may have left the Nest tab up
+    ui.openPanel('breeding');
+    ui.refreshPanel();
+    // Open the chooser for the second slot (its button reads "Choose a duck"
+    // or "Change", depending on what an earlier test left in it).
+    const slotBtns = document.querySelectorAll<HTMLElement>('.modal-host .br-pair [title="Choose a duck"], .modal-host .br-pair [title="Change"]');
+    slotBtns[slotBtns.length - 1].click();
+    ui.refreshPanel();
+    const ready = document.querySelectorAll('.br-cand:not(.not-ready)');
+    expect(ready.length).toBeGreaterThan(0);
+    expect(document.querySelector('.br-chooser .br-blocker')?.textContent).toContain('resting');
+    ui.closeModal();
+  });
+
   it('renders the duck card for an adult and for an egg, and a pinned copy', () => {
     const { game, ui } = bootUi();
     const adult = game.state.ducks.find((d) => d.stage === 'adult')!;

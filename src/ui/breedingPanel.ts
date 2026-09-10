@@ -166,7 +166,12 @@ function chooser(ctx: PanelCtx, which: 'A' | 'B', other: Duck | null): HTMLEleme
   const candidates = state.ducks
     .filter((d) => d.stage === 'adult' && d.id !== other?.id && (!other || d.sex !== other.sex))
     .map((d) => {
-      const gate = other ? canBreedPair(d, other) : breedReadiness(d);
+      // Judge each candidate on its own readiness. A problem with the mate
+      // already chosen (resting, sick, glum) is theirs, not every candidate's,
+      // and is said once above the grid instead.
+      const own = breedReadiness(d);
+      const pair = other && own.ok ? canBreedPair(d, other) : own;
+      const gate = own.ok && !pair.ok && !breedReadiness(other!).ok ? own : pair;
       const value = breedingValue(state, d);
       // pairKeys caches per duck pair — childBreedKeys walks up to 256
       // genotype leaves and this runs per candidate per 500ms refresh.
@@ -179,6 +184,7 @@ function chooser(ctx: PanelCtx, which: 'A' | 'B', other: Duck | null): HTMLEleme
     // a price (a half-day on the pond), so it shouldn't be the reflex pick.
     .sort((x, y) => Number(y.gate.ok) - Number(x.gate.ok) || Number(Boolean(x.d.penned)) - Number(Boolean(y.d.penned)) || y.newBreeds - x.newBreeds);
 
+  const otherState = other ? breedReadiness(other) : null;
   const box = el(
     'div',
     { class: 'br-chooser' },
@@ -188,6 +194,9 @@ function chooser(ctx: PanelCtx, which: 'A' | 'B', other: Duck | null): HTMLEleme
       other ? `Partners for ${other.name}` : `Choose the ${which === 'A' ? 'first' : 'second'} mate`,
       el('span', { class: 'muted small' }, ' · sorted by readiness, then new breeds; pen ducks last'),
     ),
+    otherState && !otherState.ok
+      ? el('div', { class: 'br-blocker soft' }, icon('warning', 12), `${other!.name} is ${otherState.reason} — pick a mate now and nest once ${other!.sex === 'F' ? 'she' : 'he'} is ready.`)
+      : null,
   );
   if (candidates.length === 0) {
     box.append(el('div', { class: 'muted small' }, 'No eligible adults — raise a duckling or adopt one.'));
