@@ -768,8 +768,8 @@ export function tickGoals(state: GameState): void {
     state.goals[key] = true;
     state.money += ch.reward;
     if (ch.id === 'long-game') state.line.goalBase = lineBaseline(state);
+    // The UI raises a banner for this; a toast on top would say it twice.
     events.emit('chapter-done', ch);
-    events.emit('toast', `Chapter complete: ${ch.title} (+${ch.reward} coins)`);
   }
 }
 

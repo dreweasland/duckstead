@@ -127,7 +127,7 @@ export function tickNeeds(state: GameState, rng: Rng): void {
       if (vet) chancePerHour *= 0.5;
       if (chancePerHour > 0 && rng.chance(chancePerHour * perTick)) {
         duck.sick = true;
-        events.emit('toast', `${duck.name} got sick!`);
+        // The notices column keeps a card up until it is cured; no toast.
       }
     }
 
@@ -142,9 +142,9 @@ export function tickNeeds(state: GameState, rng: Rng): void {
     if (moved > 0) events.emit('toast', `The silo poured ${moved} feed into the trough`);
   }
   if (upgradeLevel(state, 'bathHouse') > 0 && dawnTick) {
-    const { scrubbed, unwashed } = runBathHouse(state);
+    const { scrubbed } = runBathHouse(state);
     if (scrubbed > 0) events.emit('toast', `The bath house scrubbed ${scrubbed === 1 ? 'one duck' : `${scrubbed} ducks`}`);
-    if (unwashed > 0) events.emit('toast', 'The bath house is out of soap');
+    // Out of soap: the notices column keeps a card up until it is restocked.
   }
   // Treat Dispenser: on the hour, by day.
   if (upgradeLevel(state, 'treatDispenser') > 0 && !night && state.clock.totalTicks % TICKS_PER_HOUR === 0) {

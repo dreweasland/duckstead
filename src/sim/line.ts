@@ -159,6 +159,6 @@ function recogniseChampion(state: GameState, duck: Duck, check: ChampionCheck): 
   addSocietyPoints(state, TUNING.line.championPoints);
   noteCupPoints(state, TUNING.line.championCupPoints);
   chronicle(state, 'milestone', `${duck.name} is a Champion — a ${breedLabel(key)} at the standard, ${ordinal(check.gen)} generation of ${lineTitle(state)}.`);
-  events.emit('toast', `${duck.name} is a Champion! +${TUNING.line.championCoins} coins, +${TUNING.line.championPoints} Society`);
+  // The UI raises a banner for this; a toast on top would say it twice.
   events.emit('champion', duck);
 }

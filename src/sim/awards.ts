@@ -23,9 +23,9 @@ export const MASTER_COUNT = 5;
 
 export type BreedAwards = Partial<Record<AwardTier, number>>; // tier → day earned
 
-function grant(state: GameState, key: string, tier: AwardTier, who?: string): void {
+function grant(state: GameState, key: string, tier: AwardTier, who?: string, notify = true): boolean {
   const awards = (state.awards[key] ??= {});
-  if (awards[tier] !== undefined) return;
+  if (awards[tier] !== undefined) return false;
   awards[tier] = dayOf(state.clock);
   const rarity = computePhenotype(representativeGenome(key)).rarityScore;
   const coins = Math.round(AWARD_COINS[tier] * (1 + rarity / 4));
@@ -39,13 +39,15 @@ function grant(state: GameState, key: string, tier: AwardTier, who?: string): vo
         ? `${who ?? 'A duck'} met the ${label} show standard.`
         : `Five ${label}s on the pond at once — Master of the breed.`;
   chronicle(state, 'award', text);
-  events.emit('toast', `${AWARD_LABELS[tier]} ${label}! +${coins} coins, +${AWARD_POINTS[tier]} Society`);
+  if (notify) events.emit('toast', `${AWARD_LABELS[tier]} ${label}! +${coins} coins, +${AWARD_POINTS[tier]} Society`);
   if (awardCount(state) === ALL_BREED_KEYS.length * AWARD_TIERS.length) grantHonour(state, 'awards');
+  return true;
 }
 
-// On hatch: Pure is decided by parentage.
-export function checkHatchAwards(state: GameState, duck: Duck): void {
-  if (isPureBred(duck)) grant(state, breedKey(duck.genome), 'pure', duck.name);
+// On hatch: Pure is decided by parentage. Returns whether a Pure award was
+// just won; `notify` off lets the hatch toast carry the news itself.
+export function checkHatchAwards(state: GameState, duck: Duck, notify = true): boolean {
+  return isPureBred(duck) && grant(state, breedKey(duck.genome), 'pure', duck.name, notify);
 }
 
 // Hourly: Standard and Master depend on the living flock.

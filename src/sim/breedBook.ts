@@ -68,8 +68,9 @@ export function representativeGenome(key: string): Genome {
 }
 
 // Record a duck in the book. First-ever sighting of a breed pays a discovery
-// reward (unless silent, used for save backfills).
-export function recordBreed(state: GameState, duck: Duck, silent = false): boolean {
+// reward (unless silent, used for save backfills). `notify` is off when the
+// caller folds the discovery into its own announcement (a hatch toast).
+export function recordBreed(state: GameState, duck: Duck, silent = false, notify = true): boolean {
   const key = breedKey(duck.genome);
   const entry = state.breedBook[key];
   if (entry) {
@@ -80,7 +81,7 @@ export function recordBreed(state: GameState, duck: Duck, silent = false): boole
   if (!silent) {
     const reward = 10 + duck.phenotype.rarityScore * 3;
     state.money += reward;
-    events.emit('toast', `New breed discovered: ${breedLabel(key)}! (+${reward} coins)`);
+    if (notify) events.emit('toast', `New breed discovered: ${breedLabel(key)}! (+${reward} coins)`);
     addSocietyPoints(state, 1 + Math.floor(duck.phenotype.rarityScore / 3));
     const n = Object.keys(state.breedBook).length;
     chronicle(state, 'breed', `${duck.name} hatched — the pond's first ${breedLabel(key)} (${n}/${ALL_BREED_KEYS.length} breeds).`);

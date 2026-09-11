@@ -116,7 +116,7 @@ export function tickVisitors(state: GameState, rng: Rng): void {
       state.visitor = makeWildVisitor(state, rng, day);
       state.visitorLure = false;
       state.stats.wildVisits += 1;
-      events.emit('toast', `A wild duck is visiting your pond — it looks unusual! Offer premium treats to befriend it.`);
+      // The notices column keeps a card up while it is on the bank; no toast.
     }
   }
 }

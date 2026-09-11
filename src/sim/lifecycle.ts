@@ -3,7 +3,7 @@ import { trimMemorial, duckById } from '../state';
 import type { Rng } from '../rng';
 import type { Duck } from './duck';
 import { adultDurationTicks, DUCK_NAMES, EGG_DAYS, freshName, HATCH_NAMES, STAGE_DAYS } from './duck';
-import { recordBreed } from './breedBook';
+import { recordBreed, breedKey, breedLabel } from './breedBook';
 import { BALANCE, upgradeLevel } from './economy';
 import { eggSpeedFor, eggWarmth } from './needs';
 import { chronicle } from './chronicle';
@@ -96,7 +96,7 @@ function tickStages(state: GameState, rng: Rng): Duck[] {
         duck.incubationTicks = eggIncubationTicks(state);
         duck.readyToHatch = true;
         duck.readyTicks = 0;
-        events.emit('toast', `${eggLabel(state, duck)} is cracking — tap it to help it hatch!`);
+        // The notices column keeps a card up until it is hatched; no toast.
       }
       continue;
     }
@@ -216,10 +216,6 @@ function eggTendingScore(egg: Duck): number {
   return (egg.warmthSum ?? BALANCE.eggStartWarmth * ticks) / ticks;
 }
 
-function eggLabel(state: GameState, egg: Duck): string {
-  const mother = egg.parents ? duckById(state, egg.parents![0]) : undefined;
-  return mother ? `${mother.name}'s egg` : 'An egg';
-}
 
 function hatch(state: GameState, rng: Rng, egg: Duck): void {
   // A well-tended egg hatches a content, sturdy duckling; a cold one hatches
@@ -250,9 +246,13 @@ function hatch(state: GameState, rng: Rng, egg: Duck): void {
   egg.prevPos = { ...egg.pos };
   state.stats.ducksHatched += 1;
   events.emit('egg-hatched', egg);
+  // One toast for the moment: the hatch, and — when they happen at once —
+  // the breed it adds to the Book and the Pure award it wins.
   const mood = tended >= 0.7 ? ' — snug and chirpy!' : tended < 0.35 ? ' — shivering and hungry, feed it!' : '!';
-  events.emit('toast', `${egg.name} hatched${mood}`);
-  recordBreed(state, egg);
-  checkHatchAwards(state, egg);
+  const discovered = recordBreed(state, egg, false, false);
+  const pure = checkHatchAwards(state, egg, false);
+  const label = breedLabel(breedKey(egg.genome));
+  const news = [discovered ? `a new breed for the Book, the ${label}` : null, pure ? `purebred — a Pure ${label} award` : null].filter((n): n is string => n !== null);
+  events.emit('toast', `${egg.name} hatched${mood}${news.length ? ` ${news.join(', and ')[0].toUpperCase()}${news.join(', and ').slice(1)}.` : ''}`);
 }
 
