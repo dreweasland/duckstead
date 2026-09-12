@@ -39,7 +39,8 @@ export interface Commission {
 
 const COMMISSION_SLOTS = 3;
 const COMMISSION_DAYS = 6;
-const CLIENTS = [
+// The named buyers; the stud book borrows them too.
+export const COMMISSION_CLIENTS = [
   'Mrs. Abernathy', 'the Thistlewood estate', 'Harbour Farm', 'Dr. Quill', 'the Millpond Society',
   'Old Tom Fennick', 'the Abbey kitchens', 'Lady Marrow', 'the Fairweather twins', 'Pemberton & Sons',
 ];
@@ -127,7 +128,7 @@ export function makeCommission(state: GameState, rng: Rng): Commission | null {
   const eggFrom = tier >= 1 && rng.chance(0.25);
   const c: Commission = {
     id: state.nextCommissionId,
-    client: rivalClient ?? rng.pick(CLIENTS),
+    client: rivalClient ?? rng.pick(COMMISSION_CLIENTS),
     key,
     reward: 0,
     points: eggFrom ? 2 + Math.min(6, tier) : 3 + Math.min(6, tier) * 3,

@@ -92,6 +92,8 @@ export interface GameStats {
   marksEarned: number; // upbringing marks granted
   lifeEventsSettled: number; // life events the player answered
   studsUsed: number; // rival drakes hired
+  studFees: number; // coins earned by champions standing for others
+  studServices: number;
   cupEntries: number;
   cupWins: number;
 }
@@ -127,6 +129,8 @@ export function defaultStats(): GameStats {
     marksEarned: 0,
     lifeEventsSettled: 0,
     studsUsed: 0,
+    studFees: 0,
+    studServices: 0,
     cupEntries: 0,
     cupWins: 0,
   };
@@ -194,6 +198,9 @@ export interface GameState {
   } | null;
   nextCommissionId: number;
   commissionsDone: number;
+  // Today's requests for a champion's service (see studBook.ts).
+  studBook: import('./sim/studBook').StudRequest[];
+  nextStudRequestId: number;
   foodPellets: FoodPellet[];
   nextPelletId: number;
   pendingClutches: PendingClutch[];

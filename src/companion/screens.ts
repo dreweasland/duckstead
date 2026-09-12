@@ -31,6 +31,7 @@ import { describeCommission } from '../sim/commissions';
 import { events } from '../events';
 import { canBreedPair, breedReadiness } from '../sim/needs';
 import { clutchFather, nestPair, nestUsed, pairViability } from '../sim/breeding';
+import { acceptStudRequest, describeStudRequest, studReadiness, studRequestsFor } from '../sim/studBook';
 import { buyUpgrade, nestCapacity, UPGRADES, upgradeLevel, sellDuck, sellPrice } from '../sim/economy';
 import { ALL_BREED_KEYS } from '../sim/breedBook';
 import { representativeGenome } from '../sim/breedBook';
@@ -174,6 +175,19 @@ export function duckScreen(ctx: Ctx, duck: Duck, back: () => void): HTMLElement 
     needRow('Happy', duck.needs.happiness),
     needRow('Health', duck.needs.health),
   );
+  // A stud request is the kind of one-tap decision the pocket is for.
+  for (const r of studRequestsFor(state, duck.id)) {
+    const ready = studReadiness(state, r);
+    box.append(
+      el(
+        'section',
+        { class: 'comp-section' },
+        el('h2', {}, 'Stud book'),
+        el('div', { class: 'comp-muted small' }, `${describeStudRequest(state, r)} — ${r.fee} coins and +${r.points} Society, then a day's rest.${ready.ok ? '' : ` ${ready.reason}.`}`),
+        el('div', { class: 'comp-actions' }, btn(`Accept · ${r.fee} coins`, ready.ok, () => acceptStudRequest(state, r.id))),
+      ),
+    );
+  }
   if (duck.stage !== 'duckling') {
     const t = trainingOf(duck);
     const gate = canDrill(state, duck);
@@ -276,7 +290,7 @@ export function nestScreen(ctx: Ctx, pick: string | null, setPick: (id: string |
     for (const c of clutches) {
       const m = duckById(state, c.motherId);
       const f = clutchFather(state, c);
-      sec.append(el('div', { class: 'comp-line' }, `${m?.name ?? '?'} & ${f?.name ?? '?'} — egg in ${Math.ceil(c.ticksRemaining / TICKS_PER_MINUTE)}m`));
+      sec.append(el('div', { class: 'comp-line' }, `${m?.name ?? '?'} & ${f?.name ?? '?'} — clutch in ${Math.ceil(c.ticksRemaining / TICKS_PER_MINUTE)}m`));
     }
     box.append(sec);
   }

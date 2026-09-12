@@ -36,6 +36,8 @@ export function createNewGame(seed: number): { state: GameState; rng: Rng } {
     lastFestival: null,
     nextCommissionId: 1,
     commissionsDone: 0,
+    studBook: [],
+    nextStudRequestId: 1,
     foodPellets: [],
     nextPelletId: 1,
     pendingClutches: [],

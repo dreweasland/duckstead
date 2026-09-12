@@ -162,6 +162,7 @@ export class NoticeColumn {
       case 'sick':
       case 'hungry':
       case 'commission':
+      case 'stud':
         if (n.duckId) this.host.selectDuck(n.duckId);
         else this.host.openPanel('roster');
         return;

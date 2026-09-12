@@ -19,12 +19,13 @@ import { plural } from '../text';
 import { isTrainingDay, squadSize, TRAINING } from './training';
 import { TREATS } from './food';
 import { describeLifeEvent } from './lifeEvents';
+import { describeStudRequest, studReadiness, studRequestDuck } from './studBook';
 
 // The situations that stay wrong until someone handles them, for the
 // notices column beside the pond. Same predicates as the dawn report's
 // chores, but live, and only the ones with a hand to lend: pickups, loose
 // eggs, and courting pairs are news, not chores, so they stay with dawn.
-export type NoticeKind = 'life' | 'egg-cold' | 'sick' | 'hungry' | 'overcrowded' | 'egg-ready' | 'visitor' | 'pond' | 'commission' | 'soap' | 'feed-low';
+export type NoticeKind = 'life' | 'egg-cold' | 'sick' | 'hungry' | 'overcrowded' | 'egg-ready' | 'visitor' | 'pond' | 'commission' | 'stud' | 'soap' | 'feed-low';
 
 export interface LiveNotice {
   key: string; // stable per situation, so a rebuild can tell "same" from "new"
@@ -116,6 +117,19 @@ export function liveNotices(state: GameState): LiveNotice[] {
       title: `${c.client}'s contract lapses tonight`,
       detail: fit ? `${fit.name} fits — deliver from its card for ${c.reward} coins.` : `${describeCommission(c)} — nobody fits.`,
       duckId: fit?.id,
+    });
+  }
+  for (const r of state.studBook) {
+    const duck = studRequestDuck(state, r);
+    if (!duck) continue;
+    const ready = studReadiness(state, r);
+    out.push({
+      key: `stud:${r.id}`,
+      kind: 'stud',
+      icon: 'crown',
+      title: describeStudRequest(state, r),
+      detail: ready.ok ? `${r.fee} coins for a day at stud — accept from the card.` : `${r.fee} coins, but ${ready.reason}. Lapses at dusk.`,
+      duckId: duck.id,
     });
   }
   if (upgradeLevel(state, 'bathHouse') > 0 && state.inventory.soap === 0) out.push({ key: 'soap', kind: 'soap', icon: 'bubbles', title: 'The bath house is out of soap', detail: 'Restock at the shop.' });
@@ -241,6 +255,19 @@ export function dawnReport(state: GameState, audience: DawnAudience = 'desktop')
               : `Nobody fits yet; ${plural(left, 'day')} left.`;
           })(),
       urgent: fits.length > 0 && left <= 1,
+    });
+  }
+  for (const r of state.studBook) {
+    const duck = studRequestDuck(state, r);
+    if (!duck) continue;
+    const ready = studReadiness(state, r);
+    opportunities.push({
+      icon: 'coin',
+      duck,
+      text: `${describeStudRequest(state, r)} — ${r.fee} coins.`,
+      detail: ready.ok
+        ? `Accept from the ${pocket ? 'duck sheet' : 'card'} — a day at stud is a day off your own nest. Lapses at dusk.`
+        : `${(ready.reason ?? 'not ready').replace(/^./, (c) => c.toUpperCase())} — the request lapses at dusk.`,
     });
   }
   if (state.visitor) {

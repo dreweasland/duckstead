@@ -14,6 +14,7 @@ import { tickGoals } from './goals';
 import { tickAwards } from './awards';
 import { tickLine } from './line';
 import { tickCommissions } from './commissions';
+import { tickStudBook } from './studBook';
 import { tickFestivals } from './festivals';
 import { tickTraining, train } from './training';
 import { resolveLifeEvent, tickLifeEvents } from './lifeEvents';
@@ -55,6 +56,7 @@ describe.skipIf(watchMode)('soak', () => {
       tickAwards(state);
       tickLine(state);
       tickCommissions(state, rng);
+      tickStudBook(state, rng);
       tickTraining(state);
       tickLifeEvents(state, rng);
       tickRivals(state, rng);

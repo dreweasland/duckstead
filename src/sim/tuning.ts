@@ -124,6 +124,14 @@ export const TUNING = {
     prizeBase: 300, // coins × year for the winner
     minRank: 5,
   },
+  // The stud book (studBook.ts): what a Champion earns standing for others.
+  studBook: {
+    dailyChance: 0.5, // per champion adult, each morning
+    feeShare: 0.75, // of the duck's own sale price
+    points: 1, // Society points per service
+    postHour: 7,
+    expireHour: 20,
+  },
   // The Line (line.ts): what makes a Champion and what one is worth.
   line: {
     championGen: 3, // generations bred on the line a champion needs

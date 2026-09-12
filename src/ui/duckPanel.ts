@@ -10,6 +10,7 @@ import { commissionGap, describeCommission, duckFits, fulfilCommission, type Com
 import { championTitle } from '../sim/society';
 import { canPen, penCapacity, penDuck, penDucks, releaseDuck } from '../sim/pen';
 import { isChampion } from '../sim/line';
+import { acceptStudRequest, describeStudRequest, studReadiness, studRequestsFor } from '../sim/studBook';
 import { sellDuck, sellPrice } from '../sim/economy';
 import { TUNING } from '../sim/tuning';
 import { matchesRequest, requestPrice, sellToBuyer } from '../sim/visitors';
@@ -131,6 +132,21 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
       );
     }
     if (traits.childElementCount > 0) panel.append(el('div', { class: 'section' }, traits));
+  }
+
+  // The stud book: a client wants this champion today. Accepting rests the
+  // duck like a courtship would, so the choice sits beside its readiness.
+  for (const r of studRequestsFor(game.state, duck.id)) {
+    const ready = studReadiness(game.state, r);
+    panel.append(
+      el(
+        'div',
+        { class: 'section actions' },
+        el('strong', {}, 'Stud book'),
+        el('div', { class: 'muted small' }, `${describeStudRequest(game.state, r)} — ${r.fee} coins and +${r.points} Society. ${duck.sex === 'F' ? 'She' : 'He'} rests for the day after.`),
+        actionBtn(ctx, 'coin', `Accept · ${r.fee}`, ready.ok, () => acceptStudRequest(game.state, r.id).ok, ready.reason ?? ''),
+      ),
+    );
   }
 
   // Eggs are short: everything fits without tabs.

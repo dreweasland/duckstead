@@ -99,6 +99,8 @@ export function deserialize(json: string): GameState {
   state.lastFestival ??= null;
   state.nextCommissionId ??= 1;
   state.commissionsDone ??= 0;
+  state.studBook ??= [];
+  state.nextStudRequestId ??= 1;
   state.inventory.eggs ??= 0;
   state.inventory.peas ??= 0;
   state.inventory.worms ??= 0;

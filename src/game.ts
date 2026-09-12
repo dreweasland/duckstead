@@ -9,6 +9,7 @@ import { tickLaying } from './sim/laying';
 import { tickAwards } from './sim/awards';
 import { tickLine } from './sim/line';
 import { tickCommissions } from './sim/commissions';
+import { tickStudBook } from './sim/studBook';
 import { retirePond } from './sim/retire';
 import { tickVisitors } from './sim/visitors';
 import { tickFestivals } from './sim/festivals';
@@ -122,6 +123,7 @@ export class Game {
     tickAwards(s);
     tickLine(s);
     tickCommissions(s, this.rng);
+    tickStudBook(s, this.rng);
     tickTraining(s);
     tickLifeEvents(s, this.rng);
     tickRivals(s, this.rng);

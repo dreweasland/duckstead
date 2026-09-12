@@ -163,6 +163,15 @@ report the cloud as unreachable while everything else plays offline.
   plus Society points. If nobody on the pond fits, the card names the pair
   most likely to hatch one and the chance per egg. Open commissions also
   show under Goals.
+- **Stud book** — once a duck is a Champion, other breeders want its blood.
+  Each morning a champion may draw a request (a hen to be put to a champion
+  drake, or a clutch from a champion hen) paying a fee scaled to the duck's
+  own sale price plus a Society point. Accept from the duck's card or the
+  phone; the champion then rests for the day exactly as if it had courted,
+  so every request is a choice between the client's coins and your own nest.
+  Requests lapse at dusk. This is how the line itself earns: forage and the
+  basket pay the same for founders as for a sixth-generation purebred, the
+  stud book pays more the deeper the flock is — and keeps paying.
 - **Duck Fanciers' Society** (Shop → Society) — twenty ranks paid with coins
   *and* Society points (champions, awards, commissions, festival placings, derby
   promotions, discoveries — never coins). Ranks unlock pond styles (water,
