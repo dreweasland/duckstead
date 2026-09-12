@@ -4,7 +4,7 @@ import { GROUND_TOP, WORLD_H, WORLD_W, duckById } from '../state';
 import type { Rng } from '../rng';
 import { clamp } from '../types';
 import type { Duck } from './duck';
-import { BALANCE, eggWarmthDecayScale, overcrowding, upgradeLevel } from './economy';
+import { BALANCE, overcrowding, upgradeLevel } from './economy';
 import { events } from '../events';
 import { festivalToday } from './calendar';
 import { isPondDirty } from './pond';
@@ -48,7 +48,7 @@ export function tickNeeds(state: GameState, rng: Rng): void {
   const incubator = upgradeLevel(state, 'incubator') > 0;
   const vet = upgradeLevel(state, 'vetClinic') > 0;
   // A broody hen (life event) sits the nest today: warmth holds far better.
-  const warmthScale = eggWarmthDecayScale(state) * broodyWarmthScale(state) * (broodyHenToday(state) ? BROODY_WARMTH_SCALE : 1) * weatherWarmthScale(state);
+  const warmthScale = broodyWarmthScale(state) * (broodyHenToday(state) ? BROODY_WARMTH_SCALE : 1) * weatherWarmthScale(state);
   const wHunger = weatherHungerScale(state);
   const wHappy = weatherHappyScale(state);
   const wSwim = weatherSwimCheer(state);

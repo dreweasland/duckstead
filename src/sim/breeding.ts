@@ -12,10 +12,11 @@ import { studFather } from './rivals';
 import { releaseDuck } from './pen';
 import type { Genome } from './genetics';
 import { duckById } from '../state';
-import { BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS, nestFull, NEST_FULL_REASON, nestSlotOffset } from './nest';
+import { BREEDING_COOLDOWN_TICKS, CLUTCH_SIZE, COURTSHIP_TICKS, nestFull, NEST_FULL_REASON, nestSlotOffset } from './nest';
+import { plural } from '../text';
 
 // The nest's numbers live in nest.ts; re-exported so callers keep one import.
-export { BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS, eggsIncubating, nestFull, nestUsed, NEST_FULL_REASON, nestSlotOffset } from './nest';
+export { BREEDING_COOLDOWN_TICKS, CLUTCH_SIZE, COURTSHIP_TICKS, eggsIncubating, nestFull, nestHasRoom, nestUsed, NEST_FULL_REASON, nestSlotOffset } from './nest';
 
 export interface PendingClutch {
   motherId: string;
@@ -73,10 +74,15 @@ export function tickBreeding(state: GameState, rng: Rng): void {
     if (!mother || !father) continue; // a parent was sold or died mid-courtship
 
     const spring = seasonOf(state.clock) === 'spring';
-    // A player's very first clutch always takes — nobody's first egg should
-    // silently fail a dice roll.
+    // Every egg of the clutch rolls viability on its own, so the pair's
+    // condition reads as "how much of the clutch takes" rather than a coin
+    // flip. A player's very first clutch always yields at least one egg —
+    // nobody's first nesting should silently come to nothing.
+    const viability = eggViability(mother, father, spring, drakePressure(state));
     const guaranteed = state.stats.ducksBred === 0;
-    if (guaranteed || rng.chance(eggViability(mother, father, spring, drakePressure(state)))) {
+    let laid = 0;
+    for (let n = 0; n < CLUTCH_SIZE; n += 1) {
+      if (!(guaranteed && n === 0) && !rng.chance(viability)) continue;
       const nest = nestPos();
       const offset = nestSlotOffset(state, rng);
       const egg = layEgg(rng, mother, father, {
@@ -88,8 +94,11 @@ export function tickBreeding(state: GameState, rng: Rng): void {
       egg.nestOffset = offset;
       state.ducks.push(egg);
       state.stats.ducksBred += 1;
-      events.emit('toast', `${mother.name} laid an egg!`);
-    } else {
+      laid += 1;
+    }
+    if (laid === CLUTCH_SIZE) events.emit('toast', `${mother.name} laid a clutch of ${laid}!`);
+    else if (laid > 0) events.emit('toast', `${mother.name} laid ${plural(laid, 'egg')} — ${CLUTCH_SIZE - laid} of the clutch didn't take`);
+    else {
       events.emit(
         'toast',
         `${mother.name}'s clutch didn't take — a happier, healthier pair has better odds`,

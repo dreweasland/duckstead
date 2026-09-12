@@ -10,7 +10,7 @@ import type { Duck } from '../sim/duck';
 import { createDuck } from '../sim/duck';
 import type { Allele, Genome, LocusId } from '../sim/genetics';
 import { computePhenotype, expressedAlleles, LOCI } from '../sim/genetics';
-import { BREEDING_COOLDOWN_TICKS, nestPair, pairViability, clutchFather, nestFull, nestUsed as nestUsedCount } from '../sim/breeding';
+import { BREEDING_COOLDOWN_TICKS, CLUTCH_SIZE, nestPair, pairViability, clutchFather, nestFull, nestUsed as nestUsedCount } from '../sim/breeding';
 import { bondedPair } from '../sim/needs';
 import { TUNING } from '../sim/tuning';
 import { TICKS_PER_HOUR, TICKS_PER_MINUTE } from '../sim/time';
@@ -285,7 +285,7 @@ function pairVerdict(ctx: PanelCtx, a: Duck, b: Duck): HTMLElement {
     el(
       'div',
       { class: 'muted small' },
-      'Happiness × health, rolled when the egg is laid — feed and pet the pair during the hour of courtship to raise it.',
+      `Happiness × health, rolled for each egg of the clutch of ${CLUTCH_SIZE} when it is laid — feed and pet the pair during the hour of courtship to raise it.`,
     ),
     bondedPair(a, b)
       ? el('div', { class: 'br-blocker soft bonded' }, icon('heart', 12), `Inseparable — a bonded pair courts better (+${Math.round(TUNING.needs.bondedViabilityBonus * 100)}% viability).`)
@@ -472,7 +472,7 @@ function nestSection(ctx: PanelCtx): HTMLElement {
         'div',
         { class: 'br-empty' },
         icon('egg', 22),
-        el('div', {}, 'The nest is empty. Pair two adults and the hen lays here after an hour of courtship.'),
+        el('div', {}, `The nest is empty. Pair two adults and the hen lays a clutch of ${CLUTCH_SIZE} here after an hour of courtship.`),
       ),
     );
     return box;
@@ -504,7 +504,7 @@ function nestSection(ctx: PanelCtx): HTMLElement {
           el(
             'div',
             { class: 'muted small' },
-            `egg in ${mins}m`,
+            `clutch in ${mins}m`,
             odds !== null ? el('span', { class: odds >= 80 ? 'ok-text' : odds >= 60 ? '' : 'warn-text' }, ` · ${odds}% odds`) : null,
           ),
           el('div', { class: 'muted small' }, 'Feed and pet them now — the roll happens at lay time.'),

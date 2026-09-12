@@ -44,6 +44,14 @@ export const TUNING = {
     // Best friends: a bonded (mutual) pair courts a little better.
     bondedViabilityBonus: 0.05,
   },
+  // The nest: a clutch is several eggs, each rolling viability on its own,
+  // and the nest is measured in clutches (see nest.ts). An egg whose warmth
+  // averaged below chillWarmth over its incubation never hatches — the
+  // stakes that make tucking a real chore until the Incubator takes it over.
+  nest: {
+    clutchSize: 3,
+    chillWarmth: 35,
+  },
   laying: {
     start: 7, // hour
     end: 17,

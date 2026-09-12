@@ -21,7 +21,7 @@ import { TUNING } from './tuning';
 import { BALANCE, noteSale } from './economy';
 import { canBreedPair } from './needs';
 import { nestPos } from './pond';
-import { BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS, nestSlotOffset, nestFull, NEST_FULL_REASON } from './nest';
+import { BREEDING_COOLDOWN_TICKS, COURTSHIP_TICKS, nestSlotOffset, nestFull, nestHasRoom, NEST_FULL_REASON } from './nest';
 import { duckById } from '../state';
 
 type RivalSpecialty = 'show' | 'racing' | 'rare';
@@ -341,7 +341,7 @@ export function buyRivalEgg(state: GameState, rng: Rng, rivalId: string): { ok: 
   const rival = state.rivals.find((r) => r.id === rivalId);
   if (!sale || !rival) return { ok: false, reason: 'No such offer' };
   if (sale.soldToday) return { ok: false, reason: `${sale.rivalName} has no more eggs to spare today` };
-  if (nestFull(state)) return { ok: false, reason: NEST_FULL_REASON };
+  if (!nestHasRoom(state, 1)) return { ok: false, reason: NEST_FULL_REASON };
   if (state.money < sale.price) return { ok: false, reason: `Need ${sale.price} coins` };
   state.money -= sale.price;
   rival.lastEggSoldDay = dayOf(state.clock);

@@ -3,11 +3,11 @@ import { createNewGame } from '../newGame';
 import { newGameWithPair, pushEgg } from '../testFixtures';
 import { createDuck, createStarterDuck } from './duck';
 import { nestPair } from './breeding';
+import { CLUTCH_SIZE } from './nest';
 import { randomCommonGenome } from './genetics';
 import {
   buyUpgrade,
   duckCapacity,
-  eggWarmthDecayScale,
   isOvercrowded,
   nestCapacity,
   overcrowding,
@@ -61,10 +61,10 @@ describe('upgrades', () => {
   it('level effects apply and respect max level', () => {
     const { state } = createNewGame(5);
     state.money = 10_000;
-    expect(nestCapacity(state)).toBe(2);
+    expect(nestCapacity(state)).toBe(CLUTCH_SIZE);
     expect(duckCapacity(state)).toBe(8);
     buyUpgrade(state, 'nestingBox');
-    expect(nestCapacity(state)).toBe(4);
+    expect(nestCapacity(state)).toBe(CLUTCH_SIZE * 2);
     buyUpgrade(state, 'pondExpansion');
     expect(duckCapacity(state)).toBe(12);
 
@@ -101,10 +101,4 @@ describe('pond capacity', () => {
     expect(isOvercrowded(state)).toBe(false);
   });
 
-  it('nesting boxes slow egg warmth loss', () => {
-    const { state } = createNewGame(22);
-    expect(eggWarmthDecayScale(state)).toBe(1);
-    state.upgrades.nestingBox = 2;
-    expect(eggWarmthDecayScale(state)).toBe(0.5);
-  });
 });

@@ -37,7 +37,7 @@ import { createDuck } from '../sim/duck';
 import { randomCommonGenome, type Genome } from '../sim/genetics';
 import { FESTIVAL_NAMES, festivalTier, festivalToday, upcomingFestival } from '../sim/festivals';
 import { buyRivalEgg, hireStud, rivalDef, rivalDuck, rivalEggsForSale, rivalStrength, studOffers } from '../sim/rivals';
-import { nestFull as isNestFull, pairViability } from '../sim/breeding';
+import { nestHasRoom, pairViability } from '../sim/breeding';
 import { offspringOdds } from './breedingPanel';
 import { canEnterCup, cupOpen, cupPrize, cupStandings, enterCup } from '../sim/cup';
 import { TUNING } from '../sim/tuning';
@@ -85,8 +85,8 @@ const SUPPLY_META: Record<ShopItemDef['id'], { icon: IconName; blurb: string; ch
 
 const UPGRADE_META: Record<UpgradeId, { icon: IconName; blurb: string; chips: string[] }> = {
   feedingTrough: { icon: 'wheat', blurb: 'Ducks help themselves; pour feed in by clicking it.', chips: ['self-feeding'] },
-  nestingBox: { icon: 'egg', blurb: 'More eggs at once, and they stay warmer.', chips: ['+2 egg slots', '−25% warmth loss'] },
-  incubator: { icon: 'sparkle', blurb: 'Eggs hatch twice as fast at full warmth.', chips: ['2× hatch speed', '+15% viability'] },
+  nestingBox: { icon: 'egg', blurb: 'Another pair can court while a clutch incubates.', chips: ['+1 clutch on the nest'] },
+  incubator: { icon: 'sparkle', blurb: 'Full warmth without tucking — no egg goes cold.', chips: ['2× hatch speed', 'never cold'] },
   pondExpansion: { icon: 'bubbles', blurb: 'A bigger pond for a bigger flock.', chips: ['+4 ducks'] },
   pondFilter: { icon: 'broom', blurb: 'A planted gravel bed that keeps the water clean.', chips: ['½ dirt rate'] },
   waterfall: { icon: 'bubbles', blurb: 'Aerates the pond; swimmers love it.', chips: ['−30% dirt', '+happy swims'] },
@@ -487,7 +487,7 @@ function marketHead(portraits: Element[], title: string, rivalId: string, rivalN
 function eggSaleSection(ctx: PanelCtx): HTMLElement {
   const state = ctx.game.state;
   const box = el('div', {});
-  const nestFull = isNestFull(state);
+  const nestFull = !nestHasRoom(state, 1);
   box.append(
     el(
       'div',

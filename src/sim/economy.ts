@@ -98,14 +98,14 @@ export const UPGRADES: UpgradeDef[] = [
   {
     id: 'nestingBox',
     name: 'Nesting Box',
-    description: '+2 eggs can incubate at once per level, and eggs lose warmth 25% slower.',
+    description: 'Room on the nest for one more clutch of three at a time, per level.',
     maxLevel: 3,
     costs: [60, 150, 300],
   },
   {
     id: 'incubator',
     name: 'Incubator',
-    description: 'Eggs hatch twice as fast, +15% viability.',
+    description: 'Holds every egg at full warmth: they hatch twice as fast and never go cold.',
     maxLevel: 1,
     costs: [200],
   },
@@ -290,8 +290,9 @@ export function upgradeLevel(state: GameState, id: UpgradeId): number {
   return state.upgrades[id] ?? 0;
 }
 
+// The nest holds one clutch bare, and one more per Nesting Box level.
 export function nestCapacity(state: GameState): number {
-  return 2 + upgradeLevel(state, 'nestingBox') * 2;
+  return TUNING.nest.clutchSize * (1 + upgradeLevel(state, 'nestingBox'));
 }
 
 export function duckCapacity(state: GameState): number {
@@ -324,11 +325,6 @@ export function overcrowding(state: GameState): number {
 
 export function isOvercrowded(state: GameState): boolean {
   return overcrowding(state) > 0;
-}
-
-// Nesting boxes keep eggs warm: warmth drifts down 25% slower per level.
-export function eggWarmthDecayScale(state: GameState): number {
-  return 1 - upgradeLevel(state, 'nestingBox') * 0.25;
 }
 
 export function sellPrice(state: GameState, duck: Duck): number {

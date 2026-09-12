@@ -5,6 +5,7 @@
 import { clamp } from '../types';
 import type { Game } from '../game';
 import { el } from '../ui/dom';
+import { TUNING } from '../sim/tuning';
 import { icon } from '../ui/icons';
 import { duckPortrait } from '../ui/portrait';
 import type { Duck } from '../sim/duck';
@@ -29,7 +30,7 @@ import { goalProgress, pendingGoals, goalLabel } from '../sim/goals';
 import { describeCommission } from '../sim/commissions';
 import { events } from '../events';
 import { canBreedPair, breedReadiness } from '../sim/needs';
-import { clutchFather, nestPair, pairViability } from '../sim/breeding';
+import { clutchFather, nestPair, nestUsed, pairViability } from '../sim/breeding';
 import { buyUpgrade, nestCapacity, UPGRADES, upgradeLevel, sellDuck, sellPrice } from '../sim/economy';
 import { ALL_BREED_KEYS } from '../sim/breedBook';
 import { representativeGenome } from '../sim/breedBook';
@@ -157,7 +158,7 @@ export function duckScreen(ctx: Ctx, duck: Duck, back: () => void): HTMLElement 
           : btn(tuckWait > 0 ? `Tucked in · again in ${inMinutes(tuckWait)}` : 'Tuck into the straw', tuckWait === 0 && warmth < 95, () => tuckEgg(state, duck.id)),
         duck.readyToHatch
           ? el('span')
-          : el('span', { class: 'comp-muted small' }, 'Keep it warm — cold eggs incubate slowly.'),
+          : el('span', { class: 'comp-muted small' }, `Keep it warm — an egg averaging under ${TUNING.nest.chillWarmth}% never hatches.`),
       ),
     );
     return box;
@@ -239,7 +240,7 @@ export function nestScreen(ctx: Ctx, pick: string | null, setPick: (id: string |
   const clutches = state.pendingClutches;
 
   const pairing = el('section', { class: 'comp-section' }, el('h2', {}, first ? `Pair ${first.name} with…` : 'Pair two adults'));
-  pairing.append(el('div', { class: 'comp-muted small' }, `Nest: ${eggs.length + clutches.length}/${nestCapacity(state)}. ${first ? 'Tap a mate.' : 'Tap the first of the pair.'}`));
+  pairing.append(el('div', { class: 'comp-muted small' }, `Nest: ${nestUsed(state)}/${nestCapacity(state)}. ${first ? 'Tap a mate.' : 'Tap the first of the pair.'}`));
   const grid = el('div', { class: 'comp-grid' });
   for (const duck of adults) {
     const ready = breedReadiness(duck);

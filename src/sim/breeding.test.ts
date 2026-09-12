@@ -13,6 +13,7 @@ import {
   type PendingClutch,
 } from './breeding';
 import { nestCapacity } from './economy';
+import { CLUTCH_SIZE } from './nest';
 import { nestPos } from './pond';
 import { hireStud, studOffers } from './rivals';
 import { advanceTicks, newGameWithPair, pushEgg } from '../testFixtures';
@@ -45,10 +46,14 @@ describe('nestPair', () => {
     expect(nestPair(state, hen.id, drake.id)).toEqual({ ok: false, reason: NEST_FULL_REASON });
     expect(hen.breedingCooldownTicks).toBe(0);
 
-    // One egg fewer plus a courting pair fills it just the same.
+    // A courting pair reserves a whole clutch: clear one egg and it still
+    // won't fit, clear a clutch's worth and it does — and then fills it.
     state.ducks.pop();
+    expect(nestFull(state)).toBe(true);
+    for (let i = 1; i < CLUTCH_SIZE; i += 1) state.ducks.pop();
     expect(nestFull(state)).toBe(false);
     state.pendingClutches.push({ motherId: hen.id, fatherId: drake.id, ticksRemaining: 10 });
+    expect(nestUsed(state)).toBe(cap);
     expect(nestFull(state)).toBe(true);
     expect(nestPair(state, hen.id, drake.id)).toEqual({ ok: false, reason: NEST_FULL_REASON });
   });
@@ -75,8 +80,13 @@ describe('nestPair', () => {
 });
 
 describe('tickBreeding', () => {
-  it('lays an egg exactly when the courtship runs out', () => {
+  it('lays a clutch exactly when the courtship runs out', () => {
     const { state, rng, hen, drake } = newGameWithPair();
+    // A perfect pair: every egg of the clutch takes.
+    for (const d of [hen, drake]) {
+      d.needs.happiness = 100;
+      d.needs.health = 100;
+    }
     nestPair(state, hen.id, drake.id);
     advanceTicks(state, rng, COURTSHIP_TICKS - 1, [tickBreeding]);
     expect(state.pendingClutches[0].ticksRemaining).toBe(1);
@@ -85,7 +95,9 @@ describe('tickBreeding', () => {
     advanceTicks(state, rng, 1, [tickBreeding]);
     expect(state.pendingClutches).toHaveLength(0);
     const eggs = state.ducks.filter((d) => d.stage === 'egg');
-    expect(eggs).toHaveLength(1);
+    expect(eggs).toHaveLength(CLUTCH_SIZE);
+    // Each egg takes its own spot in the straw.
+    expect(new Set(eggs.map((e) => `${e.nestOffset!.x},${e.nestOffset!.y}`)).size).toBe(CLUTCH_SIZE);
     const egg = eggs[0];
     expect(egg.parents).toEqual([hen.id, drake.id]);
     expect(egg.lineage?.dam?.id).toBe(hen.id);
@@ -94,8 +106,32 @@ describe('tickBreeding', () => {
     expect(egg.nestOffset).toBeDefined();
     const nest = nestPos();
     expect(egg.pos).toEqual({ x: nest.x + egg.nestOffset!.x, y: nest.y + egg.nestOffset!.y });
-    expect(state.stats.ducksBred).toBe(1);
+    expect(state.stats.ducksBred).toBe(CLUTCH_SIZE);
     expect(state.stats.clutchesStarted).toBe(1);
+  });
+
+  it('a poor pair loses some of the clutch — each egg rolls on its own', () => {
+    const { state, rng, hen, drake } = newGameWithPair();
+    state.stats.ducksBred = 1; // past the guaranteed first clutch
+    for (const d of [hen, drake]) {
+      d.needs.happiness = 70;
+      d.needs.health = 70;
+    }
+    // Across many clutches the take rate should sit near the viability.
+    let laid = 0;
+    const trials = 40;
+    for (let i = 0; i < trials; i += 1) {
+      state.ducks = state.ducks.filter((d) => d.stage !== 'egg');
+      hen.breedingCooldownTicks = 0;
+      drake.breedingCooldownTicks = 0;
+      expect(nestPair(state, hen.id, drake.id).ok).toBe(true);
+      advanceTicks(state, rng, COURTSHIP_TICKS, [tickBreeding]);
+      laid += state.ducks.filter((d) => d.stage === 'egg').length;
+    }
+    const share = laid / (trials * CLUTCH_SIZE);
+    const viability = pairViability(state, hen, drake);
+    expect(share).toBeGreaterThan(viability - 0.15);
+    expect(share).toBeLessThan(viability + 0.15);
   });
 
   it('a clutch whose mother left the pond is dropped without an egg', () => {
@@ -128,7 +164,7 @@ describe('tickBreeding', () => {
     drake.needs.health = 1;
     expect(state.stats.ducksBred).toBe(0);
     advanceTicks(state, rng, COURTSHIP_TICKS, [tickBreeding]);
-    expect(state.ducks.filter((d) => d.stage === 'egg')).toHaveLength(1);
+    expect(state.ducks.filter((d) => d.stage === 'egg').length).toBeGreaterThanOrEqual(1);
   });
 
   it('a stud clutch lays an egg sired by the rebuilt stud', () => {
@@ -140,7 +176,7 @@ describe('tickBreeding', () => {
     expect(clutch.stud?.rivalId).toBe(offer.rivalId);
     advanceTicks(state, rng, COURTSHIP_TICKS, [tickBreeding]);
     const eggs = state.ducks.filter((d) => d.stage === 'egg');
-    expect(eggs).toHaveLength(1);
+    expect(eggs.length).toBeGreaterThanOrEqual(1);
     expect(eggs[0].parents).toEqual([hen.id, offer.drake.id]);
     expect(eggs[0].lineage?.sire?.name).toBe(offer.drake.name);
     expect(eggs[0].lineage?.sire?.genome).toEqual(offer.drake.genome);

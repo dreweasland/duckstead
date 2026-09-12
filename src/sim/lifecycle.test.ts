@@ -7,6 +7,7 @@ import { claimHatch, eggIncubationTicks, tickLifecycle } from './lifecycle';
 import { BALANCE } from './economy';
 import { eggSpeedFor } from './needs';
 import { TICKS_PER_DAY } from './time';
+import { TUNING } from './tuning';
 
 describe('life stages', () => {
   it('egg hatches into a duckling after incubation', () => {
@@ -54,11 +55,29 @@ describe('life stages', () => {
       claimHatch(state, rng, egg.id);
       return { ticks, happiness: egg.needs.happiness, hunger: egg.needs.hunger };
     };
-    const cold = hatchWith(0);
+    // Cool but above the chill line — colder than that never hatches.
+    const cold = hatchWith(TUNING.nest.chillWarmth + 5);
     const warm = hatchWith(100);
     expect(warm.ticks).toBeLessThan(cold.ticks);
     expect(warm.happiness).toBeGreaterThan(cold.happiness);
     expect(warm.hunger).toBeGreaterThan(cold.hunger);
+  });
+
+  it('an egg that averaged below the chill line is lost instead of hatching', () => {
+    const { state, rng } = createNewGame(4);
+    const egg = createDuck(rng, { genome: randomCommonGenome(rng), stage: 'egg', pos: { x: 100, y: 100 } });
+    state.ducks = [egg];
+    const target = eggIncubationTicks(state);
+    for (let i = 0; i < target / eggSpeedFor(0) + 2 && state.ducks.includes(egg); i += 1) {
+      egg.warmth = 0;
+      egg.warmthSum = 0;
+      tickLifecycle(state, rng);
+    }
+    expect(state.ducks).toHaveLength(0);
+    expect(egg.readyToHatch).toBeUndefined();
+    expect(state.stats.eggsChilled).toBe(1);
+    expect(state.memorial).toHaveLength(0);
+    expect(state.chronicle.at(-1)?.text).toMatch(/went cold/);
   });
 
   it('incubator halves incubation time', () => {

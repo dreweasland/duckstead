@@ -11,6 +11,7 @@ import { championTitle } from '../sim/society';
 import { canPen, penCapacity, penDuck, penDucks, releaseDuck } from '../sim/pen';
 import { isChampion } from '../sim/line';
 import { sellDuck, sellPrice } from '../sim/economy';
+import { TUNING } from '../sim/tuning';
 import { matchesRequest, requestPrice, sellToBuyer } from '../sim/visitors';
 import { personalityLabels } from '../sim/behavior';
 import { MARKS } from '../sim/marks';
@@ -32,7 +33,7 @@ import {
   petDuck,
   tuckEgg,
 } from '../sim/needs';
-import { claimHatch, incubationPct } from '../sim/lifecycle';
+import { claimHatch, eggAverageWarmth, incubationPct } from '../sim/lifecycle';
 import { favouriteTreat, FOODS, TREATS, type FoodKind } from '../sim/food';
 import { ageLabel } from '../sim/duck';
 import { duckById } from '../state';
@@ -139,6 +140,9 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
     const speed = eggSpeedFor(warmth);
     const incubator = (game.state.upgrades.incubator ?? 0) > 0;
     const warmthWord = warmth > 70 ? 'toasty' : warmth > 40 ? 'warm' : warmth > 15 ? 'cool' : 'cold';
+    // The average is what decides the hatch: below the chill line it fails.
+    const average = Math.round(eggAverageWarmth(duck));
+    const chilling = average < TUNING.nest.chillWarmth + 10;
     panel.append(
       el(
         'div',
@@ -162,6 +166,13 @@ export function renderDuckPanel(ctx: PanelCtx): HTMLElement | null {
             ? 'The incubator keeps it at a steady warmth.'
             : `${warmthWord} — incubating at ${speed.toFixed(1)}× speed. Warm eggs hatch sooner and happier.`,
         ),
+        incubator
+          ? null
+          : el(
+              'div',
+              { class: `small ${chilling ? 'warn-text' : 'muted'}` },
+              `Averaging ${average}% so far — below ${TUNING.nest.chillWarmth}% it will not hatch.`,
+            ),
       ),
       el(
         'div',

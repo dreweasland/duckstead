@@ -76,6 +76,7 @@ export interface GameStats {
   racesWon: number;
   wildVisits: number;
   eggsTucked: number;
+  eggsChilled: number; // eggs lost to cold on the nest
   feathersCollected: number;
   duckweedGathered: number;
   henEggsGathered: number;
@@ -110,6 +111,7 @@ export function defaultStats(): GameStats {
     racesWon: 0,
     wildVisits: 0,
     eggsTucked: 0,
+    eggsChilled: 0,
     feathersCollected: 0,
     duckweedGathered: 0,
     henEggsGathered: 0,

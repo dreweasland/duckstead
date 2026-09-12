@@ -55,12 +55,16 @@ report the cloud as unreachable while everything else plays offline.
   above a **clutch viability** gauge (happiness × health, rolled when the
   egg is laid; feed and pet them during the hour-long courtship to tip it)
   and exact **clutch odds** per trait (color, pattern, shade, crest, bill)
-  plus a gallery of likely looks. The hen then lays an egg at the nest.
+  plus a gallery of likely looks. The hen then lays a **clutch of three** at
+  the nest; each egg rolls the viability on its own, so a poor pair loses
+  part of the clutch. The nest holds one clutch bare and one more per
+  Nesting Box level, and a courting pair reserves its clutch's room.
 - **Tend eggs** — an egg's warmth drifts down; click it to tuck it into the
   straw (one tuck per game-hour per egg). Warm eggs incubate faster and hatch
-  content; cold eggs are slow and hatch hungry. A fully incubated egg cracks
-  and rocks — click it to hatch (it hatches on its own after a game-hour).
-  The Incubator holds warmth at full.
+  content; cold eggs are slow and hatch hungry, and an egg whose warmth
+  **averaged under 35%** over its incubation never hatches at all. A fully
+  incubated egg cracks and rocks — click it to hatch (it hatches on its own
+  after a game-hour). The Incubator holds warmth at full, so nothing goes cold.
 - **Shop** — buy feed, medicine, new ducks, and upgrades (nesting boxes,
   incubator, pond expansion, filter, toy, and the Pedigree Scope which reveals
   exact genotypes). Late-game sinks scale with the flock: Reed Beds (more
@@ -117,8 +121,7 @@ report the cloud as unreachable while everything else plays offline.
   be, and decide who earns a place before the bill comes due. A juvenile
   that grows up onto a full pond **overcrowds** it: the flock gets stressed,
   the water fouls faster, and wild ducks stay away until you sell, pen, or
-  expand. Nesting boxes add egg slots *and* keep eggs warm (−25% warmth
-  loss per level).
+  expand. Nesting boxes add room for another clutch on the nest per level.
 - **Forage** — tap what you find on the grass: beetles and snails by day
   (coins; a nearby duck may eat one first), fireflies by night, **feathers** (each new plumage colour in the album is a Society point)
   molted by your own ducks (coins + a Feather Album entry in the Book), and

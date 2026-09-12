@@ -5,6 +5,7 @@ import type { Duck } from './duck';
 import { adultDurationTicks, DUCK_NAMES, EGG_DAYS, freshName, HATCH_NAMES, STAGE_DAYS } from './duck';
 import { recordBreed, breedKey, breedLabel } from './breedBook';
 import { BALANCE, upgradeLevel } from './economy';
+import { TUNING } from './tuning';
 import { eggSpeedFor, eggWarmth } from './needs';
 import { chronicle } from './chronicle';
 import { checkHatchAwards } from './awards';
@@ -79,6 +80,7 @@ function tickBirthdays(state: GameState): void {
 // in flock order; they are still in `state.ducks` until buried.
 function tickStages(state: GameState, rng: Rng): Duck[] {
   const dead: Duck[] = [];
+  const chilled: Duck[] = [];
 
   for (const duck of state.ducks) {
     duck.ageTicks += 1;
@@ -93,6 +95,11 @@ function tickStages(state: GameState, rng: Rng): Duck[] {
       }
       duck.incubationTicks += eggSpeedFor(eggWarmth(duck));
       if (duck.incubationTicks >= eggIncubationTicks(state)) {
+        // An egg kept cold for most of its time on the nest never hatches.
+        if (eggAverageWarmth(duck) < TUNING.nest.chillWarmth) {
+          chilled.push(duck);
+          continue;
+        }
         duck.incubationTicks = eggIncubationTicks(state);
         duck.readyToHatch = true;
         duck.readyTicks = 0;
@@ -145,6 +152,7 @@ function tickStages(state: GameState, rng: Rng): Duck[] {
 
     if (duck.needs.health <= 0) dead.push(duck);
   }
+  for (const egg of chilled) loseChilledEgg(state, egg);
   return dead;
 }
 
@@ -210,17 +218,30 @@ export function claimHatch(state: GameState, rng: Rng, eggId: string): boolean {
   return true;
 }
 
-// Average warmth over the incubation, 0..100.
-function eggTendingScore(egg: Duck): number {
+// Average warmth over the incubation so far, 0..100 — what decides whether
+// the egg hatches at all (see TUNING.nest.chillWarmth) and how it hatches.
+export function eggAverageWarmth(egg: Duck): number {
   const ticks = Math.max(1, egg.ageTicks);
   return (egg.warmthSum ?? BALANCE.eggStartWarmth * ticks) / ticks;
+}
+
+// An egg that stayed cold is taken off the nest: no duckling, no memorial
+// stone (it never hatched), but the Book remembers and the player hears.
+function loseChilledEgg(state: GameState, egg: Duck): void {
+  const idx = state.ducks.indexOf(egg);
+  if (idx < 0) return;
+  state.ducks.splice(idx, 1);
+  state.stats.eggsChilled += 1;
+  const dam = egg.lineage?.dam?.name;
+  chronicle(state, 'hatch', `${dam ? `${dam}'s egg` : 'An egg'} went cold on the nest and never hatched.`);
+  events.emit('toast', `${dam ? `${dam}'s egg` : 'An egg'} went cold and never hatched — tuck eggs in, or buy the Incubator`);
 }
 
 
 function hatch(state: GameState, rng: Rng, egg: Duck): void {
   // A well-tended egg hatches a content, sturdy duckling; a cold one hatches
   // hungry and grumpy and needs immediate care.
-  const tended = eggTendingScore(egg) / 100;
+  const tended = eggAverageWarmth(egg) / 100;
   egg.stage = 'duckling';
   egg.ageTicks = 0;
   egg.activity = 'idle';
