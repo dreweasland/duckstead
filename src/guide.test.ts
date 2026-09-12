@@ -33,7 +33,7 @@ describe('the pond guide', () => {
       ...DECOR_ITEMS.map((d) => d.name.replace('Garden ', '').replace('Wooden ', '')),
       ...Object.values(TRAIN_STAT_META).map((s) => s.label),
       ...SHORTCUTS.map((key) => key.split(' ')[0]),
-      'Society Cup', 'stud service', 'heritage', 'Pedigree Scope', 'companion', 'broody', 'commissions',
+      'Society Cup', 'stud service', 'stud book', 'heritage', 'Pedigree Scope', 'companion', 'broody', 'commissions',
       ...LINE_MILESTONES.map((m) => m.title),
       ...Object.values(HONOUR_TITLES).map((h) => h.title),
       'Champion',

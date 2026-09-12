@@ -11,7 +11,7 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR } from './time';
 describe('late-game upgrades', () => {
   it('total upgrade spend is now a real sink', () => {
     const total = UPGRADES.reduce((s, u) => s + u.costs.reduce((a, b) => a + b, 0), 0);
-    expect(total).toBeGreaterThan(20000);
+    expect(total).toBeGreaterThan(15000);
   });
 
   it('egg cooler, silo, brooder lamp each scale with level', () => {

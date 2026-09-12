@@ -151,48 +151,49 @@ export const UPGRADES: UpgradeDef[] = [
     maxLevel: 2,
     costs: [220, 550],
   },
-  // --- Late-game sinks: scaling, functional, and priced for a full pond ---
+  // --- Late-game sinks: scaling, functional, and priced against what a full
+  // pond with a few champions at stud brings in (a few hundred coins a day) ---
   {
     id: 'reedBeds',
     name: 'Reed Beds',
     description: 'More to forage: +1 of every pickup on the grass per level, +2 loose hen eggs.',
     maxLevel: 3,
-    costs: [300, 700, 1500],
+    costs: [250, 500, 900],
   },
   {
     id: 'feedSilo',
     name: 'Feed Silo',
     description: 'Trough holds +20 per level and tops itself up from your feed at dawn.',
     maxLevel: 3,
-    costs: [400, 900, 1800],
+    costs: [300, 600, 1000],
   },
   {
     id: 'eggCooler',
     name: 'Egg Cooler',
     description: 'Basket eggs fetch +25% per level.',
     maxLevel: 3,
-    costs: [500, 1200, 3000],
+    costs: [250, 500, 900],
   },
   {
     id: 'brooderLamp',
     name: 'Brooder Lamp',
     description: 'Ducklings and juveniles grow 20% faster per level and hatch happier.',
     maxLevel: 2,
-    costs: [600, 1400],
+    costs: [450, 900],
   },
   {
     id: 'trainingPerch',
     name: 'Training Perch',
     description: '+1 training drill per duck per day, per level.',
     maxLevel: 3,
-    costs: [800, 2000, 5000],
+    costs: [600, 1200, 2400],
   },
   {
     id: 'vetClinic',
     name: 'Vet Clinic',
     description: 'Sickness and contagion halved; medicine restores +60 health.',
     maxLevel: 1,
-    costs: [1500],
+    costs: [1000],
   },
   // The two chores that scale worst with a big flock get the silo treatment:
   // a structure that does the rounds for you as long as you keep it stocked.
@@ -201,14 +202,14 @@ export const UPGRADES: UpgradeDef[] = [
     name: 'Bath House',
     description: 'At dawn, scrubs every duck below 60% clean — one bar of soap each. Keep soap in stock.',
     maxLevel: 1,
-    costs: [700],
+    costs: [500],
   },
   {
     id: 'treatDispenser',
     name: 'Treat Dispenser',
     description: 'Each daytime hour, hands a treat from your stock to the gloomiest duck below 70% — its favourite first, once you have found it. +1 duck an hour per level.',
     maxLevel: 2,
-    costs: [900, 2000],
+    costs: [700, 1400],
   },
 ];
 
@@ -216,7 +217,7 @@ export const UPGRADES: UpgradeDef[] = [
 // for one year — bigger purse, tougher field, more Society points.
 export function sponsorCost(state: GameState, kind: string): number {
   const current = state.festivalWins[kind] ?? 0;
-  return 1000 + current * 750;
+  return 750 + current * 500;
 }
 
 export function sponsorFestival(state: GameState, kind: string): boolean {
